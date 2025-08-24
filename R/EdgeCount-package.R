@@ -1,0 +1,42 @@
+#' EdgeCount: A package for Edge-Count based analyses
+#'
+#' The EdgeCount package provides S4 classes and methods for performing
+#' two types of analyses: - 1) connectedness within or between sets of vertices based on 
+#' a null model of random graph with given expected degrees (RGGED) - 2) scoring of ranked
+#' lists of elements based on a bipartite graph of element-term memberships and the RGGED.
+#'
+#' @section Key Functions and Classes:
+#' The main components of the package are:
+#' \itemize{
+#'   \item \code{\link{ECGraph}}: The base class for representing graphs.
+#'   \item \code{\link{ECProb}}: Extends ECGraph with probability scoring methods based
+#'   on a model of Random Graph with Given Expected Degrees (RGGED).
+#'   \item \code{\link{ECTermScoring}}: The main class for term-enrichment analyses based
+#'   on term-element bipartite graphs and probabilistic methods (RGGED).
+#'   \itemize{
+#'    \item \code{\link{terms_ecranks_statistics}}: The primary function for scoring ranked lists.
+#'    \item \code{\link{table_terms_ecranks_statistics}}: A utility to summarize scoring results.
+#'   }
+#' }
+#'@references
+#' 1. Chung & Lu (2002). The average distances in random graphs with given 
+#' expected degrees. PNAS, 99 (25) 15879-15882. 
+#' \url{https://www.pnas.org/doi/10.1073/pnas.252631999}
+#'
+#' 2. Pradines et al. (2005). Analyzing Protein Lists with Large Networks: 
+#' Edge-Count Probabilities in Random Graphs with Given Expected Degrees. 
+#' J. Comp. Biol. 12(2):113-28. 
+#' \url{https://www.liebertpub.com/doi/10.1089/cmb.2005.12.113} 
+#' @seealso
+#' Useful links:
+#' \itemize{
+#'   \item \url{https://github.com/your-username/EdgeCount}
+#'   \item Report bugs at \url{https://github.com/your-username/EdgeCount/issues}
+#' }
+#'
+#' @keywords internal
+"_PACKAGE"
+
+## usethis namespace: start
+## usethis namespace: end
+NULL
