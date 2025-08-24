@@ -1,0 +1,9 @@
+prot1	prot2
+A	E
+E	B
+B	C
+E	C
+E	F
+F	C
+D	G
+G	H	
