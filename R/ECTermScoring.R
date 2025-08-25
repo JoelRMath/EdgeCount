@@ -1,4 +1,4 @@
-#' @title ECTermScoring S4 Class and Constructor
+#' @title ECTermScoring S4 Class and Constructor  
 #'
 #' @description The main class for EdgeCount analysis, representing a bipartite
 #' graph of term-element memberships. It extends the ECProb class and provides
