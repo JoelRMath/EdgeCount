@@ -21,3 +21,4 @@ LazyData: true
 RoxygenNote: 7.3.2
 Suggests: knitr, rmarkdown, testthat (>= 3.0.0)
 Imports: data.table, igraph, dplyr, methods
+VignetteBuilder: knitr
