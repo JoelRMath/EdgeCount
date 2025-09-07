@@ -27,7 +27,7 @@ Calculates a running enrichment score for terms based on a ranked list of elemen
 }
 \details{
 This method implements a fast algorithm for ranked list analysis, similar in
-principle to GSEA. For each term, it calculates a profile of statistics (z-score, p-value, etc.)
+principle to GSEA. For each term, it calculates a profile of statistics (Anscombe-ratio, lambda, p-value, etc.)
 at each rank position occupied by an element from that term. The time complexity is
 approximately O(N + sum_k k*log(k)), where N is the total number of ranked elements and k is the
 size of a term, as it uses an efficient cumulative sum approach for lambda calculation.

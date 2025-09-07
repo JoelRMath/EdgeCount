@@ -2,7 +2,7 @@ library(testthat)
 library(EdgeCount)
 
 test_that("ECProb constructor", {
-  
+
   toggle <- TRUE
   if (toggle){
     ecgraph <- ECGraph(test_path("network/toy.txt"))
@@ -33,8 +33,8 @@ test_that("ECProb constructor", {
 })
 
 test_that("ECProb get_lambda_between", {
-  
-  simulation <- TRUE
+
+  simulation <- FALSE
   if (simulation){
     ecgraph <- ECGraph(test_path("network/final_network.txt"))
     ecprob <- ECProb(ecgraph)
@@ -89,7 +89,7 @@ test_that("ECProb get_lambda_between", {
     FUN = function(x) c(mean = mean(x), sd = sd(x))
   )
   write.table(naive_summary,test_path("res/ECPBetweenNaive.txt"),sep="\t",row.names = F,quote = F)
-  
+
   df <- read.table(test_path("res/TestECPBetweenBig.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   df$sz1d_sz2d <- df$sz1d * df$sz2d
   df$sz1d_logsz1d_sz2d_logsz2d <- df$sz1d * log(pmax(1,df$sz1d)) + df$sz2d * log(pmax(1,df$sz2d))
@@ -99,16 +99,16 @@ test_that("ECProb get_lambda_between", {
     FUN = function(x) c(mean = mean(x), sd = sd(x))
   )
   write.table(optimized_summary,test_path("res/ECPBetweenOptimized.txt"),sep="\t",row.names = F,quote = F)
-  
+
   df <- read.table(test_path("res/TestECPBetweenBig.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   t <- df$lamb_o-df$lamb_n
   t <- t/((df$lamb_o+df$lamb_n)/2)
-  
+
 })
 
 test_that("ECProb get_lambda_in", {
-  
-  simulation <- TRUE
+
+  simulation <- FALSE
   if (simulation){
     ecgraph <- ECGraph(test_path("network/final_network.txt"))
     ecprob <- ECProb(ecgraph)
@@ -147,7 +147,7 @@ test_that("ECProb get_lambda_in", {
     df <- data.frame(lst)
     write.table(df,test_path("res/TestECPInBig.txt"),sep="\t",row.names = F,quote = F)
   }
-  
+
   df <- read.table(test_path("res/TestECPINBig.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   df$size_size <- df$size * df$size
   df$size_logsize <- df$size * log(df$size)
@@ -157,7 +157,7 @@ test_that("ECProb get_lambda_in", {
     FUN = function(x) c(mean = mean(x), sd = sd(x))
   )
   write.table(naive_summary,test_path("res/ECPInNaive.txt"),sep="\t",row.names = F,quote = F)
-  
+
   df <- read.table(test_path("res/TestECPInBig.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   df$size_size <- df$size * df$size
   df$size_logsize <- df$size * log(df$size)
@@ -167,7 +167,7 @@ test_that("ECProb get_lambda_in", {
     FUN = function(x) c(mean = mean(x), sd = sd(x))
   )
   write.table(optimized_summary,test_path("res/ECPInOptimized.txt"),sep="\t",row.names = F,quote = F)
-  
+
   df <- read.table(test_path("res/TestECPInBig.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   df$size_size <- df$size * df$size
   lambda_summary <- aggregate(
@@ -181,9 +181,9 @@ test_that("ECProb get_lambda_in", {
 
 
 test_that("ECProb p-value", {
-  
+
   get_alpha <- function(lambda, m){
-    
+
     t <- 1
     alpha <- 1
     for (i in 1:m){
@@ -196,9 +196,9 @@ test_that("ECProb p-value", {
     alpha <- alpha*exp(-lambda)
     return(as.numeric(alpha))
   }
-  
+
   get_upper <- function(lambda, m, z){
-    
+
     t <- lambda^z/factorial(z)
     p <- t
     for (i in (z+1):m){
@@ -208,14 +208,14 @@ test_that("ECProb p-value", {
     p <- p*exp(-lambda)
     return(as.numeric(p))
   }
-  
+
   get_PV <- function(lambda, m, z){
-  
+
     p <- get_upper(lambda, m, z)
     p <- p/get_alpha(lambda, m)
     return(as.numeric(p))
   }
-  
+
   sim <- FALSE
   if (sim){
     ecgraph <- ECGraph(test_path("network/final_network.txt"))
@@ -245,7 +245,7 @@ test_that("ECProb p-value", {
     adiff = abs(pn-p)
     df <- data.frame(sz = sz, m = m, z = z, pn = pn, p = p, adiff = adiff)
     write.table(df, test_path("res/TestPValue.txt"),quote = F, sep = "\t", row.names = F)
-    
+
     szs <- c(2:100)
     sz <- NULL
     m <- NULL
@@ -291,7 +291,7 @@ test_that("ECProb p-value", {
 })
 
 test_that("ECProb vectorize in", {
-  
+
   find_kt_i <- function(i, k, m, M) {
     for (j in (i + 1):m) {
       if (k[i] * k[j] <= 2 * M) {
@@ -301,7 +301,7 @@ test_that("ECProb vectorize in", {
     return(m)
   }
   vfind_kt_i <- Vectorize(find_kt_i, vectorize.args = "i")
-    
+
   ecgraph <- ECGraph(test_path("network/final_network.txt"))
   ecprob <- ECProb(ecgraph)
   M <- ecprob@graph_size
@@ -315,7 +315,7 @@ test_that("ECProb vectorize in", {
   }
   kc2 <- c(rev(cumsum(rev(k))), 0)
   expect_equal(kc, kc2)
-  
+
   kt <- rep(n,n)
   for (i in 1:(n-1)){
     for (j in (i+1):n){
@@ -331,7 +331,7 @@ test_that("ECProb vectorize in", {
 })
 
 test_that("ECProb vectorize between", {
-  
+
   k <- c(1:30)
   nsim <- 10
   flag <- 0
@@ -339,18 +339,18 @@ test_that("ECProb vectorize between", {
     k1 <- c(1:20)
     k2 <- c(5:30)
     M <- 200
-    
+
     k1 <- sort(k1, decreasing = TRUE)
     k2 <- sort(k2, decreasing = TRUE)
     lambda <- 0
-    
+
     lambda_n <- 0
     for (i in 1:length(k1)){
       for (j in 1:length(k2)){
         lambda_n <- lambda_n + min(1, k1[i]*k2[j]/(2*M))
       }
     }
-    
+
     k1t <- rep(length(k2),length(k1))
     for (i in 1:length(k1)){
       for (j in 1:length(k2)){
@@ -383,22 +383,22 @@ test_that("ECProb vectorize between", {
     if (!identical(k2c, k2cb)){
       flag <- 1
     }
-    
-    
+
+
     for (i in 1:length(k1)){
       lambda <- lambda + (k1t[i]-1) + k1[i]*k2c[k1t[i]]/(2*M)
     }
-    
+
     lambda <- sum((k1t - 1) + (k1 * k2c[k1t]) / (2 * M))
     if (abs(lambda-lambda_n)/lambda_n > 1e-12){
-     flag <- 1 
+     flag <- 1
     }
   }
   expect_equal(flag, 0)
 })
 
 test_that("ECProb fast suitability", {
-  
+
   ecgraph <- ECGraph(test_path("network/final_network.txt"))
   ecprob <- ECProb(ecgraph)
   res <- summarize_suitability_fast(ecprob)
@@ -406,7 +406,7 @@ test_that("ECProb fast suitability", {
 })
 
 test_that("ECProb lambda_expected", {
-  
+
   ecgraph <- ECGraph(test_path("network/final_network.txt"))
   ecprob <- ECProb(ecgraph)
   M <- ecprob@graph_size
@@ -419,6 +419,7 @@ test_that("ECProb lambda_expected", {
     sd_lambda <- NULL
     e_lambda <- NULL
     for (i in 1:length(m)){
+      print(m[i])
       lambda <- numeric(nsim)
       for (j in 1:nsim){
         vset <- sample(ecprob@names, m[i])

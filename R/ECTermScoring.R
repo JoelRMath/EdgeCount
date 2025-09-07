@@ -1,4 +1,4 @@
-#' @title ECTermScoring S4 Class and Constructor  
+#' @title ECTermScoring S4 Class and Constructor
 #'
 #' @description The main class for EdgeCount analysis, representing a bipartite
 #' graph of term-element memberships. It extends the ECProb class and provides
@@ -55,13 +55,13 @@ setClass("ECTermScoring",
 )
 
 ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...) {
-  
+
   if (is.character(term_element_edges) && length(term_element_edges) == 1) {
     # File path
     if (!file.exists(term_element_edges)) {
       stop("File not found: ", term_element_edges)
     }
-    
+
     # Default arguments for read.table
     default_read_args <- list(
       header = TRUE,
@@ -69,26 +69,26 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
       stringsAsFactors = FALSE,
       quote = ""
     )
-    
+
     # If user-provided arguments from ...
     user_read_args <- list(...)
-    
+
     final_read_args <- utils::modifyList(default_read_args, user_read_args)
     final_read_args$file <- term_element_edges
-    
+
     tryCatch({
       edge_df <- do.call(utils::read.table, final_read_args)
     }, error = function(e) {
       stop("Error reading file '", term_element_edges, "': ", e$message,
            "\nArguments used for read.table: ", paste(names(final_read_args), final_read_args, sep="=", collapse=", "))
     })
-    
+
   } else if (is.data.frame(term_element_edges)) {
     edge_df <- term_element_edges
   } else {
     stop("'term_element_edges' must be a data frame or a file path.")
   }
-  
+
   if (ncol(edge_df) < 2) {
     stop("Input 'term_element_edges' must have at least two columns.")
   }
@@ -107,31 +107,31 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
   }
   validate_col_spec(col_term, names(edge_df), ncol(edge_df), "col_term")
   validate_col_spec(col_element, names(edge_df), ncol(edge_df), "col_element")
-  
+
   # Vertex IDs are character
   term_ids_char <- as.character(edge_df[[col_term]])
   element_ids_char <- as.character(edge_df[[col_element]])
-  
+
   bipartite_edge_list_for_ecgraph <- data.frame(
     vertex1 = term_ids_char,    # Terms will be 'vertex1'
     vertex2 = element_ids_char, # Elements will be 'vertex2'
     stringsAsFactors = FALSE
   )
-  
+
   # ECGraph and ECProb objects for the bipartite graph
   ecgraph_bipartite <- ECGraph(edges_input = bipartite_edge_list_for_ecgraph, col1="vertex1", col2="vertex2")
   ecprob_bipartite <- ECProb(ecgraph_bipartite)
-  
+
   # Identify unique element and term vertices from the original input columns
   potential_element_vertices <- unique(element_ids_char)
   potential_term_vertices <- unique(term_ids_char)
-  
+
   # Filter to those actually present in the graph
   actual_graph_vertices <- ecprob_bipartite@names
-  
+
   final_element_vertices <- potential_element_vertices[potential_element_vertices %in% actual_graph_vertices]
   final_term_vertices    <- potential_term_vertices[potential_term_vertices %in% actual_graph_vertices]
-  
+
   # A vertex cannot be both an element and a term
   if (any(final_term_vertices %in% final_element_vertices)) {
     overlapping_vertices <- intersect(final_term_vertices, final_element_vertices)
@@ -139,7 +139,7 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
          paste(utils::head(overlapping_vertices, 5), collapse=", "),
          ifelse(length(overlapping_vertices) > 5, "...", ""))
   }
-  
+
   new("ECTermScoring",
       ecprob    = ecprob_bipartite,
       elements  = final_element_vertices,
@@ -175,85 +175,80 @@ setMethod(
   "terms_ecset_statistics",
   "ECTermScoring",
   function(object, element_set, lambda_method = "optimized") {
-    
+
     # Ensure element_set contains valid elements known to the ECTermScoring object
     valid_element_set <- unique(element_set[element_set %in% object@elements])
     if (length(valid_element_set) < 1){
       warning("No valid elements from the input set found in the ECTermScoring object.")
       return(NULL)
     }
-    
+
     # Get terms connected to any element in the valid_element_set
     connected_terms <- get_neighbors(object@ecprob, valid_element_set)
     relevant_terms <- intersect(connected_terms, object@terms)
-    
+
     if (length(relevant_terms) < 1){
       warning("No terms are connected to the provided element set.")
       return(NULL)
     }
-    
+
     # Calculate stats for a single term
     ect_stats_single_term <- function(ecprob_obj, single_term_id, current_element_set, current_lambda_method) {
-      
+
       max_possible_edges <- length(current_element_set)
-      
+
       lambda <- switch(current_lambda_method,
                        accurate = calculate_lambda_between_naive(ecprob_obj, c(single_term_id), current_element_set),
                        optimized = calculate_lambda_between(ecprob_obj, c(single_term_id), current_element_set),
                        fast = calculate_lambda_between_fast(ecprob_obj, c(single_term_id), current_element_set),
                        stop("Invalid lambda_method specified in ect_stats_single_term.")
       )
-      
+
       observed_edges <- get_edge_count_between(ecprob_obj, c(single_term_id), current_element_set)
-      
+
       p_value <- calculate_p_value(ecprob_obj, observed_edges, max_possible_edges, lambda)
-      
-      z_score <- NA_real_
-      if (!is.na(lambda) && lambda > 0) {
-        z_score <- (observed_edges - lambda) / sqrt(lambda)
-      }
-      
+
+      observed_edge_count <- observed_edges
+
       log2_Anscombe_ratio <- NA_real_
       if (!is.na(lambda) && (lambda + 3/8) > 0 && (observed_edges + 3/8) > 0) {
         log2_Anscombe_ratio <- 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))
       }
-      
+
       log2_relative_change <- NA_real_
       if (!is.na(lambda) && lambda > 0 && observed_edges > 0) {
         log2_relative_change <- log2(observed_edges) - log2(lambda)
       }
-      
+
       return(list(p_value = p_value,
-                  z_score = z_score,
+                  observed_edge_count = observed_edge_count,
                   lambda = lambda,
-                  observed_edges = observed_edges,
                   log2_Anscombe_ratio = log2_Anscombe_ratio,
                   log2_relative_change = log2_relative_change))
     }
-    
+
     vectorized_stats_calculator <- Vectorize(
       ect_stats_single_term,
       vectorize.args = "single_term_id",
       SIMPLIFY = FALSE
     )
-    
+
     all_term_scores_list <- vectorized_stats_calculator(
       ecprob_obj = object@ecprob,
       single_term_id = relevant_terms,
       current_element_set = valid_element_set,
       current_lambda_method = lambda_method
     )
-    
+
     names(all_term_scores_list) <- relevant_terms
-    
+
     if (length(all_term_scores_list) > 0) {
       results_df <- do.call(rbind, lapply(names(all_term_scores_list), function(term_name) {
         data.frame(
           term_id = term_name,
           p_value = all_term_scores_list[[term_name]]$p_value,
-          z_score = all_term_scores_list[[term_name]]$z_score,
           lambda = all_term_scores_list[[term_name]]$lambda,
-          observed_edges = all_term_scores_list[[term_name]]$observed_edges,
+          observed_edge_count = all_term_scores_list[[term_name]]$observed_edge_count,
           log2_Anscombe = all_term_scores_list[[term_name]]$log2_Anscombe_ratio,
           log2_RelChange = all_term_scores_list[[term_name]]$log2_relative_change,
           stringsAsFactors = FALSE
@@ -269,7 +264,7 @@ setMethod(
 #'
 #' @description Calculates a running enrichment score for terms based on a ranked list of elements.
 #' @details This method implements a fast algorithm for ranked list analysis, similar in
-#' principle to GSEA. For each term, it calculates a profile of statistics (z-score, p-value, etc.)
+#' principle to GSEA. For each term, it calculates a profile of statistics (Anscombe-ratio, lambda, p-value, etc.)
 #' at each rank position occupied by an element from that term. The time complexity is
 #' approximately O(N + sum_k k*log(k)), where N is the total number of ranked elements and k is the
 #' size of a term, as it uses an efficient cumulative sum approach for lambda calculation.
@@ -307,7 +302,7 @@ setMethod(
   "terms_ecranks_statistics",
   "ECTermScoring",
   function(object, element_ranks, terms = NULL) {
-    
+
     input_elements <- names(element_ranks)
     d_elements <- setdiff(input_elements, object@elements)
     if (length(d_elements) > 0){
@@ -318,7 +313,7 @@ setMethod(
     if (length(input_elements) < 1){
       stop("no input element in the ECTErmScoring element universe")
     }
-    
+
     input_terms <- NULL
     if (is.null(terms)){
       input_terms <- object@terms
@@ -333,19 +328,19 @@ setMethod(
         stop("no input term in the ECTErmScoring term universe")
       }
     }
-    
+
     ecprob <- object@ecprob
     M_g <- ecprob@graph_size
     N_e <- length(object@elements)
-    
+
     df <- data.frame(elements = names(element_ranks), ranks = as.numeric(unlist(element_ranks)))
     df <- df[order(df$ranks),]
     ranked_elements <- unlist(df$elements)
     K <- unlist(ecprob@degrees[ranked_elements])
     cumul_sum_K <- cumsum(K)
-    
+
     score_one_term <- function(obj, term, element_to_ranks, cumul_K, M, N){
-      
+
       elements_term <- get_neighbors(obj, term)
       sz <- length(elements_term)
       size_term <- rep(sz, sz)
@@ -359,7 +354,6 @@ setMethod(
       lambda_term <- K_term * one_over_2M * cumul_sum_K[ranks_term]
       observed_ec_term <- 1:length(elements_term)
       max_ec_term <- ranks_term
-      z_score_term <- (observed_ec_term - lambda_term)/sqrt(lambda_term)
       log2_anscombe_ratio_term <- 0.5 * (log2(observed_ec_term + 3/8) - log2(lambda_term + 3/8))
       log2_relative_change_term <- log2(observed_ec_term) - log2(lambda_term)
       p_value_term <- mapply(calculate_p_value,
@@ -371,16 +365,15 @@ setMethod(
       df <- data.frame(element = elements_term,
                        element_relative_rank = ranks_term/N,
                        lambda = lambda_term,
-                       observed_ec = observed_ec_term,
+                       observed_edge_count = observed_ec_term,
                        max_ec = max_ec_term,
                        term_size = size_term,
-                       z_score = z_score_term,
-                       log2_anscombe_ratio = log2_anscombe_ratio_term,
+                       log2_Anscombe_ratio = log2_anscombe_ratio_term,
                        log2_relative_change = log2_relative_change_term,
                        p_value = p_value_term)
       return(df)
     }
-    
+
     all_results_list <- lapply(input_terms, function(term_id_iter) {
       score_one_term(
         obj = ecprob,
@@ -392,7 +385,7 @@ setMethod(
       )
     })
     names(all_results_list) <- input_terms
-    
+
     return(all_results_list)
   })
 
@@ -401,8 +394,10 @@ setMethod(
 #' @description Processes the list output from \code{\link{terms_ecranks_statistics}}
 #' to produce a single, ranked data frame. For each term, it calculates summary
 #' statistics (min, median, max) for a chosen score and identifies the elements
-#' where these scores occurred.
-#'
+#' where these scores occurred. \strong{WARNING: The scores this function produces are
+#' not corrected for multiple testing. For a statistically rigorous analysis that includes a
+#' Normalized Enrichment Score (NES) and an FDR q-value, use the main
+#' analysis function}
 #' @param term_scores_list A list of data frames, the output of \code{\link{terms_ecranks_statistics}}.
 #' @param scoring_statistic The name of the column to use for calculating summary statistics.
 #' @param rank_by A character string specifying which summary statistic to use for
@@ -423,37 +418,37 @@ setMethod(
 #' # 1. Get the ranked scoring profiles
 #' ranked_scores <- terms_ecranks_statistics(ects, ranks)
 #'
-#' # 2. Summarize the results, ranking by the maximum z-score
+#' # 2. Summarize the results, ranking by the maximum log2_Anscombe_ratio
 #' summary_table <- table_terms_ecranks_statistics(
 #'   ranked_scores,
-#'   scoring_statistic = "z_score",
+#'   scoring_statistic = "log2_Anscombe_ratio",
 #'   rank_by = "max"
 #' )
 #' print(summary_table)
 #'
 table_terms_ecranks_statistics <- function(term_scores_list,
-                                           scoring_statistic = "z_score",
-                                           rank_by = "max") {
-  
+                                           scoring_statistic = "log2_Anscombe_ratio",
+                                           rank_by = "median") {
+
   if (!is.list(term_scores_list)){
     stop("term_scores_list must be a list")
   }
-  
+
   if (length(term_scores_list) == 0) {
     warning("Input 'term_scores_list' is empty.")
     return(data.frame())
   }
-  
-  allowed_stats = c("lambda", "z_score", "log2_anscombe_ratio", "log2_relative_change", "p_value", "element_relative_rank")
+
+  allowed_stats = c("lambda", "observed_edge_count", "log2_Anscombe_ratio", "log2_relative_change", "p_value", "element_relative_rank")
   if (!scoring_statistic %in% allowed_stats){
     warning(paste0("Invalid 'scoring_statistic': ", scoring_statistic, "Allowed choices are: ", toString(allowed_stats)))
     return(data.frame())
   }
-  
-  required_cols <- c("element", "element_relative_rank", "observed_ec",
-                     "lambda", "p_value", "z_score", "log2_anscombe_ratio",
+
+  required_cols <- c("element", "element_relative_rank", "observed_edge_count",
+                     "lambda", "p_value", "log2_Anscombe_ratio",
                      "log2_relative_change")
-  
+
   first_valid_df <- NULL
   for(item in term_scores_list){
     if(is.data.frame(item) && nrow(item) > 0){
@@ -461,23 +456,23 @@ table_terms_ecranks_statistics <- function(term_scores_list,
       break
     }
   }
-  
+
   missing_cols <- setdiff(required_cols, names(first_valid_df))
   if (length(missing_cols) > 0) {
     warning(paste0("Data frame in 'term_scores_list' is missing required columns: ",
                    toString(missing_cols)))
   }
-  
+
   if(is.null(first_valid_df) || !(scoring_statistic %in% names(first_valid_df))){
     stop(paste0("Specified 'scoring_statistic': '", scoring_statistic,
                 "' not found in the result data frames. Valid columns include: ",
                 toString(intersect(allowed_stats, names(first_valid_df)))))
   }
-  
+
   get_term_row <- function(term_id){
-    
+
     term_df <- term_scores_list[[term_id]]
-    
+
     na_row <- data.frame(
       term_id = term_id,
       term_size = NA_integer_,
@@ -486,32 +481,32 @@ table_terms_ecranks_statistics <- function(term_scores_list,
       max_score = NA_real_, element_at_max = NA_character_, rank_at_max = NA_real_,
       stringsAsFactors = FALSE
     )
-    
+
     if (!is.data.frame(term_df) || nrow(term_df) == 0) {
       return(na_row)
     }
-    
+
     if (!(scoring_statistic %in% names(term_df))) {
       warning(paste("Column '", scoring_statistic, "' not found for term:", term_id, ". Skipping term."))
       return(na_row)
     }
-    
+
     scores_vec <- as.numeric(term_df[[scoring_statistic]])
     if (all(is.na(scores_vec))) {
       return(na_row)
     }
-    
+
     is_valid_score <- is.finite(scores_vec)
     finite_scores <- scores_vec[is_valid_score]
-    
+
     min_val <- min(finite_scores, na.rm = TRUE)
     median_val <- stats::median(finite_scores, na.rm = TRUE)
     max_val <- max(finite_scores, na.rm = TRUE)
-    
+
     min_idx <- which(scores_vec == min_val)[1]
     max_idx <- which(scores_vec == max_val)[1]
     median_idx <- which.min(abs(scores_vec - median_val))[1]
-    
+
     summary_row <- data.frame(
       term_id = term_id,
       term_size = term_df$term_size[1],
@@ -526,31 +521,221 @@ table_terms_ecranks_statistics <- function(term_scores_list,
       rank_at_max = term_df$element_relative_rank[max_idx],
       stringsAsFactors = FALSE
     )
-    
+
     return(summary_row)
   }
-  
+
   summary_list <- lapply(names(term_scores_list), get_term_row)
   summary_df <- dplyr::bind_rows(summary_list)
-  
+
   if (nrow(summary_df) > 0) {
     sort_col <- switch(rank_by,
                        "max" = "max_score",
                        "min" = "min_score",
                        "median" = "median_score",
                        "max_score") # Default to max_score if invalid input
-    
+
     decreasing_order <- TRUE
     if (rank_by == "min" || (scoring_statistic == "p_value" && rank_by != "max")) {
       decreasing_order <- FALSE
     }
-    
+
     if (any(!is.na(summary_df[[sort_col]]))) {
       summary_df <- summary_df[order(summary_df[[sort_col]], decreasing = decreasing_order), ]
     }
-    
+
     rownames(summary_df) <- NULL
   }
-  
+
   return(summary_df)
+}
+
+#' @title Perform Full VSEA-style Permutation Analysis for Multiple Metrics
+#'
+#' @description Runs a complete ranked-list enrichment analysis, calculating a
+#' Normalized Enrichment Score (NES) and a False Discovery Rate (FDR) q-value
+#' for each term using a permutation-based null distribution. This function
+#' efficiently calculates results for the **max**, **min**, and **median** summary
+#' scores from a single set of permutations.
+#'
+#' @param ects_object An ECTermScoring object.
+#' @param element_ranks A named list or vector of element ranks.
+#' @param scoring_statistic The score to use for enrichment (e.g., "log2_Anscombe_ratio").
+#' @param n_permutations The number of permutations to generate the null
+#'   distribution. 1000 is a common choice for publication.
+#' @param seed An optional random seed for reproducibility.
+#'
+#' @return A named list of three data frames: `max_score_summary`,
+#'   `min_score_summary`, and `median_score_summary`. Each data frame is sorted
+#'   by its respective NES and contains a rich summary including the raw score,
+#'   NES, and FDR q-value.
+#'
+#' @references
+#' 1. Subramanian, A., et al. (2005). Gene set enrichment analysis: a knowledge-based
+#' approach for interpreting genome-wide expression profiles. PNAS.
+#' \url{https://www.pnas.org/doi/10.1073/pnas.0506580102}
+#'
+#' #' 2. Pradines et al. (2005). Analyzing Protein Lists with Large Networks:
+#' Edge-Count Probabilities in Random Graphs with Given Expected Degrees.
+#' J. Comp. Biol. 12(2):113-28.
+#' \url{https://www.liebertpub.com/doi/10.1089/cmb.2005.12.113}
+#'
+#' @export
+#' @examples
+#' \dontrun{
+#' # This is a computationally intensive function.
+#' te_df <- data.frame(
+#'   term = c("TermA", "TermA", "TermB"),
+#'   element = c("Elem1", "Elem3", "Elem2")
+#' )
+#' ects <- ECTermScoring(te_df)
+#' ranks <- c(Elem1 = 1, Elem2 = 2, Elem3 = 3, Elem4 = 4)
+#'
+#' # Run the full analysis for all three summary metrics
+#' vsea_results <- run_vsea_analysis(
+#'   ects,
+#'   ranks,
+#'   scoring_statistic = "log2_Anscombe_ratio",
+#'   n_permutations = 100 # Use a smaller number for quick tests
+#' )
+#'
+#' # View the top results for enrichment at the top of the list
+#' print(head(vsea_results$max_score_summary))
+#'
+#' # View the top results for enrichment at the bottom of the list
+#' print(head(vsea_results$min_score_summary))
+#' }
+#'
+run_vsea_analysis <- function(ects_object,
+                              element_ranks,
+                              scoring_statistic = "log2_Anscombe_ratio",
+                              n_permutations = 1000,
+                              seed = NULL) {
+
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
+
+  # --- Step 1: Calculate the REAL scores for the actual ranked list ---
+  message("Calculating real enrichment scores...")
+  real_scores_list <- terms_ecranks_statistics(ects_object, element_ranks)
+
+  # Get all three summary tables up front
+  real_summary_max    <- table_terms_ecranks_statistics(real_scores_list, scoring_statistic, "max")
+  real_summary_min    <- table_terms_ecranks_statistics(real_scores_list, scoring_statistic, "min")
+  real_summary_median <- table_terms_ecranks_statistics(real_scores_list, scoring_statistic, "median")
+
+  # Extract the real scores into named vectors
+  real_scores_max    <- stats::setNames(real_summary_max$max_score, real_summary_max$term_id)
+  real_scores_min    <- stats::setNames(real_summary_min$min_score, real_summary_min$term_id)
+  real_scores_median <- stats::setNames(real_summary_median$median_score, real_summary_median$term_id)
+
+  # --- Step 2: Build the NULL distribution via permutation ---
+  message(paste("Running", n_permutations, "permutations..."))
+
+  # Helper function
+  get_all_summary_scores <- function(term_df, stat) {
+    if (is.null(term_df) || nrow(term_df) == 0) {
+      return(c(max_score = NA_real_, min_score = NA_real_, median_score = NA_real_))
+    }
+    scores <- term_df[[stat]]
+    scores <- scores[is.finite(scores)]
+    if (length(scores) == 0) {
+      return(c(max_score = NA_real_, min_score = NA_real_, median_score = NA_real_))
+    }
+    return(c(
+      max_score = max(scores, na.rm = TRUE),
+      min_score = min(scores, na.rm = TRUE),
+      median_score = stats::median(scores, na.rm = TRUE)
+    ))
+  }
+
+  # List where each element is a matrix from a single permutation
+  # (rows = terms, cols = max/min/median)
+  perm_results_list <- replicate(n_permutations, {
+    permuted_ranks <- sample(element_ranks)
+    names(permuted_ranks) <- names(element_ranks)
+    permuted_scores_list <- terms_ecranks_statistics(ects_object, permuted_ranks)
+    t(sapply(permuted_scores_list, get_all_summary_scores, stat = scoring_statistic))
+  }, simplify = FALSE)
+
+  # Combine the list of matrices into three separate null score matrices
+  term_names <- names(real_scores_list)
+  null_scores_max    <- do.call(cbind, lapply(perm_results_list, function(m) m[term_names, "max_score"]))
+  null_scores_min    <- do.call(cbind, lapply(perm_results_list, function(m) m[term_names, "min_score"]))
+  null_scores_median <- do.call(cbind, lapply(perm_results_list, function(m) m[term_names, "median_score"]))
+
+
+  # --- Step 3 & 4: Calculate NES and FDR for each metric ---
+  message("Calculating NES and FDR for each summary metric...")
+
+  calculate_nes_fdr <- function(real_scores, null_scores_matrix) {
+    # Normalize real scores
+    mean_null_pos <- apply(null_scores_matrix, 1, function(x) mean(x[x > 0], na.rm = TRUE))
+    mean_null_neg <- apply(null_scores_matrix, 1, function(x) mean(abs(x[x < 0]), na.rm = TRUE))
+    mean_null_pos[is.nan(mean_null_pos)] <- 1
+    mean_null_neg[is.nan(mean_null_neg)] <- 1
+
+    nes_real <- ifelse(
+      real_scores > 0,
+      real_scores / mean_null_pos[names(real_scores)],
+      real_scores / mean_null_neg[names(real_scores)]
+    )
+
+    # Normalize null scores
+    null_nes_matrix <- ifelse(
+      null_scores_matrix > 0,
+      null_scores_matrix / mean_null_pos,
+      null_scores_matrix / mean_null_neg
+    )
+    all_null_nes <- as.vector(null_nes_matrix)
+    all_null_nes <- all_null_nes[is.finite(all_null_nes)]
+    null_nes_pos <- all_null_nes[all_null_nes > 0]
+    null_nes_neg <- all_null_nes[all_null_nes < 0]
+
+    # Calculate FDR
+    fdr_pos <- vapply(nes_real[nes_real > 0], function(score) {
+      if (length(null_nes_pos) == 0) return(1)
+      frac_null <- sum(null_nes_pos >= score) / length(null_nes_pos)
+      frac_real <- sum(nes_real > 0 & nes_real >= score) / sum(nes_real > 0)
+      if (frac_real == 0) return(1)
+      return(frac_null / frac_real)
+    }, FUN.VALUE = numeric(1))
+
+    fdr_neg <- vapply(nes_real[nes_real < 0], function(score) {
+      if (length(null_nes_neg) == 0) return(1)
+      frac_null <- sum(null_nes_neg <= score) / length(null_nes_neg)
+      frac_real <- sum(nes_real < 0 & nes_real <= score) / sum(nes_real < 0)
+      if (frac_real == 0) return(1)
+      return(frac_null / frac_real)
+    }, FUN.VALUE = numeric(1))
+
+    fdr_q_values <- c(fdr_pos, fdr_neg)
+    fdr_q_values[fdr_q_values > 1] <- 1
+
+    return(list(nes = nes_real, fdr_q_value = fdr_q_values))
+  }
+
+  results_max    <- calculate_nes_fdr(real_scores_max, null_scores_max)
+  results_min    <- calculate_nes_fdr(real_scores_min, null_scores_min)
+  results_median <- calculate_nes_fdr(real_scores_median, null_scores_median)
+
+  # --- Step 5: Combine, sort, and return ---
+  add_results_and_sort <- function(summary_df, results) {
+    summary_df$nes <- results$nes[summary_df$term_id]
+    summary_df$fdr_q_value <- results$fdr_q_value[summary_df$term_id]
+    summary_df <- summary_df[order(summary_df$fdr_q_value, decreasing = FALSE), ]
+    rownames(summary_df) <- NULL
+    return(summary_df)
+  }
+
+  final_max    <- add_results_and_sort(real_summary_max, results_max)
+  final_min    <- add_results_and_sort(real_summary_min, results_min)
+  final_median <- add_results_and_sort(real_summary_median, results_median)
+
+  return(list(
+    max_score_summary = final_max,
+    min_score_summary = final_min,
+    median_score_summary = final_median
+  ))
 }

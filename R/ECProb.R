@@ -59,11 +59,11 @@ setClass("ECProb",
 )
 
 ECProb <- function(ecgraph) {
-  
+
   graph_size <- sum(unlist(ecgraph@degrees))/2
   graph_order <- length(unlist(ecgraph@degrees))
   average_degree <- 2*graph_size/graph_order
-  
+
   new("ECProb", ecgraph, graph_size = graph_size, graph_order = graph_order,
       average_degree = average_degree)
 }
@@ -99,16 +99,16 @@ setMethod(
   function(object, set1, set2) {
     valid_set1 <- set1[set1 %in% object@names]
     valid_set2 <- set2[set2 %in% object@names]
-    
+
     set1_d <- setdiff(valid_set1, valid_set2)
     set2_d <- setdiff(valid_set2, valid_set1)
-    
+
     if (length(set1_d) == 0 | length(set2_d) == 0){
       return(0)
     }
     degrees_set1 <- unlist(object@degrees[set1_d])
     degrees_set2 <- unlist(object@degrees[set2_d])
-    
+
     lambda <- 0
     for (i in 1:length(set1_d)) {
       for (j in 1:length(set2_d)) {
@@ -151,17 +151,17 @@ setMethod(
   function(object, set1, set2) {
     valid_set1 <- set1[set1 %in% object@names]
     valid_set2 <- set2[set2 %in% object@names]
-    
+
     set1_d <- setdiff(valid_set1, valid_set2)
     set2_d <- setdiff(valid_set2, valid_set1)
-    
+
     if (length(set1_d) == 0 | length(set2_d) == 0){
       return(0)
     }
     k1 <- sort(unlist(object@degrees[set1_d]), decreasing = TRUE)
     k2 <- sort(unlist(object@degrees[set2_d]), decreasing = TRUE)
     M <- object@graph_size
-    
+
     find_k1t <- function(i, k1_vec, k2_vec, M_val){
       for (j in 1:length(k2_vec)) {
         if (k1_vec[i] * k2_vec[j] <= 2 * M_val) {
@@ -172,11 +172,11 @@ setMethod(
     }
     vfind_k1t <- Vectorize(find_k1t, vectorize.args = "i")
     k1t <- vfind_k1t(1:length(k1), k1, k2, M)
-    
+
     k2c <- c(rev(cumsum(rev(k2))), 0)
-    
+
     lambda <- sum((k1t - 1) + (k1 * k2c[k1t]) / (2 * M))
-    
+
     return(as.numeric(lambda))
   }
 )
@@ -215,10 +215,10 @@ setMethod(
   function(object, set1, set2) {
     valid_set1 <- set1[set1 %in% object@names]
     valid_set2 <- set2[set2 %in% object@names]
-    
+
     set1_d <- setdiff(valid_set1, valid_set2)
     set2_d <- setdiff(valid_set2, valid_set1)
-    
+
     if (length(set1_d) == 0 | length(set2_d) == 0){
       return(0)
     }
@@ -269,7 +269,7 @@ setMethod(
     k <- unlist(object@degrees[valid_set])
     sum_k <- sum(k)
     lambda <- (sum_k^2 - sum(k^2)) / (4 * M)
-    
+
     return(as.numeric(lambda))
   }
 )
@@ -347,7 +347,7 @@ setMethod(
   "calculate_lambda_in",
   "ECProb",
   function(object, set) {
-    
+
     find_kt_i <- function(i, k, m, M) {
       for (j in (i + 1):m) {
         if (k[i] * k[j] <= 2 * M) {
@@ -357,7 +357,7 @@ setMethod(
       return(m+1)
     }
     vfind_kt_i <- Vectorize(find_kt_i, vectorize.args = "i")
-    
+
     valid_set <- set[set %in% object@names]
     if (length(valid_set) <= 1){
       return(0)
@@ -366,14 +366,14 @@ setMethod(
     k <- unlist(object@degrees[valid_set])
     m <- length(k)
     k <- sort(k, decreasing = TRUE)
-    
+
     kc <- c(rev(cumsum(rev(k))), 0)
-    
+
     kt <- vfind_kt_i(c(1:(m-1)), k, m, M)
     kt <- c(kt, m)
-    
+
     lambda <- sum((kt[1:(m - 1)] - (1:(m - 1)) - 1) + (k[1:(m - 1)] * kc[kt[1:(m - 1)]]) / (2 * M))
-    
+
     return(as.numeric(lambda))
   }
 )
@@ -444,9 +444,9 @@ setMethod(
   "edge_count_statistics",
   "ECProb",
   function(object, set1, set2 = NULL, observed_edge_count, lambda_method = "optimized") {
-    
+
     valid_set1 <- set1[set1 %in% object@names]
-    
+
     if (is.null(set2)) {
       lambda <- switch(lambda_method,
                        accurate = calculate_lambda_in_naive(object, valid_set1),
@@ -463,26 +463,21 @@ setMethod(
                        stop("Invalid method for between-set analysis."))
       max_possible_edges <- length(valid_set1) * length(valid_set2)
     }
-    
+
     p_value <- calculate_p_value(object, observed_edge_count, max_possible_edges, lambda)
-    
-    z_score <- NA_real_
-    if (!is.na(lambda) && lambda > 0){
-      z_score <- (observed_edge_count - lambda) / sqrt(lambda)
-    }
-    
+
     log2_Anscombe_ratio <- NA_real_
     if (!is.na(lambda) && (lambda + 3/8) > 0 && (observed_edge_count + 3/8) > 0) {
       log2_Anscombe_ratio <- 0.5 * (log2(observed_edge_count + 3/8) - log2(lambda + 3/8))
     }
-    
+
     log2_relative_change <- NA_real_
     if (!is.na(lambda) && lambda > 0 && observed_edge_count > 0){
       log2_relative_change <- log2(observed_edge_count) - log2(lambda)
     }
-    
+
     return(list(p_value = p_value,
-                z_score = z_score,
+                observed_edge_count = observed_edge_count,
                 log2_Anscombe_ratio = log2_Anscombe_ratio,
                 log2_relative_change = log2_relative_change))
   })
@@ -515,7 +510,7 @@ setMethod("summarize_suitability_fast",
             N <- length(degrees)
             M <- object@graph_size
             degree_distribution <- table(degrees)
-            
+
             k <- as.numeric(names(degree_distribution))
             p <- as.numeric(degree_distribution) / N
             prod <- as.vector(outer(k, k, "*"))/(2*M)
@@ -523,7 +518,7 @@ setMethod("summarize_suitability_fast",
             capped <- pmin(1, prod)
             df <- data.frame(prod = prod, q = q, capped = capped)
             prop <- sum(df$q[df$capped == 1])
-            
+
             return(list(
               pij_over_1 = prop,
               summary_pij = summary(prod),

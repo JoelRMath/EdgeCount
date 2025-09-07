@@ -6,8 +6,8 @@
 \usage{
 table_terms_ecranks_statistics(
   term_scores_list,
-  scoring_statistic = "z_score",
-  rank_by = "max"
+  scoring_statistic = "log2_Anscombe_ratio",
+  rank_by = "median"
 )
 }
 \arguments{
@@ -26,7 +26,10 @@ A data frame with one row per term, containing a rich summary including
 Processes the list output from \code{\link{terms_ecranks_statistics}}
 to produce a single, ranked data frame. For each term, it calculates summary
 statistics (min, median, max) for a chosen score and identifies the elements
-where these scores occurred.
+where these scores occurred. \strong{WARNING: The scores this function produces are
+not corrected for multiple testing. For a statistically rigorous analysis that includes a
+Normalized Enrichment Score (NES) and an FDR q-value, use the main
+analysis function}
 }
 \examples{
 # Create a sample ECTermScoring object and ranks
@@ -40,10 +43,10 @@ ranks <- c(Elem1 = 1, Elem2 = 2, Elem3 = 3, Elem4 = 4)
 # 1. Get the ranked scoring profiles
 ranked_scores <- terms_ecranks_statistics(ects, ranks)
 
-# 2. Summarize the results, ranking by the maximum z-score
+# 2. Summarize the results, ranking by the maximum log2_Anscombe_ratio
 summary_table <- table_terms_ecranks_statistics(
   ranked_scores,
-  scoring_statistic = "z_score",
+  scoring_statistic = "log2_Anscombe_ratio",
   rank_by = "max"
 )
 print(summary_table)
