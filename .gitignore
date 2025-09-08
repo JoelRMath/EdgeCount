@@ -7,3 +7,5 @@ inst/doc
 .httr-oauth
 .DS_Store
 .quarto
+tests/testthat/network/org.Hs.eg.db_3.21.0.tar.gz
+tests/testthat/network/network.txt
