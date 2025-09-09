@@ -1,12 +1,12 @@
 ---
-title: "EdgeCount Package Tutorial"
-author: "J.R. Pradines"
+title: "EdgeCount Package Tutorial, test"  
+author: "Jo&euml;l R. Pradines"
 date: "`r Sys.Date()`"
 output:
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
-    number_sections: true
+    number_sections: false
 vignette: >
   %\VignetteIndexEntry{EdgeCount Package Tutorial}
   %\VignetteEngine{knitr::rmarkdown}
@@ -20,6 +20,60 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
-library(EdgeCount)
+```{css, echo=FALSE}
+:target {
+  background-color: #ffeb3b; /* A nice yellow color */
+  transition: background-color 0.8s ease;
+}
 ```
+
+```{r setup}
+# library(EdgeCount)
+```
+
+```{css, echo=FALSE}
+body {
+  font-size: 115%;
+  line-height: 1.6;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 20px;
+}
+```
+# Introduction
+The EdgeCount package provides a statistical framework to perform enrichment analysis based on graph connectedness (Edge Count). It is used to perform analysis within large sparse graphs such as protein interaction networks, social networks and bipartite graphs representing membership of items ('element') in a collection of sets ('terms'), provided the collection yields a universe of elements which is large compared to term sizes.
+
+The underlying methodology is based on the Random Graph with Given Expected Degrees (RGGED) model [[1]](#ref1), analytical expressions for connectedness probabilities which are obtained in large sparse graphs [[2]](#ref2) and permutation-based enrichment analysis similar to  GSEA [[3]](#ref3) but now accounting for the number of terms each element is involved in (degree in the membership graph), hence the acronym VSEA (vertex set enrichment analysis).
+
+The primary functions allow users to:
+
+- Test for connectedness of a given vertex set.
+- Test for connectedness between two prescribed vertex sets.
+- Score a collection of terms against a single set of elements.
+- Perform vertex set enrichment analysis (VSEA) based on a ranked list of elements and a collection of terms. 
+- Summarize and interpret results with Normalized Enrichment Scores (NES) and False Discovery Rate (FDR) q-values.
+
+<br>
+
+# Installation
+
+The EdgeCount package is currently available on GitHub. You can install it using the devtools package. If you do not have devtools installed, you can install it from CRAN.
+
+```{r installation, eval=FALSE}
+# install.packages("devtools")
+devtools::install_github("JoelRMath/EdgeCount")
+```
+
+<br>
+
+# References
+
+<a id="ref1">(1.)</a> Chung & Lu (2002). The average distances in random graphs with given
+expected degrees. *PNAS*, 99 (25) 15879-15882. 
+<a href="https://www.pnas.org/doi/10.1073/pnas.252631999" target="_blank">[link]</a>
+
+<a id="ref2">(2.)</a> Pradines, J.R., et al. (2005). Analyzing Protein Lists with Large Networks: Edge-Count Probabilities in Random Graphs with Given Expected Degrees. *Journal of Computational Biology*, 12(2), 113-28.<a href="https://www.liebertpub.com/doi/10.1089/cmb.2005.12.113" target="_blank">[link]</a>
+
+
+<a id="ref3">(3.)</a> Subramanian, A., et al. (2005). Gene set enrichment analysis: a knowledge-based approach for interpreting genome-wide expression profiles. *PNAS*, 102(43), 15545-50. <a href="https://www.pnas.org/doi/10.1073/pnas.0506580102" target="_blank">[link]</a>
+
