@@ -30,7 +30,7 @@ test_that("ECGraph constructor", {
 })
 
 test_that("EC in", {
-  
+
   toggle <- TRUE
   if (toggle){
     ec <- ECGraph(test_path("network/toy.txt"))
@@ -44,7 +44,7 @@ test_that("EC in", {
 })
 
 test_that("EC between", {
-  
+
   toggle <- TRUE
   if (toggle){
     ec <- ECGraph(test_path("network/toy.txt"))
@@ -58,7 +58,7 @@ test_that("EC between", {
 })
 
 test_that("EC in max fds", {
-  
+
   toggle <- TRUE
   if (toggle){
     ec <- ECGraph(test_path("network/toy.txt"))
@@ -72,18 +72,18 @@ test_that("EC in max fds", {
 test_that("EC between max fds", {
   toggle <- TRUE
   if (toggle){
-    ec <- ECGraph(test_path("network/toy.txt")) 
+    ec <- ECGraph(test_path("network/toy.txt"))
     expect_equal(get_edge_count_between_max_fds(ec,NULL,NULL), 0)
     expect_equal(get_edge_count_between_max_fds(ec,c("E"),NULL), 0)
     expect_equal(get_edge_count_between_max_fds(ec,c("E"),c("A")), 1)
     expect_equal(get_edge_count_between_max_fds(ec,c("E"),c("D","H")), 2)
     # Corrected expectation for the last test case
-    expect_equal(get_edge_count_between_max_fds(ec,c("E","F"),c("D","G","H","B","C")), 6) 
+    expect_equal(get_edge_count_between_max_fds(ec,c("E","F"),c("D","G","H","B","C")), 6)
   }
 })
 
-test_that("EC to_dataframe", {
-  
+test_that("ECG to_dataframe", {
+
   toggle <- TRUE
   if (toggle){
     ec1 <- ECGraph(test_path("network/toy.txt"))
@@ -95,3 +95,14 @@ test_that("EC to_dataframe", {
   }
 })
 
+test_that("ECG trimming", {
+
+  toggle <- TRUE
+  if (toggle){
+    ecg <- ECGraph(test_path("network/final_network.txt"))
+    time_start <- Sys.time()
+    ecg <- trim_ecgraph(ecg, 0.1)
+    time_end <- Sys.time() - time_start
+    print(time_end)
+  }
+})

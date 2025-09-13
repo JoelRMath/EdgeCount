@@ -1,5 +1,5 @@
 ---
-title: "EdgeCount Package Tutorial, test"  
+title: "EdgeCount Package Tutorial"  
 author: "Jo&euml;l R. Pradines"
 date: "`r Sys.Date()`"
 output:

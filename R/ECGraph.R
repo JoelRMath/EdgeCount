@@ -79,7 +79,7 @@ ECGraph <- function(edges_input,
                     col2 = 2,
                     header = TRUE,
                     sep = "\t") {
-  
+
   if (is.character(edges_input) && length(edges_input) == 1) {
     # file path
     if (!file.exists(edges_input)) {
@@ -108,7 +108,7 @@ ECGraph <- function(edges_input,
   } else {
     stop("'edges_input' must be a file path, a data frame, or an igraph object.")
   }
-  
+
   # input checks
   if (ncol(df) < 2) {
     stop("Input data frame must have at least two columns.")
@@ -117,19 +117,19 @@ ECGraph <- function(edges_input,
   if (is.numeric(col2) && (col2 < 1 || col2 > ncol(df))) stop("col2 index is out of bounds for the data frame.")
   if (is.character(col1) && !(col1 %in% names(df))) stop("col1 '", col1, "' not found in data frame names.")
   if (is.character(col2) && !(col2 %in% names(df))) stop("col2 '", col2, "' not found in data frame names.")
-  
+
   node_a_char <- as.character(df[[col1]])
   node_b_char <- as.character(df[[col2]])
-  
+
   edges_symmetric <- data.frame(
     w1 = c(node_a_char, node_b_char),
     w2 = c(node_b_char, node_a_char),
     stringsAsFactors = FALSE
   )
-  
+
   # no self-loops
   edges_symmetric <- edges_symmetric[edges_symmetric$w1 != edges_symmetric$w2, ]
-  
+
   if (nrow(edges_symmetric) == 0) {
     adj_list <- list()
     degrees_list <- list()
@@ -137,27 +137,27 @@ ECGraph <- function(edges_input,
   } else {
     # adjacency list
     adj_list <- split(edges_symmetric$w2, factor(edges_symmetric$w1))
-    
+
     # neighbors are unique for each vertex and sorted
     adj_list <- lapply(adj_list, function(x) sort(unique(x)))
-    
+
     # degrees
     all_vertex_names <- names(adj_list)
     degrees_list <- lapply(adj_list, length)
     names(degrees_list) <- all_vertex_names
-    
+
     all_mentioned_nodes <- unique(c(node_a_char, node_b_char))
     all_mentioned_nodes <- all_mentioned_nodes[all_mentioned_nodes != ""]
-    
+
     # initializes degrees
     temp_degrees <- stats::setNames(rep(0, length(all_mentioned_nodes)), all_mentioned_nodes)
-    
+
     # updates with actual degrees
     if(length(degrees_list) > 0) {
       temp_degrees[names(degrees_list)] <- unlist(degrees_list)
     }
     degrees_list <- as.list(temp_degrees)
-    
+
     # updates adj_list to include empty neighbor lists for isolated nodes
     for (node_name in all_mentioned_nodes) {
       if (is.null(adj_list[[node_name]])) {
@@ -169,7 +169,7 @@ ECGraph <- function(edges_input,
     degrees_list <- degrees_list[sort(names(degrees_list))]
     all_vertex_names <- sort(names(degrees_list))
   }
-  
+
   new("ECGraph", adj = adj_list, degrees = degrees_list, names = all_vertex_names)
 }
 
@@ -228,7 +228,7 @@ setMethod("get_neighbors",
             # Filter for vertices that exist in the graph
             valid_vertices <- vertices[vertices %in% object@names]
             if (length(valid_vertices) == 0) return(character(0))
-            
+
             neighbors_list <- object@adj[valid_vertices]
             all_neighbors <- unlist(neighbors_list)
             unique(all_neighbors)
@@ -259,7 +259,7 @@ setMethod("get_edge_count_in",
             # Filter for vertices that exist in the graph
             valid_vertices <- vertices[vertices %in% object@names]
             if (length(valid_vertices) == 0) return(0)
-            
+
             adj_subset <- object@adj[valid_vertices]
             edge_count <- sum(unlist(lapply(adj_subset,
                                             function(neighbors) {
@@ -297,12 +297,12 @@ setMethod("get_edge_count_between",
             # Filter for vertices that exist in the graph
             valid_set1 <- set1[set1 %in% object@names]
             valid_set2 <- set2[set2 %in% object@names]
-            
+
             set1_d <- setdiff(valid_set1, valid_set2)
             set2_d <- setdiff(valid_set2, valid_set1)
-            
+
             if (length(set1_d) == 0 || length(set2_d) == 0) return(0)
-            
+
             adj_subset <- object@adj[set1_d]
             edge_count <- sum(unlist(lapply(adj_subset,
                                             function(neighbors) {
@@ -401,7 +401,7 @@ setMethod("get_edge_count_in_max_fds",
             # Filter for valid vertices and get their degrees
             valid_vertices <- vertices[vertices %in% object@names]
             if (length(valid_vertices) < 2) return(0)
-            
+
             R <- unlist(object@degrees[valid_vertices])
             w <- 0
             while (TRUE) {
@@ -451,14 +451,14 @@ setMethod("get_edge_count_between_max_fds",
             # Filter for valid vertices
             valid_set1 <- set1[set1 %in% object@names]
             valid_set2 <- set2[set2 %in% object@names]
-            
+
             set1_disjoint <- setdiff(valid_set1, valid_set2)
             set2_disjoint <- setdiff(valid_set2, valid_set1)
-            
+
             if (length(set1_disjoint) == 0 || length(set2_disjoint) == 0) {
               return(0)
             }
-            
+
             R1_iter <- unlist(object@degrees[set1_disjoint])
             R2_iter <- unlist(object@degrees[set2_disjoint])
             w <- 0
@@ -516,3 +516,112 @@ setMethod("get_edge_count_between_max_fds",
               }
             }
           })
+
+#' @title Trim High-Degree Vertices from an ECGraph
+#'
+#' @description Removes the highest-degree vertices (hubs) from an
+#' ECGraph object until the condition for fast lambda approximation
+#' is met to the prescribed precision 'threshold' (no greater than 1).
+#'
+#' @details This function provides a way to prepare a graph for analyses
+#' that use the `_fast` lambda calculation methods. It works by:
+#' 1. Identifying the current maximum degree (`k_max`) in the graph.
+#' 2. Checking if `k_max^2 >= threshold * 2M`, where `M` is the current total number of edges.
+#' 3. If the condition is met, all vertices with degree `k_max` are removed.
+#' 4. The graph size `M` is updated, and the process repeats.
+#'
+#' @param object An ECGraph object.
+#' @param threshold A numeric threshold for the trimming condition. The default
+#'   value of 1 corresponds to the theoretical condition `k_max^2 >= 2M`. Lowering
+#'   this value will potentially result in better '_fast' approximations.
+#'
+#' @return A list containing two elements:
+#' \itemize{
+#'   \item `trimmed_graph`: A new, smaller ECGraph object with without high-degree vertices.
+#'   \item `removed_vertices`: A character vector of the vertex names that were removed.
+#' }
+#' @export
+#' @examples
+#' # Create a star graph where 'A' is a hub
+#' edge_df <- data.frame(
+#'   from = "A",
+#'   to = c("B", "C", "D", "E", "F")
+#' )
+#' ecg <- ECGraph(edge_df)
+#'
+#' # The default condition is not met: k_max=5, M=5.  5*5 / (2*5) > 1
+#' trimmed_result <- trim_ecgraph(ecg)
+#'
+#' # The central hub 'A' was removed
+#' print(trimmed_result$removed_vertices) # "A"
+#'
+#' # The new graph contains only the isolated outer nodes
+#' print(trimmed_result$trimmed_graph@adj)
+#'
+setGeneric("trim_ecgraph", function(object, threshold = 1.0) standardGeneric("trim_ecgraph"))
+
+#' @describeIn trim_ecgraph Method for ECGraph objects.
+#' @import data.table
+setMethod("trim_ecgraph", "ECGraph", function(object, threshold = 1.0) {
+
+  degree_counts <- table(unlist(object@degrees))
+  dt <- data.table::as.data.table(degree_counts)
+  data.table::setnames(dt, c("degree", "count"))
+  dt$degree <- as.numeric(dt$degree)
+  dt <- dt[!is.na(dt$degree), ]
+  data.table::setorder(dt, -degree)
+
+  two_m_current <- sum(unlist(object@degrees))
+  removed_vertices <- character(0)
+  all_degrees_vec <- unlist(object@degrees)
+
+  while (nrow(dt) > 0) {
+
+    if (is.na(dt$degree[1]) || is.na(two_m_current)) {
+      stop("NA value detected before while loop condition check.")
+    }
+
+    if (dt$degree[1] * dt$degree[1] < threshold * two_m_current) {
+      break
+    }
+
+    k_max <- dt$degree[1]
+    count_at_k_max <- dt$count[1]
+
+    vertices_to_remove_this_step <- names(all_degrees_vec[all_degrees_vec == k_max])
+    removed_vertices <- c(removed_vertices, vertices_to_remove_this_step)
+
+    two_m_current <- two_m_current - (k_max * count_at_k_max)
+
+    dt <- dt[-1, ]
+  }
+
+  kept_vertices <- setdiff(object@names, removed_vertices)
+
+  if (length(kept_vertices) == 0) {
+    return(list(
+      trimmed_graph = ECGraph(data.frame(from=character(), to=character())),
+      removed_vertices = removed_vertices
+    ))
+  }
+
+  new_adj <- object@adj[kept_vertices]
+
+  new_adj_clean <- lapply(new_adj, function(neighbors) {
+    neighbors[neighbors %in% kept_vertices]
+  })
+
+  new_degrees <- lapply(new_adj_clean, length)
+  new_names <- names(new_adj_clean)
+
+  new_ecg <- new("ECGraph",
+                 adj = new_adj_clean,
+                 degrees = new_degrees,
+                 names = new_names)
+
+  return(list(
+    trimmed_graph = new_ecg,
+    removed_vertices = removed_vertices
+  ))
+})
+

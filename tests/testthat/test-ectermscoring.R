@@ -191,31 +191,34 @@ test_that("bipartite degrees", {
     print(dim(m))
     saveRDS(m,test_path("res/DegreeMat.rds"))
   }
-  m <- readRDS(test_path("res/DegreeMat.rds"))
-  n <- length(m[,1])
-  sk <- sd(m[,1])
-  i <- c(1:n)
-  N <- rep(n, n)
-  N_1 <- rep(n-1, n)
-  sk2 <- rep(sk*sk, n)
-  sdp <- sqrt(i*sk2*(N-i)/(N_1))
-  m <- apply(m, 2, cumsum)
-  ind <- c(1:length(m[,1]))
-  mn <- apply(m, 1, mean)
-  s <- apply(m, 1, sd)
-  df <- data.frame(index = ind, mean = mn, sd = s)
-  plot(df$index, df$mean)
-  plot(df$index, df$sd)
-  print(cor.test(df$index, df$mean))
-  print(cor.test(df$index, df$sd))
-  print(length(i))
-  print(length(N))
-  print(length(N_1))
-  print(length(N-i))
-  print(length(sk2))
-  print(length(sdp))
-  plot(df$sd, sdp)
-  print(cor.test(df$sd, sdp))
+  toggle <- FALSE
+  if (toggle){
+    m <- readRDS(test_path("res/DegreeMat.rds"))
+    n <- length(m[,1])
+    sk <- sd(m[,1])
+    i <- c(1:n)
+    N <- rep(n, n)
+    N_1 <- rep(n-1, n)
+    sk2 <- rep(sk*sk, n)
+    sdp <- sqrt(i*sk2*(N-i)/(N_1))
+    m <- apply(m, 2, cumsum)
+    ind <- c(1:length(m[,1]))
+    mn <- apply(m, 1, mean)
+    s <- apply(m, 1, sd)
+    df <- data.frame(index = ind, mean = mn, sd = s)
+    plot(df$index, df$mean)
+    plot(df$index, df$sd)
+    print(cor.test(df$index, df$mean))
+    print(cor.test(df$index, df$sd))
+    print(length(i))
+    print(length(N))
+    print(length(N_1))
+    print(length(N-i))
+    print(length(sk2))
+    print(length(sdp))
+    plot(df$sd, sdp)
+    print(cor.test(df$sd, sdp))
+  }
 })
 
 create_vsea_test_object <- function(full_ects, n_terms) {
@@ -239,20 +242,24 @@ create_vsea_test_object <- function(full_ects, n_terms) {
 }
 
 test_that("ECTermScoring vsea", {
-  ect <- ECTermScoring(test_path("network/terms_edges.txt"))
-  n_terms <- 100
-  ects <- create_vsea_test_object(ect, n_terms)
-  element_to_ranks <- as.list(1:length(ects@elements))
-  names(element_to_ranks) <- sample(ects@elements, length(ects@elements))
-  t <- run_vsea_analysis(ects, element_to_ranks,
-                                scoring_statistic = "log2_Anscombe_ratio",
-                                n_permutations = 1000,
-                                seed = NULL)
-  write.table(t$max_score_summary, test_path("res/vsea_max_summary.txt"),
-              sep = "\t", row.names = FALSE, quote = FALSE)
-  write.table(t$min_score_summary, test_path("res/vsea_min_summary.txt"),
-              sep = "\t", row.names = FALSE, quote = FALSE)
-  write.table(t$median_score_summary, test_path("res/vsea_median_summary.txt"),
-              sep = "\t", row.names = FALSE, quote = FALSE)
+
+  toggle <- FALSE
+  if (toggle){
+    ect <- ECTermScoring(test_path("network/terms_edges.txt"))
+    n_terms <- 100
+    ects <- create_vsea_test_object(ect, n_terms)
+    element_to_ranks <- as.list(1:length(ects@elements))
+    names(element_to_ranks) <- sample(ects@elements, length(ects@elements))
+    t <- run_vsea_analysis(ects, element_to_ranks,
+                           scoring_statistic = "log2_Anscombe_ratio",
+                           n_permutations = 1000,
+                           seed = NULL)
+    write.table(t$max_score_summary, test_path("res/vsea_max_summary.txt"),
+                sep = "\t", row.names = FALSE, quote = FALSE)
+    write.table(t$min_score_summary, test_path("res/vsea_min_summary.txt"),
+                sep = "\t", row.names = FALSE, quote = FALSE)
+    write.table(t$median_score_summary, test_path("res/vsea_median_summary.txt"),
+                sep = "\t", row.names = FALSE, quote = FALSE)
+  }
 
 })
