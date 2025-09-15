@@ -739,3 +739,261 @@ run_vsea_analysis <- function(ects_object,
     median_score_summary = final_median
   ))
 }
+
+#' @title Trim High-Degree Vertices from a Bipartite Graph
+#'
+#' @description Iteratively removes the highest-degree terms from an
+#' ECTermScoring object until the condition for fast lambda approximation is met.
+#' Elements are not directly removed, but may be excluded from the final object
+#' if they become disconnected from all remaining terms.
+#'
+#' @details This function provides a data-driven way to prepare a bipartite graph
+#' for analyses that use fast lambda calculation methods. The trimming condition is
+#' `(max_ke * max_kt) < threshold * 2M`, where `max_ke` is the current maximum
+#' element degree, `max_kt` is the current maximum term degree, and `M` is the
+#' current total number of edges. In each step, it removes the term(s) with the
+#' highest degree and dynamically updates the degrees of the affected elements.
+#'
+#' @param object An ECTermScoring object.
+#' @param threshold A numeric threshold for the trimming condition. The default
+#'   value of 1 corresponds to the theoretical condition. Lowering this value will
+#'   result in more aggressive trimming.
+#'
+#' @return A list containing three elements:
+#' \itemize{
+#'   \item `trimmed_object`: A new, smaller ECTermScoring object.
+#'   \item `removed_terms`: A character vector of the term names that were actively removed.
+#'   \item `removed_elements`: A character vector of the element names that were
+#'     removed as a consequence of becoming disconnected from all terms.
+#' }
+#' @export
+setGeneric("trim_bipartite_terms", function(object, threshold = 1.0) standardGeneric("trim_bipartite_terms"))
+
+#' @describeIn trim_bipartite_terms Method for ECTermScoring objects.
+setMethod("trim_bipartite_terms", "ECTermScoring", function(object, threshold = 1.0) {
+
+  # --- STEP 1: Initialize mutable degree vectors for terms and elements ---
+  all_degrees <- unlist(object@ecprob@degrees)
+  current_term_degrees <- all_degrees[object@terms]
+  current_element_degrees <- all_degrees[object@elements]
+
+  two_m_current <- object@ecprob@graph_size * 2
+  removed_terms <- character(0)
+
+  # --- STEP 2: Iteratively remove terms and update element degrees ---
+  while (length(current_term_degrees) > 0 && length(current_element_degrees) > 0) {
+    max_kt <- max(current_term_degrees)
+    max_ke <- max(current_element_degrees)
+    # print(max_ke * max_kt / two_m_current)
+
+    # If the condition is met, we're done trimming.
+    if (max_ke * max_kt < threshold * two_m_current) {
+      break
+    }
+
+    # Identify the term(s) with the current max degree
+    terms_to_remove <- names(current_term_degrees[current_term_degrees == max_kt])
+    removed_terms <- c(removed_terms, terms_to_remove)
+
+    # Find neighbors of the removed terms to update their degrees
+    neighbors_to_update <- unlist(object@ecprob@adj[terms_to_remove])
+
+    # Efficiently decrement the degrees of affected elements
+    if(length(neighbors_to_update) > 0) {
+      neighbor_counts <- table(neighbors_to_update)
+      affected_elements <- names(neighbor_counts)
+      current_element_degrees[affected_elements] <- current_element_degrees[affected_elements] - neighbor_counts
+    }
+
+    # Update state for the next iteration
+    two_m_current <- two_m_current - (length(terms_to_remove) * max_kt * 2) # Each edge removal reduces sum of degrees by 2
+    current_term_degrees <- current_term_degrees[!names(current_term_degrees) %in% terms_to_remove]
+    current_element_degrees <- current_element_degrees[current_element_degrees > 0] # Remove elements that are now disconnected
+  }
+
+  # --- STEP 3: Rebuild the new, trimmed ECTermScoring object ---
+  kept_terms <- setdiff(object@terms, removed_terms)
+
+  if (length(kept_terms) == 0) {
+    # Return an empty object if no terms are left
+    empty_df <- data.frame(term=character(), element=character())
+    final_removed_elements <- object@elements
+    return(list(
+      trimmed_object = ECTermScoring(empty_df),
+      removed_terms = removed_terms,
+      removed_elements = final_removed_elements
+    ))
+  }
+
+  # Reconstruct the term->element edge list from the original object
+  term_neighbors_list <- object@ecprob@adj[kept_terms]
+  new_edge_df <- utils::stack(term_neighbors_list)
+  names(new_edge_df) <- c("element", "term")
+
+  # Create the new ECTermScoring object using its constructor.
+  # The constructor will automatically determine the final set of elements.
+  new_ects <- ECTermScoring(new_edge_df[, c("term", "element")])
+
+  # Determine which elements were removed as a consequence
+  final_removed_elements <- setdiff(object@elements, new_ects@elements)
+
+  return(list(
+    trimmed_object = new_ects,
+    removed_terms = removed_terms,
+    removed_elements = final_removed_elements
+  ))
+})
+
+#' title Remove Isolated Elements from an ECTermScoring Object
+#'
+#' @description Creates a new ECTermScoring object that excludes all elements with
+#' zero degree (no element). This method only removes isolated *elements*;
+#' isolated *terms* (terms with no associated elements) are kept.
+#'
+#' @param object An ECTermScoring object.
+#'
+#' @return A new, smaller ECTermScoring object.
+#' @export
+#' @examples
+#' # Create an object where E3 is an isolated element
+#' te_df <- data.frame(
+#'   term = c("T1", "T1"),
+#'   element = c("E1", "E2")
+#' )
+#' # Manually create a universe that includes an extra element
+#' full_universe_df <- data.frame(
+#'    v1 = c("T1", "T1", "T2"), # T2 is an isolated term
+#'    v2 = c("E1", "E2", "E3")  # E3 is an isolated element
+#' )
+#' ecg <- ECGraph(full_universe_df)
+#' ects_base <- ECTermScoring(te_df) # E3 is not in this edge list
+#'
+setGeneric("remove_isolated_elements", function(object) standardGeneric("remove_isolated_elements"))
+
+#' @describeIn remove_isolated_elements Method for ECTermScoring objects.
+setMethod("remove_isolated_elements", "ECTermScoring", function(object) {
+
+  element_degrees <- unlist(object@ecprob@degrees[object@elements])
+  kept_elements <- names(element_degrees[element_degrees > 0])
+
+  if (length(kept_elements) == length(object@elements)) {
+    return(object)
+  }
+
+  term_neighbors_list <- object@ecprob@adj[object@terms]
+
+  term_neighbors_clean <- lapply(term_neighbors_list, function(neighbors) {
+    neighbors[neighbors %in% kept_elements]
+  })
+
+  new_edge_df <- utils::stack(term_neighbors_clean)
+
+  if(nrow(new_edge_df) == 0) {
+    final_df <- data.frame(term=character(), element=character())
+  } else {
+    names(new_edge_df) <- c("element", "term")
+    final_df <- new_edge_df[, c("term", "element")]
+
+  }
+
+  ECTermScoring(final_df)
+})
+
+#' @title Remove Empty Terms from an ECTermScoring Object
+#'
+#' @description Creates a new ECTermScoring object that excludes all terms with a
+#' degree of zero (i.e., terms with no associated elements).
+#'
+#' @param object An ECTermScoring object.
+#'
+#' @return A new, smaller ECTermScoring object with empty terms removed.
+#' @export
+#' @examples
+#' # Create an object where T2 is an empty term
+#' te_df <- data.frame(
+#'   term = c("T1", "T1", "T2"),
+#'   element = c("E1", "E2", "E1") # T2 has an edge, but let's make it empty
+#' )
+#' # To properly create an empty term, we build a graph with it
+#' full_universe_df <- data.frame(
+#'    v1 = c("T1", "T1", "T2"),
+#'    v2 = c("E1", "E2", "E1")
+#' )
+#' ecg <- ECGraph(full_universe_df) # ECGraph constructor will find T2
+#'
+#' # Create the ECTermScoring object from an edge list that omits T2's edges
+#' ects_with_empty_term <- ECTermScoring(data.frame(term="T1", element=c("E1","E2")))
+#'
+#' # For this example, let's assume `ects_with_empty_term` was created
+#' # in a way that it knows about "T2" but has no elements for it.
+#' # ects_trimmed <- remove_empty_terms(ects_with_empty_term)
+#' # print(ects_trimmed@terms) # Would not contain "T2"
+#'
+setGeneric("remove_empty_terms", function(object) standardGeneric("remove_empty_terms"))
+
+#' @describeIn remove_empty_terms Method for ECTermScoring objects.
+setMethod("remove_empty_terms", "ECTermScoring", function(object) {
+
+  term_degrees <- unlist(object@ecprob@degrees[object@terms])
+  kept_terms <- names(term_degrees[term_degrees > 0])
+
+  if (length(kept_terms) == length(object@terms)) {
+    # No empty terms to remove, return original object
+    return(object)
+  }
+
+  # Reconstruct the term->element edge list from the original object,
+  # but only for the terms we are keeping.
+  term_neighbors_list <- object@ecprob@adj[kept_terms]
+
+  new_edge_df <- utils::stack(term_neighbors_list)
+
+  if(nrow(new_edge_df) == 0) {
+    # Handle case where removing terms leaves no edges
+    final_df <- data.frame(term=character(), element=character())
+  } else {
+    names(new_edge_df) <- c("element", "term")
+    final_df <- new_edge_df[, c("term", "element")]
+  }
+
+  # Create a new ECTermScoring object using its constructor.
+  # The constructor will correctly build the new graph and element list.
+  ECTermScoring(final_df)
+})
+
+#' @title Convert ECTermScoring to Data Frame
+#'
+#' @description Creates a data frame of edges from an ECTermScoring object.
+#' The returned data frame has two columns representing term-element edges.
+#' Isolated elements (no associated terms) and empty terms (no associated elements)
+#' are not included in the output.
+#'
+#' @param object An ECTermScoring object.
+#'
+#' @return A data frame with two columns "term" and "element" representing
+#' the edge set of the bipartite graph.
+#' @export
+#' @examples
+#' # The to_dataframe generic is defined with the ECGraph class.
+#' # This method provides the implementation for ECTermScoring objects.
+#' te_df <- data.frame(
+#'   term = c("T1", "T1", "T2"),
+#'   element = c("E1", "E2", "E2")
+#' )
+#' ects <- ECTermScoring(te_df)
+#' edge_list <- to_dataframe(ects)
+#' print(edge_list)
+#'
+setMethod("to_dataframe",
+          "ECTermScoring",
+          function(object) {
+            edge_df <- utils::stack(object@ecprob@adj[object@terms])
+
+            if(nrow(edge_df) == 0) {
+              return(data.frame(term = character(), element = character()))
+            }
+
+            names(edge_df) <- c("element", "term")
+
+            edge_df[, c("term", "element")]
+          })

@@ -625,3 +625,44 @@ setMethod("trim_ecgraph", "ECGraph", function(object, threshold = 1.0) {
   ))
 })
 
+#' @title Remove Isolated Vertices from an ECGraph
+#'
+#' @description Creates a new ECGraph object that excludes all vertices with
+#' zero degree (isolated vertices).
+#'
+#' @param object An ECGraph object.
+#'
+#' @return A new, smaller ECGraph object with no isolated vertex.
+#' @export
+#' @examples
+#' # Create a graph with isolated vertex "D"
+#' edge_df <- data.frame(p1 = c("A", "B", "D"), p2 = c("B", "C", "D"))
+#' ecg <- ECGraph(edge_df)
+#' ecg_trimmed <- remove_isolated_vertices(ecg)
+#' print(ecg@names) # "A", "B", "C", "D"
+#' print(ecg_trimmed@names) # "A", "B", "C"
+#'
+setGeneric("remove_isolated_vertices", function(object) standardGeneric("remove_isolated_vertices"))
+
+#' @describeIn remove_isolated_vertices Method for ECGraph objects.
+setMethod("remove_isolated_vertices", "ECGraph", function(object) {
+
+  if (length(object@names) == 0) {
+    return(object)
+  }
+
+  all_degrees_vec <- unlist(object@degrees)
+  kept_vertices <- names(all_degrees_vec[all_degrees_vec > 0])
+
+  if (length(kept_vertices) == length(object@names)) {
+    return(object)
+  }
+
+  new_adj <- object@adj[kept_vertices]
+  new_degrees <- object@degrees[kept_vertices]
+
+  new("ECGraph",
+      adj = new_adj,
+      degrees = new_degrees,
+      names = kept_vertices)
+})
