@@ -49,9 +49,7 @@ parse_string_and_go_data <- function() {
                                                  by = .(g_canon_1, g_canon_2)
   ]
 
-  # Clean up the column names for the final output
   data.table::setnames(final_gene_network, c("g_canon_1", "g_canon_2"), c("gene1", "gene2"))
-
   message("Done.")
   return(final_gene_network)
 }
@@ -87,10 +85,13 @@ calculate_network_properties_by_threshold <- function(dt) {
   return(final_summary)
 }
 
-# --- EXAMPLE ---
 dt <- parse_string_and_go_data()
 data.table::setorder(dt, best_combined_score)
+data.table::fwrite(dt, "data-raw/raw_network.txt", sep = "\t")
 network_summary <- calculate_network_properties_by_threshold(dt)
 print(head(network_summary))
-print(tail(network_summary))
 data.table::fwrite(network_summary, "data-raw/network_summary.txt", sep = "\t")
+
+network <- dt[best_combined_score >= 900, .(gene1, gene2)]
+
+
