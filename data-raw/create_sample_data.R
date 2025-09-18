@@ -1,4 +1,5 @@
 library(data.table)
+library(org.Hs.eg.db)
 
 parse_string_and_go_data <- function() {
 
@@ -89,9 +90,17 @@ dt <- parse_string_and_go_data()
 data.table::setorder(dt, best_combined_score)
 data.table::fwrite(dt, "data-raw/raw_network.txt", sep = "\t")
 network_summary <- calculate_network_properties_by_threshold(dt)
-print(head(network_summary))
 data.table::fwrite(network_summary, "data-raw/network_summary.txt", sep = "\t")
 
 network <- dt[best_combined_score >= 900, .(gene1, gene2)]
 
+xx <- as.list(org.Hs.egGO2EG)
+xx <- lapply(xx, unique)
+bipartite_dt <- data.table::as.data.table(utils::stack(xx))
+data.table::setnames(bipartite_dt,
+                     old = c("values", "ind"),
+                     new = c("element", "term"))
+bipartite_dt <- bipartite_dt[, .(term, element)]
+bipartite_dt[, term := as.character(term)]
+data.table::fwrite(bipartite_dt, "data-raw/raw_bipartite.txt", sep = "\t")
 
