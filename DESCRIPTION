@@ -22,3 +22,5 @@ RoxygenNote: 7.3.3
 Suggests: knitr, rmarkdown, testthat (>= 3.0.0)
 Imports: data.table, igraph, dplyr, methods
 VignetteBuilder: knitr
+Depends: 
+    R (>= 3.5)

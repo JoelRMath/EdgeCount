@@ -15,3 +15,4 @@ data-raw/org.Hs.eg.db_3.21.0.tar.gz
 data-raw/9606.protein.aliases.v12.0.txt
 data-raw/9606.protein.aliases.v12.0.txt.gz
 data-raw/raw_network.txt
+data-raw/raw_bipartite.txt

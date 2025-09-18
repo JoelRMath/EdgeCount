@@ -984,9 +984,11 @@ setMethod("remove_empty_terms", "ECTermScoring", function(object) {
 #' edge_list <- to_dataframe(ects)
 #' print(edge_list)
 #'
+#' @describeIn to_dataframe Method for ECTermScoring objects.
 setMethod("to_dataframe",
           "ECTermScoring",
           function(object) {
+            # stack() correctly creates the unique term -> element edge list
             edge_df <- utils::stack(object@ecprob@adj[object@terms])
 
             if(nrow(edge_df) == 0) {

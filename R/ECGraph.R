@@ -196,10 +196,21 @@ setGeneric("to_dataframe",
 setMethod("to_dataframe",
           "ECGraph",
           function(object) {
+            if (length(object@names) == 0) {
+              return(data.frame(from = character(), to = character()))
+            }
+
             edge_df <- stack(object@adj)
             names(edge_df) <- c("to", "from")
-            # Return a consistent column order
-            edge_df[, c("from", "to")]
+
+          canonical_edges <- data.frame(
+              from = pmin(as.character(edge_df$from), as.character(edge_df$to)),
+              to   = pmax(as.character(edge_df$from), as.character(edge_df$to))
+            )
+
+            unique_edge_df <- unique(canonical_edges)
+
+            return(unique_edge_df)
           })
 
 #' @title Get Neighbors of Vertices
