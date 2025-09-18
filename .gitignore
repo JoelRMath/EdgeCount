@@ -9,3 +9,8 @@ inst/doc
 .quarto
 tests/testthat/network/org.Hs.eg.db_3.21.0.tar.gz
 tests/testthat/network/network.txt
+data-raw/9606.protein.links.v12.0.txt
+data-raw/org.Hs.eg.db.pdf
+data-raw/org.Hs.eg.db_3.21.0.tar.gz
+data-raw/9606.protein.aliases.v12.0.txt
+data-raw/9606.protein.aliases.v12.0.txt.gz
