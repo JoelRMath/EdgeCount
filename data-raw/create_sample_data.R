@@ -1,7 +1,7 @@
 library(data.table)
 library(org.Hs.eg.db)
 
-parse_string_and_go_data <- function() {
+parse_string <- function() {
 
   message("Reading alias file...")
   alias_file <- "data-raw/9606.protein.aliases.v12.0.txt.gz"
@@ -86,7 +86,7 @@ calculate_network_properties_by_threshold <- function(dt) {
   return(final_summary)
 }
 
-dt <- parse_string_and_go_data()
+dt <- parse_string()
 data.table::setorder(dt, best_combined_score)
 data.table::fwrite(dt, "data-raw/raw_network.txt", sep = "\t")
 network_summary <- calculate_network_properties_by_threshold(dt)
