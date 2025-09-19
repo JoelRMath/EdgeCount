@@ -143,6 +143,7 @@ test_that("ECTermScoring rank scoring", {
 test_that("ECTermScoring table rank scoring", {
   ect <- sample_ects
   element_to_ranks <- as.list(1:length(ect@elements))
+  set.seed(7)
   names(element_to_ranks) <- sample(ect@elements, length(ect@elements))
   #n_terms <- length(ect@terms)
   n_terms <- 100
