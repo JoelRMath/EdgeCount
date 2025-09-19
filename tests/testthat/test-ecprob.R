@@ -5,7 +5,7 @@ test_that("ECProb constructor", {
 
   toggle <- TRUE
   if (toggle){
-    ecgraph <- ECGraph(test_path("network/toy.txt"))
+    ecgraph <- ECGraph(test_path("toy.txt"))
     ecprob <- ECProb(ecgraph)
     # adj list
     expect_setequal(ecprob@adj$A, c("E"))
@@ -36,7 +36,7 @@ test_that("ECProb get_lambda_between", {
 
   simulation <- FALSE
   if (simulation){
-    ecgraph <- ECGraph(test_path("network/final_network.txt"))
+    ecgraph <- sample_ecg
     ecprob <- ECProb(ecgraph)
     nsim <- 1000
       sz <- 2^(c(1:9))
@@ -110,7 +110,7 @@ test_that("ECProb get_lambda_in", {
 
   simulation <- FALSE
   if (simulation){
-    ecgraph <- ECGraph(test_path("network/final_network.txt"))
+    ecgraph <- sample_ecg
     ecprob <- ECProb(ecgraph)
     nsim <- 1000
     sz <- ceiling(1.37^(c(1:20))+0.5)
@@ -218,7 +218,7 @@ test_that("ECProb p-value", {
 
   sim <- FALSE
   if (sim){
-    ecgraph <- ECGraph(test_path("network/final_network.txt"))
+    ecgraph <- sample_ecg
     ecprob <- ECProb(ecgraph)
     szs <- c(2:10)
     pn <- NULL
@@ -302,7 +302,7 @@ test_that("ECProb vectorize in", {
   }
   vfind_kt_i <- Vectorize(find_kt_i, vectorize.args = "i")
 
-  ecgraph <- ECGraph(test_path("network/final_network.txt"))
+  ecgraph <- sample_ecg
   ecprob <- ECProb(ecgraph)
   M <- ecprob@graph_size
   n <- 1000
@@ -399,7 +399,7 @@ test_that("ECProb vectorize between", {
 
 test_that("ECProb fast suitability", {
 
-  ecgraph <- ECGraph(test_path("network/final_network.txt"))
+  ecgraph <- sample_ecg
   ecprob <- ECProb(ecgraph)
   res <- summarize_suitability_fast(ecprob)
   # print(res)
@@ -407,7 +407,7 @@ test_that("ECProb fast suitability", {
 
 test_that("ECProb lambda_expected", {
 
-  ecgraph <- ECGraph(test_path("network/final_network.txt"))
+  ecgraph <- sample_ecg
   ecprob <- ECProb(ecgraph)
   M <- ecprob@graph_size
   N <- ecprob@graph_order

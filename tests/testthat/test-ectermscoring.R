@@ -121,13 +121,13 @@ test_that("ECTermScoring constructor handles ... for file reading options", {
 })
 
 test_that("ECTermScoring one set", {
-  ect <- ECTermScoring(test_path("network/terms_edges.txt"))
+  ect <- sample_ects
   element_set <- sample(ect@elements, 10)
   t <- terms_ecset_statistics(ect, element_set = element_set, lambda_method = "fast")
 })
 
 test_that("ECTermScoring rank scoring", {
-  ect <- ECTermScoring(test_path("network/terms_edges.txt"))
+  ect <- sample_ects
   element_to_ranks <- as.list(1:length(ect@elements))
   names(element_to_ranks) <- sample(ect@elements, length(ect@elements))
   n_terms <- 10
@@ -141,7 +141,7 @@ test_that("ECTermScoring rank scoring", {
 })
 
 test_that("ECTermScoring table rank scoring", {
-  ect <- ECTermScoring(test_path("network/terms_edges.txt"))
+  ect <- sample_ects
   element_to_ranks <- as.list(1:length(ect@elements))
   names(element_to_ranks) <- sample(ect@elements, length(ect@elements))
   #n_terms <- length(ect@terms)
@@ -181,7 +181,7 @@ test_that("ECTermScoring table rank scoring", {
 test_that("bipartite degrees", {
   simul <- FALSE
   if (simul){
-    ect <- ECTermScoring(test_path("network/terms_edges.txt"))
+    ect <- sample_ects
     degrees <- unlist(ect@ecprob@degrees[ect@elements])
     nsim <- 10000
     m <- sapply(1:nsim, function(x){
@@ -245,7 +245,7 @@ test_that("ECTermScoring vsea", {
 
   toggle <- FALSE
   if (toggle){
-    ect <- ECTermScoring(test_path("network/terms_edges.txt"))
+    ect <- sample_ects
     n_terms <- 100
     ects <- create_vsea_test_object(ect, n_terms)
     element_to_ranks <- as.list(1:length(ects@elements))

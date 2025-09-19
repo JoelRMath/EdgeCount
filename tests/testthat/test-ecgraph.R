@@ -5,7 +5,7 @@ test_that("ECGraph constructor", {
 
   toggle <- TRUE
   if (toggle){
-    ec_graph <- ECGraph(test_path("network/toy.txt"))
+    ec_graph <- ECGraph(test_path("toy.txt"))
     # adj list
     expect_setequal(ec_graph@adj$A, c("E"))
     expect_setequal(ec_graph@adj$B, c("E","C"))
@@ -33,7 +33,7 @@ test_that("EC in", {
 
   toggle <- TRUE
   if (toggle){
-    ec <- ECGraph(test_path("network/toy.txt"))
+    ec <- ECGraph(test_path("toy.txt"))
     expect_equal(get_edge_count_in(ec,NULL), 0)
     expect_equal(get_edge_count_in(ec,c("E")), 0)
     expect_equal(get_edge_count_in(ec,c("E","I")), 0)
@@ -47,7 +47,7 @@ test_that("EC between", {
 
   toggle <- TRUE
   if (toggle){
-    ec <- ECGraph(test_path("network/toy.txt"))
+    ec <- ECGraph(test_path("toy.txt"))
     expect_equal(get_edge_count_between(ec,NULL,NULL), 0)
     expect_equal(get_edge_count_between(ec,c("A"),NULL), 0)
     expect_equal(get_edge_count_between(ec,c("A"),c("G")), 0)
@@ -61,7 +61,7 @@ test_that("EC in max fds", {
 
   toggle <- TRUE
   if (toggle){
-    ec <- ECGraph(test_path("network/toy.txt"))
+    ec <- ECGraph(test_path("toy.txt"))
     expect_equal(get_edge_count_in_max_fds(ec,NULL), 0)
     expect_equal(get_edge_count_in_max_fds(ec,c("E")), 0)
     expect_equal(get_edge_count_in_max_fds(ec,c("B","C","E")), 3)
@@ -72,7 +72,7 @@ test_that("EC in max fds", {
 test_that("EC between max fds", {
   toggle <- TRUE
   if (toggle){
-    ec <- ECGraph(test_path("network/toy.txt"))
+    ec <- ECGraph(test_path("toy.txt"))
     expect_equal(get_edge_count_between_max_fds(ec,NULL,NULL), 0)
     expect_equal(get_edge_count_between_max_fds(ec,c("E"),NULL), 0)
     expect_equal(get_edge_count_between_max_fds(ec,c("E"),c("A")), 1)
@@ -86,7 +86,7 @@ test_that("ECG to_dataframe", {
 
   toggle <- TRUE
   if (toggle){
-    ec1 <- ECGraph(test_path("network/toy.txt"))
+    ec1 <- ECGraph(test_path("toy.txt"))
     df1 <- to_dataframe(ec1)
     ec2 <- ECGraph(df1)
     expect_equal(ec1@adj, ec2@adj)
@@ -99,7 +99,7 @@ test_that("ECG trimming", {
 
   toggle <- TRUE
   if (toggle){
-    ecg <- ECGraph(test_path("network/final_network.txt"))
+    ecg <- sample_ecg
     time_start <- Sys.time()
     ecg <- trim_ecgraph(ecg, 0.1)
     time_end <- Sys.time() - time_start
