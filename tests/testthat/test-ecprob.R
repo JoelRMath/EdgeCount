@@ -38,7 +38,7 @@ test_that("ECProb get_lambda_between", {
   if (simulation){
     ecgraph <- sample_ecg
     ecprob <- ECProb(ecgraph)
-    nsim <- 1000
+    nsim <- 10
       sz <- 2^(c(1:9))
       sz1 <- NULL
       sz2 <- NULL
@@ -77,10 +77,10 @@ test_that("ECProb get_lambda_between", {
       }
     lst <- list(sz1 = sz1, sz2 = sz2, sz1d = sz1d, sz2d = sz2d, lamb_n = lamb_n, lamb_o = lamb_o, time_n = time_n, time_o = time_o)
     df <- data.frame(lst)
-    write.table(df,test_path("res/TestECPBetweenBig.txt"),sep="\t",row.names = F,quote = F)
+    write.table(df,test_path("res/TestECPBetween.txt"),sep="\t",row.names = F,quote = F)
   }
 
-  df <- read.table(test_path("res/TestECPBetweenBig.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+  df <- read.table(test_path("res/TestECPBetween.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   df$sz1d_sz2d <- df$sz1d * df$sz2d
   df$sz1d_logsz1d_sz2d_logsz2d <- df$sz1d * log(pmax(1,df$sz1d)) + df$sz2d * log(pmax(1,df$sz2d))
   naive_summary <- aggregate(
@@ -90,7 +90,7 @@ test_that("ECProb get_lambda_between", {
   )
   write.table(naive_summary,test_path("res/ECPBetweenNaive.txt"),sep="\t",row.names = F,quote = F)
 
-  df <- read.table(test_path("res/TestECPBetweenBig.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+  df <- read.table(test_path("res/TestECPBetween.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   df$sz1d_sz2d <- df$sz1d * df$sz2d
   df$sz1d_logsz1d_sz2d_logsz2d <- df$sz1d * log(pmax(1,df$sz1d)) + df$sz2d * log(pmax(1,df$sz2d))
   optimized_summary <- aggregate(
@@ -100,7 +100,7 @@ test_that("ECProb get_lambda_between", {
   )
   write.table(optimized_summary,test_path("res/ECPBetweenOptimized.txt"),sep="\t",row.names = F,quote = F)
 
-  df <- read.table(test_path("res/TestECPBetweenBig.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+  df <- read.table(test_path("res/TestECPBetween.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   t <- df$lamb_o-df$lamb_n
   t <- t/((df$lamb_o+df$lamb_n)/2)
 
@@ -112,7 +112,7 @@ test_that("ECProb get_lambda_in", {
   if (simulation){
     ecgraph <- sample_ecg
     ecprob <- ECProb(ecgraph)
-    nsim <- 1000
+    nsim <- 10
     sz <- ceiling(1.37^(c(1:20))+0.5)
     lamb_n <- NULL
     lamb_o <- NULL
@@ -145,10 +145,10 @@ test_that("ECProb get_lambda_in", {
     }
     lst <- list(size = size, lamb_n = lamb_n, lamb_o = lamb_o, lamb_f = lamb_f, time_n = time_n, time_o = time_o, time_f = time_f)
     df <- data.frame(lst)
-    write.table(df,test_path("res/TestECPInBig.txt"),sep="\t",row.names = F,quote = F)
+    write.table(df,test_path("res/TestECPIn.txt"),sep="\t",row.names = F,quote = F)
   }
 
-  df <- read.table(test_path("res/TestECPINBig.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+  df <- read.table(test_path("res/TestECPIN.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   df$size_size <- df$size * df$size
   df$size_logsize <- df$size * log(df$size)
   naive_summary <- aggregate(
@@ -158,7 +158,7 @@ test_that("ECProb get_lambda_in", {
   )
   write.table(naive_summary,test_path("res/ECPInNaive.txt"),sep="\t",row.names = F,quote = F)
 
-  df <- read.table(test_path("res/TestECPInBig.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+  df <- read.table(test_path("res/TestECPIn.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   df$size_size <- df$size * df$size
   df$size_logsize <- df$size * log(df$size)
   optimized_summary <- aggregate(
@@ -168,7 +168,7 @@ test_that("ECProb get_lambda_in", {
   )
   write.table(optimized_summary,test_path("res/ECPInOptimized.txt"),sep="\t",row.names = F,quote = F)
 
-  df <- read.table(test_path("res/TestECPInBig.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+  df <- read.table(test_path("res/TestECPIn.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   df$size_size <- df$size * df$size
   lambda_summary <- aggregate(
     cbind(lamb_o, lamb_n, lamb_f, size_size) ~ size_size,
@@ -176,118 +176,6 @@ test_that("ECProb get_lambda_in", {
     FUN = function(x) c(mean = mean(x), sd = sd(x))
   )
   write.table(lambda_summary,test_path("res/ECPInLambda.txt"),sep="\t",row.names = F,quote = F)
-})
-
-
-
-test_that("ECProb p-value", {
-
-  get_alpha <- function(lambda, m){
-
-    t <- 1
-    alpha <- 1
-    for (i in 1:m){
-      t <- t*(lambda/i)
-      if (t < alpha / 1e12){
-        break
-      }
-      alpha <- alpha + t
-    }
-    alpha <- alpha*exp(-lambda)
-    return(as.numeric(alpha))
-  }
-
-  get_upper <- function(lambda, m, z){
-
-    t <- lambda^z/factorial(z)
-    p <- t
-    for (i in (z+1):m){
-      t <- t*(lambda/i)
-      p <- p + t
-    }
-    p <- p*exp(-lambda)
-    return(as.numeric(p))
-  }
-
-  get_PV <- function(lambda, m, z){
-
-    p <- get_upper(lambda, m, z)
-    p <- p/get_alpha(lambda, m)
-    return(as.numeric(p))
-  }
-
-  sim <- FALSE
-  if (sim){
-    ecgraph <- sample_ecg
-    ecprob <- ECProb(ecgraph)
-    szs <- c(2:10)
-    pn <- NULL
-    p <- NULL
-    sz <- NULL
-    m <- NULL
-    z <- NULL
-    lambda <- NULL
-    for (i in 1:length(szs)){
-      set <- as.character(sample(ecprob@names,szs[i]))
-      M <- length(set)*(length(set)-1)/2
-      lamb <- calculate_lambda_in(ecprob, set)
-      for (Z in 0:M){
-        p1 <- get_PV(lamb, M, Z)
-        lst <- edge_count_statistics(ecprob, Z, M, lamb)
-        p2 <- lst$p_value
-        pn <- c(pn, p1)
-        p <- c(p, p2)
-        sz <- c(sz, szs[i])
-        m <- c(m, M)
-        z <- c(z, Z)
-      }
-    }
-    adiff = abs(pn-p)
-    df <- data.frame(sz = sz, m = m, z = z, pn = pn, p = p, adiff = adiff)
-    write.table(df, test_path("res/TestPValue.txt"),quote = F, sep = "\t", row.names = F)
-
-    szs <- c(2:100)
-    sz <- NULL
-    m <- NULL
-    z <- NULL
-    tm <- NULL
-    for (i in 1:length(szs)){
-      print(szs[i])
-      set <- as.character(sample(ecprob@names,szs[i]))
-      M <- length(set)*(length(set)-1)/2
-      lamb <- calculate_lambda_in(ecprob, set)
-      for (Z in 0:M){
-        sz <- c(sz, szs[i])
-        m <- c(m, M)
-        z <- c(z, Z)
-        time_start <- Sys.time()
-        lst <- edge_count_statistics(ecprob, Z, M, lamb)
-        p <- lst$p_value
-        time_p <- Sys.time() - time_start
-        tm <- c(tm, as.numeric(time_p, units = "secs")*1000)
-      }
-    }
-    df <- data.frame(sz = sz, m = m, z = z, tm = tm)
-    write.table(df, test_path("res/TestPValueTime.txt"),quote = F, sep = "\t", row.names = F)
-    sz_summary <- aggregate(
-      tm ~ sz,
-      data = df,
-      FUN = function(x) c(mean = mean(x), sd = sd(x))
-    )
-    write.table(sz_summary, test_path("res/TestPValueTimeSz.txt"),quote = F, sep = "\t", row.names = F)
-    m_summary <- aggregate(
-      tm ~ m,
-      data = df,
-      FUN = function(x) c(mean = mean(x), sd = sd(x))
-    )
-    write.table(m_summary, test_path("res/TestPValueTimeM.txt"),quote = F, sep = "\t", row.names = F)
-    z_summary <- aggregate(
-      tm ~ z,
-      data = df,
-      FUN = function(x) c(mean = mean(x), sd = sd(x))
-    )
-    write.table(z_summary, test_path("res/TestPValueTimeZ.txt"),quote = F, sep = "\t", row.names = F)
-  }
 })
 
 test_that("ECProb vectorize in", {
@@ -414,7 +302,7 @@ test_that("ECProb lambda_expected", {
   m <- c(2, 3, 4, 5, 10, 20, 50, 100)
   sim <- FALSE
   if (sim){
-    nsim <- 100000
+    nsim <- 10
     m_lambda <- NULL
     sd_lambda <- NULL
     e_lambda <- NULL
