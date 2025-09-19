@@ -2,7 +2,6 @@ library(data.table)
 library(org.Hs.eg.db)
 library(GO.db)
 
-
 # Creates a consistent pair (same element universe)
 # of sample datasets for the EdgeCount package.
 # Returns a list: $sample_ecg, $sample_ects
@@ -77,6 +76,7 @@ create_example_data <- function(network_threshold = 0.01,
     sample_ects = final_ects
   ))
 }
+
 
 # Creates annotation data for sample datasets
 
