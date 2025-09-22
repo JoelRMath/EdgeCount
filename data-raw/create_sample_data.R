@@ -84,28 +84,30 @@ create_sample_annotations <- function(sample_ects) {
 
   # GO term names
   unique_go_terms <- sample_ects@terms
-  go_term_names <- AnnotationDbi::select(
+  go_term_df <- AnnotationDbi::select(
     GO.db::GO.db,
     keys = unique_go_terms,
     keytype = "GOID",
-    columns = c("TERM", "ONTOLOGY")
+    columns = "TERM"
   )
-  names(go_term_names) <- c("term", "term_name", "ontology")
+  go_term_df <- na.omit(go_term_df)
+  go_term_lookup <- setNames(go_term_df$TERM, go_term_df$GOID)
 
 
   # Gene symbols
   unique_gene_ids <- sample_ects@elements
-  gene_symbols <- AnnotationDbi::select(
+  gene_symbols_df <- AnnotationDbi::select(
     org.Hs.eg.db::org.Hs.eg.db,
     keys = unique_gene_ids,
     keytype = "ENTREZID",
     columns = "SYMBOL"
   )
-  names(gene_symbols) <- c("element", "symbol")
+  gene_symbols_df <- na.omit(gene_symbols_df)
+  gene_symbol_lookup <- setNames(gene_symbols_df$SYMBOL, gene_symbols_df$ENTREZID)
 
   return(list(
-    sample_term_names = go_term_names,
-    sample_gene_symbols = gene_symbols
+    sample_term_lookup = go_term_lookup,
+    sample_gene_symbol_lookup = gene_symbol_lookup
   ))
 }
 
@@ -114,14 +116,16 @@ create_sample_annotations <- function(sample_ects) {
 sample_data <- create_example_data()
 sample_ecg <- sample_data$sample_ecg
 sample_ects <- sample_data$sample_ects
-annotation_data <- create_sample_annotations(sample_ects)
-sample_term_names <- annotation_data$sample_term_names
-sample_gene_symbols <- annotation_data$sample_gene_symbols
 
+annotation_data <- create_sample_annotations(sample_ects)
+sample_term_lookup <- annotation_data$sample_term_lookup
+sample_gene_symbol_lookup <- annotation_data$sample_gene_symbol_lookup
+
+# Save the final objects to be included in the package
 usethis::use_data(
   sample_ecg,
   sample_ects,
-  sample_term_names,
-  sample_gene_symbols,
+  sample_term_lookup,
+  sample_gene_symbol_lookup,
   overwrite = TRUE
 )

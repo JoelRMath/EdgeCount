@@ -33,7 +33,7 @@ edge_count_statistics(
 \item{lambda_method}{The method for lambda calculation ("accurate", "optimized", "fast").}
 }
 \value{
-A list containing the p-value, z-score, and other statistics.
+A list containing the p-value, lambda, log2_Anscombe_ratio and log2_relative_change.
 }
 \description{
 A wrapper that calculates a suite of statistics (p-value, z-score, etc.)

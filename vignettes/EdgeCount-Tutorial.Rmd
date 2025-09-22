@@ -68,8 +68,7 @@ devtools::install_github("JoelRMath/EdgeCount")
 
 # References
 
-<a id="ref1">(1.)</a> Chung & Lu (2002). The average distances in random graphs with given
-expected degrees. *PNAS*, 99 (25) 15879-15882. 
+<a id="ref1">(1.)</a> Chung & Lu (2002). The average distances in random graphs with given expected degrees. *PNAS*, 99 (25) 15879-15882. 
 <a href="https://www.pnas.org/doi/10.1073/pnas.252631999" target="_blank">[link]</a>
 
 <a id="ref2">(2.)</a> Pradines, J.R., et al. (2005). Analyzing Protein Lists with Large Networks: Edge-Count Probabilities in Random Graphs with Given Expected Degrees. *Journal of Computational Biology*, 12(2), 113-28.<a href="https://www.liebertpub.com/doi/10.1089/cmb.2005.12.113" target="_blank">[link]</a>
@@ -77,3 +76,61 @@ expected degrees. *PNAS*, 99 (25) 15879-15882.
 
 <a id="ref3">(3.)</a> Subramanian, A., et al. (2005). Gene set enrichment analysis: a knowledge-based approach for interpreting genome-wide expression profiles. *PNAS*, 102(43), 15545-50. <a href="https://www.pnas.org/doi/10.1073/pnas.0506580102" target="_blank">[link]</a>
 
+
+```{r stop_here, echo=FALSE, results='hide'}
+knitr::knit_exit()
+```
+
+```{r show_categorized_table, echo=FALSE}
+# This code assumes the categorized file is now included in your
+# package's `inst/extdata` directory for use in the vignette.
+
+# For the vignette, we would read the file like this:
+# categorized_pairs <- data.table::fread(
+#   system.file("extdata", "term_pairs_categorized.tsv", package = "EdgeCount")
+# )
+
+# For now, let's just read it from the data-raw folder for this example
+categorized_pairs <- data.table::fread("../data-raw/term_pairs_categorized.tsv")
+
+
+# --- Use kableExtra to create the color-coded table ---
+
+# Define a color palette for your categories
+# You can customize these colors
+palette <- c(
+  "Complex/Subunit" = "#F8766D",
+  "Metabolism" = "#7CAE00",
+  "Signaling" = "#00BFC4",
+  "Development" = "#C77CFF",
+  "Other" = "#A9A9A9"
+)
+
+# Display the top 20 pairs
+knitr::kable(
+  head(categorized_pairs, 20),
+  caption = "Top 20 Most Interconnected Term Pairs"
+) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  kableExtra::row_spec(
+    which(categorized_pairs$category[1:20] == "Complex/Subunit"), 
+    background = palette["Complex/Subunit"]
+  ) %>%
+  kableExtra::row_spec(
+    which(categorized_pairs$category[1:20] == "Metabolism"), 
+    background = palette["Metabolism"]
+  ) %>%
+  kableExtra::row_spec(
+    which(categorized_pairs$category[1:20] == "Signaling"), 
+    background = palette["Signaling"]
+  ) %>%
+    kableExtra::row_spec(
+    which(categorized_pairs$category[1:20] == "Development"), 
+    background = palette["Development"]
+  ) %>%
+  kableExtra::row_spec(
+    which(categorized_pairs$category[1:20] == "Other"), 
+    background = palette["Other"]
+  ) %>%
+  kableExtra::scroll_box(width = "100%")
+```

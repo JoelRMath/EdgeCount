@@ -427,7 +427,7 @@ setMethod(
 #' @param observed_edge_count The observed number of edges.
 #' @param lambda_method The method for lambda calculation ("accurate", "optimized", "fast").
 #'
-#' @return A list containing the p-value, z-score, and other statistics.
+#' @return A list containing the p-value, lambda, log2_Anscombe_ratio and log2_relative_change.
 #' @export
 #' @examples
 #' ecg <- ECGraph(data.frame(p1=c("A","B","C"), p2=c("B","C","A")))
@@ -479,7 +479,8 @@ setMethod(
     return(list(p_value = p_value,
                 observed_edge_count = observed_edge_count,
                 log2_Anscombe_ratio = log2_Anscombe_ratio,
-                log2_relative_change = log2_relative_change))
+                log2_relative_change = log2_relative_change,
+                lambda = lambda))
   })
 
 #' @title Summarize Graph's Suitability for Fast Lambda Approximation
