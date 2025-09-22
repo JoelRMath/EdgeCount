@@ -187,6 +187,48 @@ score_pairs_v1 <- function(candidate_pairs_dt) {
   return(final_dt)
 }
 
+score_pairs_v2 <- function(candidate_pairs_dt) {
+
+  # --- Setup: This part is identical to v1 ---
+  ecp <- ECProb(sample_ecg)
+  bipartite_edges <- as.data.table(to_dataframe(sample_ects))
+  bipartite_edges[, term := as.character(term)]
+  term_to_elements_list <- split(bipartite_edges$element, bipartite_edges$term)
+
+  # --- The "Fast" Vectorized Operation ---
+  # The `by = 1:nrow(...)` trick tells data.table to run the code
+  # in the `j` expression for each row, which is much faster than an R loop.
+  results_dt <- candidate_pairs_dt[, {
+
+    # Get the element sets using the fast lookup list
+    elements1 <- term_to_elements_list[[term1]]
+    elements2 <- term_to_elements_list[[term2]]
+
+    # Calculate the observed edge count
+    observed <- get_edge_count_between(sample_ecg, elements1, elements2)
+
+    # Get the full statistics
+    stats <- edge_count_statistics(ecp, elements1, elements2, observed)
+
+    # Return a list of the results for this row.
+    list(
+      observed_edges = as.integer(observed),
+      p_value = stats$p_value,
+      lambda = stats$lambda,
+      log2_anscombe = stats$log2_Anscombe_ratio
+    )
+  }, by = 1:nrow(candidate_pairs_dt)] # This tells data.table to iterate row-by-row
+
+  # The 'by' operation creates a temporary grouping column that we need to remove.
+  results_dt[, `1:nrow(candidate_pairs_dt)` := NULL]
+
+  # Combine the results with the original pairs
+  final_dt <- cbind(candidate_pairs_dt, results_dt)
+
+  return(final_dt)
+}
+
+
 message("--- Loading sample data ---")
 data(sample_ecg)
 data(sample_ects)
@@ -231,57 +273,10 @@ scored_pairs_dt[, term1_name := sample_term_lookup[term1]]
 scored_pairs_dt[, term2_name := sample_term_lookup[term2]]
 
 # Save the annotated data frame to a file
-data.table::fwrite(scored_pairs_dt, "data-raw/scored_pairs_annotated.tsv", sep = "\t")
+final_scored_pairs_dt <- scored_pairs_dt[p_value < 0.001]
+data.table::fwrite(final_scored_pairs_dt, "data-raw/scored_pairs_annotated.tsv", sep = "\t")
 
 # View the result
 print(head(scored_pairs_dt))
 
 
-# bip_edges <- as.data.table(to_dataframe(sample_ects))
-# # Ensure term/element columns are character for correct string operations
-# bip_edges[, `:=`(term = as.character(term), element = as.character(element))]
-#
-# # 2b. Annotate the network edges with their corresponding terms
-# merged1 <- net_edges[bip_edges, on = .(element1 = element), nomatch = 0, allow.cartesian = TRUE]
-# setnames(merged1, "term", "term1")
-# merged2 <- merged1[bip_edges, on = .(element2 = element), nomatch = 0, allow.cartesian = TRUE]
-# setnames(merged2, "term", "term2")
-#
-# # 2c. Count the number of UNIQUE network edges for each unique term pair
-# #     This is the crucial, corrected aggregation step.
-# pairs_with_counts <- merged2[term1 != term2, # Exclude self-connections
-#                              .( # Create canonical representations for both pairs
-#                                term_canon_1 = pmin(term1, term2),
-#                                term_canon_2 = pmax(term1, term2),
-#                                edge_canon_1 = pmin(element1, element2),
-#                                edge_canon_2 = pmax(element1, element2)
-#                              )][, # Now find the unique bridges
-#                                 unique(.SD, by = c("term_canon_1", "term_canon_2", "edge_canon_1", "edge_canon_2"))
-#                              ][, # Finally, count the number of unique edges per term pair
-#                                .(observed_edges = .N), by = .(term1 = term_canon_1, term2 = term_canon_2)
-#                              ]
-#
-#
-# # --- Step 3: Calculate full statistics for the valid pairs ---
-# message(paste("\n--- Step 3: Calculating full stats for", nrow(pairs_with_counts), "connected pairs ---"))
-# ecp <- ECProb(sample_ecg)
-# term_to_elements_list <- split(bip_edges$element, bip_edges$term)
-#
-# # Add lambda and p-value columns to our results table
-# pairs_with_counts[, c("p_value", "lambda", "log2_anscombe") := {
-#   elements1 <- term_to_elements_list[[term1]]
-#   elements2 <- term_to_elements_list[[term2]]
-#   stats <- edge_count_statistics(ecp, elements1, elements2, observed_edges)
-#   .(stats$p_value, stats$lambda, stats$log2_Anscombe_ratio)
-# }, by = 1:nrow(pairs_with_counts)]
-#
-#
-# # --- Step 4: Sort and Save the Summary for Inspection ---
-# message("\n--- Step 4: Sorting and saving summary ---")
-# final_results <- pairs_with_counts
-# setorder(final_results, -log2_anscombe, na.last = TRUE)
-
-
-# delta <- 20
-# pairs_to_save <- final_results[c(1:delta, (nrow(final_results)-delta):nrow(final_results)),]
-# fwrite(pairs_to_save, "data-raw/saved_pairs.txt", sep = "\t")
