@@ -150,9 +150,9 @@ score_pairs_v1 <- function(candidate_pairs_dt) {
   # We iterate through each row of the candidate pairs.
   for (i in 1:nrow(candidate_pairs_dt)) {
     # Print progress
-    if (i %% 1000 == 0) {
-      message(paste("Scoring pair", i, "of", nrow(candidate_pairs_dt)))
-    }
+    # if (i %% 10000 == 0) {
+    #   message(paste("Scoring pair", i, "of", nrow(candidate_pairs_dt)))
+    # }
 
     # Get the terms for the current row
     term1 <- candidate_pairs_dt$term1[i]
@@ -166,7 +166,7 @@ score_pairs_v1 <- function(candidate_pairs_dt) {
     observed <- get_edge_count_between(sample_ecg, elements1, elements2)
 
     # Get the full statistics
-    stats <- edge_count_statistics(ecp, elements1, elements2, observed)
+    stats <- edge_count_statistics(ecp, elements1, elements2, observed, lambda_method = "fast")
 
     # Store the results for this row in our pre-allocated list
     results_list[[i]] <- list(
@@ -196,31 +196,22 @@ score_pairs_v2 <- function(candidate_pairs_dt) {
   term_to_elements_list <- split(bipartite_edges$element, bipartite_edges$term)
 
   # --- The "Fast" Vectorized Operation ---
-  # The `by = 1:nrow(...)` trick tells data.table to run the code
-  # in the `j` expression for each row, which is much faster than an R loop.
   results_dt <- candidate_pairs_dt[, {
-
-    # Get the element sets using the fast lookup list
     elements1 <- term_to_elements_list[[term1]]
     elements2 <- term_to_elements_list[[term2]]
-
-    # Calculate the observed edge count
     observed <- get_edge_count_between(sample_ecg, elements1, elements2)
-
-    # Get the full statistics
     stats <- edge_count_statistics(ecp, elements1, elements2, observed)
 
-    # Return a list of the results for this row.
     list(
       observed_edges = as.integer(observed),
       p_value = stats$p_value,
       lambda = stats$lambda,
       log2_anscombe = stats$log2_Anscombe_ratio
     )
-  }, by = 1:nrow(candidate_pairs_dt)] # This tells data.table to iterate row-by-row
+  }, by = .(nrow = 1:nrow(candidate_pairs_dt))] # Use a named column for the 'by'
 
-  # The 'by' operation creates a temporary grouping column that we need to remove.
-  results_dt[, `1:nrow(candidate_pairs_dt)` := NULL]
+  # --- THE FIX: Remove the 'by' column by its correct name ---
+  results_dt[, nrow := NULL]
 
   # Combine the results with the original pairs
   final_dt <- cbind(candidate_pairs_dt, results_dt)
@@ -228,6 +219,64 @@ score_pairs_v2 <- function(candidate_pairs_dt) {
   return(final_dt)
 }
 
+score_all_pairs_fast <- function() {
+
+  # --- STEP 1: Find pairs AND their edge counts (fast method) ---
+  net_edges <- data.table(to_dataframe(sample_ecg))
+  setnames(net_edges, c("from", "to"), c("element1", "element2"))
+
+  bip_edges <- as.data.table(to_dataframe(sample_ects))
+  bip_edges[, `:=`(term = as.character(term), element = as.character(element))]
+
+  merged1 <- net_edges[bip_edges, on = .(element1 = element), nomatch = 0, allow.cartesian = TRUE]
+  setnames(merged1, "term", "term1")
+  merged2 <- merged1[bip_edges, on = .(element2 = element), nomatch = 0, allow.cartesian = TRUE]
+  setnames(merged2, "term", "term2")
+
+  pairs_with_counts <- merged2[term1 != term2,
+                               .(
+                                 term_canon_1 = pmin(term1, term2), term_canon_2 = pmax(term1, term2),
+                                 edge_canon_1 = pmin(element1, element2), edge_canon_2 = pmax(element1, element2)
+                               )
+  ][,
+    unique(.SD, by = c("term_canon_1", "term_canon_2", "edge_canon_1", "edge_canon_2"))
+  ][,
+    .(observed_edges = .N), by = .(term1 = term_canon_1, term2 = term_canon_2)
+  ]
+
+
+  # --- STEP 2: Pre-calculate summary stats for all terms ---
+  ecp <- ECProb(sample_ecg)
+  element_degrees <- unlist(sample_ecg@degrees)
+  term_summary <- bip_edges[, .(
+    term_size = .N,
+    sum_of_degrees = sum(element_degrees[element])
+  ), by = term]
+
+
+  # --- STEP 3: Annotate with joins ---
+  annotated_pairs <- copy(pairs_with_counts)
+  setkey(annotated_pairs, term1)
+  setkey(term_summary, term)
+  annotated_pairs[term_summary, `:=`(size1 = i.term_size, sum_degrees1 = i.sum_of_degrees), on = .(term1 = term)]
+
+  setkey(annotated_pairs, term2)
+  annotated_pairs[term_summary, `:=`(size2 = i.term_size, sum_degrees2 = i.sum_of_degrees), on = .(term2 = term)]
+
+
+  # --- STEP 4: Perform final vectorized calculations ---
+  annotated_pairs[, `:=`(
+    lambda = (sum_degrees1 * sum_degrees2) / (2 * ecp@graph_size),
+    max_possible_edges = size1 * size2
+  )]
+
+  annotated_pairs[, p_value := calculate_p_value(ecp, observed_edges, max_possible_edges, lambda)]
+  annotated_pairs[, log2_anscombe := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
+
+  final_dt <- annotated_pairs[, .(term1, term2, observed_edges, p_value, lambda, log2_anscombe)]
+
+  return(final_dt)
+}
 
 message("--- Loading sample data ---")
 data(sample_ecg)
@@ -236,18 +285,18 @@ data(sample_ects)
 message("---  Getting candidate pairs ---")
 # start_time <- Sys.time()
 # candidate_pairs_v1 <- get_candidate_pairs_v1()
-# elapsed_time_v1 <- Sys.time()-start_time
-# print(paste("v1:", elapsed_time_v1))
+# elapsed_time_v1 <- as.numeric(Sys.time()-start_time)
+# print(paste("v1:", paste(round(elapsed_time_v1, 2), "seconds")))
 #
 # start_time <- Sys.time()
 # candidate_pairs_v2 <- get_candidate_pairs_v2()
-# elapsed_time_v2 <- Sys.time()-start_time
-# print(paste("v2:", elapsed_time_v2))
+# elapsed_time_v2 <- as.numeric(Sys.time()-start_time)
+# print(paste("v2:", paste(round(elapsed_time_v2, 2), "seconds")))
 
 start_time <- Sys.time()
 candidate_pairs_v3 <- get_candidate_pairs_v3()
-elapsed_time_v3 <- Sys.time() - start_time
-print(paste("v3:", elapsed_time_v3))
+elapsed_time <- as.numeric(Sys.time() - start_time, units = "secs")
+message(paste("getting pairs v3:", paste(round(elapsed_time, 2), "seconds")))
 
 # data.table::setorder(candidate_pairs_v1, term1, term2)
 # data.table::setorder(candidate_pairs_v2, term1, term2)
@@ -262,21 +311,62 @@ data.table::setorder(candidate_pairs_v3, term1, term2)
 #   print(comparison_result)
 # }
 
-scored_pairs_dt <- score_pairs_v1(candidate_pairs_v3)
+benchmark_file <- "data-raw/scored_pairs_v1.rds"
 
-# Load the lookup tables
-data(sample_term_lookup)
-data(sample_gene_symbol_lookup) # Not used here, but for annotating element lists
+if (!file.exists(benchmark_file)) {
+  message("--- Scoring pairs with v1 and saving to file ---")
+  start_time_v1 <- Sys.time()
+  scored_pairs_v1 <- score_pairs_v1(candidate_pairs_v3)
+  end_time_v1 <- Sys.time()
+  ellapsed_time <- as.numeric(end_time_v1 - start_time_v1, units = "secs")
+  message(paste("scoring pairs v1:", round(ellapsed_time, 2), "seconds"))
+  saveRDS(scored_pairs_v1, benchmark_file)
+} else {
+  message("--- Loading pre-computed v1 benchmark results from file... ---")
+  scored_pairs_v1 <- readRDS(benchmark_file)
+}
 
-# Add new columns with the term names using the fast lookup
-scored_pairs_dt[, term1_name := sample_term_lookup[term1]]
-scored_pairs_dt[, term2_name := sample_term_lookup[term2]]
+# start_time_v2 <- Sys.time()
+# scored_pairs_v2 <- score_pairs_v2(candidate_pairs_v3)
+# end_time_v2 <- Sys.time()
+# ellapsed_time <- as.numeric(end_time_v2 - start_time_v2, units = "secs")
+# print(paste("scoring pairs v2:", round(ellapsed_time, 2), "seconds"))
 
-# Save the annotated data frame to a file
-final_scored_pairs_dt <- scored_pairs_dt[p_value < 0.001]
-data.table::fwrite(final_scored_pairs_dt, "data-raw/scored_pairs_annotated.tsv", sep = "\t")
+message("\n--- Scoring pairs with the fast, vectorized method ---")
+start_time_fast <- Sys.time()
+scored_pairs_fast <- score_all_pairs_fast()
+end_time_fast <- Sys.time()
+time_diff_fast <- as.numeric(end_time_fast - start_time_fast, units = "secs")
+print(paste("Fast scoring time:", round(time_diff_fast, 2), "seconds"))
 
-# View the result
-print(head(scored_pairs_dt))
 
+message("\n--- Comparing v1 and fast method outputs ---")
+# Note: This comparison is for the APPROXIMATE fast lambda.
+# A perfect match is not expected, but the correlation should be high.
+setorder(scored_pairs_v1, term1, term2)
+setorder(scored_pairs_fast, term1, term2)
+
+# Check correlation of a key metric
+correlation <- cor(scored_pairs_v1$log2_anscombe,
+                   scored_pairs_fast$log2_anscombe,
+                   use = "complete.obs")
+print(paste("Correlation between v1 and fast scores:", round(correlation, 6)))
+
+
+#
+# # Load the lookup tables
+# data(sample_term_lookup)
+# data(sample_gene_symbol_lookup) # Not used here, but for annotating element lists
+#
+# # Add new columns with the term names using the fast lookup
+# scored_pairs_v1[, term1_name := sample_term_lookup[term1]]
+# scored_pairs_v1[, term2_name := sample_term_lookup[term2]]
+#
+# # Save the annotated data frame to a file
+# final_scored_pairs_v1 <- scored_pairs_v1[p_value < 0.0001]
+# data.table::fwrite(final_scored_pairs_v1, "data-raw/scored_pairs_annotated.tsv", sep = "\t")
+#
+# # View the result
+# print(head(scored_pairs_v1))
+#
 

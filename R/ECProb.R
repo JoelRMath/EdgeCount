@@ -407,11 +407,16 @@ setMethod(
   "calculate_p_value",
   "ECProb",
   function(object, z, m, lambda) {
-    if(is.na(lambda) || lambda < 0) return(NA_real_)
-    alpha <- stats::ppois(m, lambda, lower.tail = TRUE)
-    if (alpha == 0) return(1) # Avoid division by zero if m is very small compared to lambda
-    p <- (stats::ppois(z-1, lambda, lower.tail = FALSE) - stats::ppois(m, lambda, lower.tail = FALSE)) / alpha
-    return(as.numeric(p))
+    # This version is fully vectorized to handle entire columns of data at once.
+    # It correctly returns NA for any invalid lambda inputs.
+    p_values <- ifelse(is.na(lambda) | lambda < 0, NA_real_, {
+      alpha <- stats::ppois(m, lambda, lower.tail = TRUE)
+      # Avoid division by zero
+      ifelse(alpha == 0, 1.0, {
+        (stats::ppois(z - 1, lambda, lower.tail = FALSE) - stats::ppois(m, lambda, lower.tail = FALSE)) / alpha
+      })
+    })
+    return(as.numeric(p_values))
   }
 )
 
