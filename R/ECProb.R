@@ -411,7 +411,6 @@ setMethod(
     # It correctly returns NA for any invalid lambda inputs.
     p_values <- ifelse(is.na(lambda) | lambda < 0, NA_real_, {
       alpha <- stats::ppois(m, lambda, lower.tail = TRUE)
-      # Avoid division by zero
       ifelse(alpha == 0, 1.0, {
         (stats::ppois(z - 1, lambda, lower.tail = FALSE) - stats::ppois(m, lambda, lower.tail = FALSE)) / alpha
       })
@@ -530,4 +529,59 @@ setMethod("summarize_suitability_fast",
               summary_pij = summary(prod),
               summary_capped_pij = summary(capped)
             ))
+          })
+#' @title Get Disjoint Sets for Multiple Term Pairs (Vectorized)
+#'
+#' @description A high-performance, vectorized function that calculates the
+#' disjoint element sets for a list of term pairs.
+#'
+#' @details This function is designed for efficiency when processing many term
+#' pairs at once. It takes a `data.table` where each row is a term pair and
+#' returns that table with added list-columns containing the disjoint sets of
+#' elements (elements in term1 but not term2, and vice-versa). It uses an
+#' optimized `data.table` operation to avoid slow R-level loops. This is a
+#' foundational step for vectorized lambda and p-value calculations.
+#'
+#' @param object An ECProb object.
+#' @param pairs_dt A `data.table` with two columns (e.g., "term1", "term2")
+#'   that define the pairs of vertex sets to be processed.
+#' @param bipartite_edges A `data.table` mapping terms to their element members.
+#'   Must have "term" and "element" columns.
+#'
+#' @return A `data.table` with the original pairs and two added list-columns:
+#'   `elements1_disjoint` and `elements2_disjoint`.
+#' @export
+setGeneric("get_disjoint_sets",
+           function(object, pairs_dt, bipartite_edges) standardGeneric("get_disjoint_sets"))
+
+#' @describeIn get_disjoint_sets Method for ECProb objects.
+setMethod("get_disjoint_sets", "ECProb",
+          function(object, pairs_dt, bipartite_edges) {
+
+            # --- Setup: Create a fast term -> element lookup list (hash map) ---
+            bipartite_edges[, term := as.character(term)]
+            term_to_elements_list <- split(bipartite_edges$element, bipartite_edges$term)
+
+            # --- Use data.table's fast row-wise operation to get disjoint sets ---
+            results_dt <- pairs_dt[, {
+              # For each row, get the element lists from the hash map
+              elements1 <- term_to_elements_list[[term1]]
+              elements2 <- term_to_elements_list[[term2]]
+
+              # Calculate the two disjoint sets
+              elements1_disjoint <- setdiff(elements1, elements2)
+              elements2_disjoint <- setdiff(elements2, elements1)
+
+              # Return the results as a list, which will form the new columns
+              .(
+                elements1_disjoint = list(elements1_disjoint),
+                elements2_disjoint = list(elements2_disjoint)
+              )
+            }, by = .(nrow = 1:nrow(pairs_dt))] # Use a named 'by' column
+
+            # Clean up the temporary 'by' column
+            results_dt[, nrow := NULL]
+
+            # Combine the results with the original pairs
+            return(cbind(pairs_dt, results_dt))
           })
