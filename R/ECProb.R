@@ -531,7 +531,7 @@ setMethod("summarize_suitability_fast",
             ))
           })
 
-#' @title Get Disjoint Sets for Multiple Term Pairs (Vectorized)
+#' @title Get Disjoint Sets for Multiple Term Pairs (Vectorized version)
 #'
 #' @description A high-performance, vectorized function that calculates the
 #' disjoint element sets for a list of term pairs.
