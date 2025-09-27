@@ -341,39 +341,259 @@ get_disjoint_sets_v3_fast <- function(pairs_dt, bipartite_edges) {
 
   return(final_output[, .(term1, term2, elements1_disjoint, elements2_disjoint)])
 }
-# --- Running the Comparison ---
 
-# Take a subset of the candidate pairs for a quick but meaningful test
-test_pairs <- head(candidate_pairs_v3, 100000)
+#' @title Vectorized Setdiff (Step 1: Reshape Data)
+#'
+#' @description This is the first step in a high-performance, vectorized
+#' setdiff operation. It takes a "wide" data.table of term pairs and a
+#' term-element mapping and reshapes them into a single "long" or "tidy"
+#' data.table. This format is the prerequisite for fast, join-based set
+#' operations.
+#'
+#' @param pairs_dt A `data.table` with two columns ("term1", "term2").
+#' @param bipartite_edges A `data.table` with "term" and "element" columns.
+#'
+#' @return A "long" data.table with the columns: `pair_id`, `variable` (which
+#'   indicates if the term was from the original "term1" or "term2" column),
+#'   `term`, and `element`.
+vectorized_setdiff_step1 <- function(pairs_dt, bipartite_edges) {
+
+  # --- 1a. Create a unique ID for each pair for grouping ---
+  # The .I special symbol gives the row number, creating a unique ID.
+  pairs_with_id <- pairs_dt[, .(pair_id = .I, term1, term2)]
+  print("-- 1 -- pairs_with_id")
+  print(pairs_with_id)
+
+  # --- 1b. Melt the "wide" pairs table into a "long" format ---
+  # This converts the term1 and term2 columns into key-value rows.
+  long_pairs <- data.table::melt(
+    pairs_with_id,
+    id.vars = "pair_id",
+    measure.vars = c("term1", "term2"),
+    value.name = "term"
+  )
+  print("-- 2 -- long_pairs")
+  print(long_pairs)
+  # The 'variable' column now helpfully tracks whether the term was
+  # originally a 'term1' or a 'term2'.
+
+  # --- 1c. Join to get all elements for all terms in all pairs ---
+  # This is the final step that brings in the element information.
+  data.table::setkey(long_pairs, term)
+  data.table::setkey(bipartite_edges, term)
+
+  all_elements_by_pair <- bipartite_edges[long_pairs,
+                                          on = "term",
+                                          allow.cartesian = TRUE]
+  print("-- 3 -- all_elements_by_pair")
+  print(all_elements_by_pair)
+
+  return(all_elements_by_pair)
+}
+
+vectorized_setdiff_step2 <- function(long_dt) {
+
+  # Group by the pair_id and the element. If a group has a size of 2,
+  # it means that element was present for both term1 and term2 for that pair.
+  # This single, highly optimized command finds all intersections at once.
+  with_element_count_in_long_dt <- long_dt[, .N, by = .(pair_id, element)]
+  print("-- 4 -- with_element_count_in_long_dt")
+  print(with_element_count_in_long_dt)
+  intersecting_elements <- with_element_count_in_long_dt[,][N == 2]
+  print("-- 5 -- intersecting_elements")
+  print(intersecting_elements)
+  # We only need the pair_id and element columns for the result.
+  print("-- 6 -- only pair_id and element")
+  print(intersecting_elements[, .(pair_id, element)])
+  return(intersecting_elements[, .(pair_id, element)])
+}
+
+vectorized_setdiff_step3 <- function(long_dt, intersecting_dt) {
+
+  # To perform a fast anti-join, both tables must have keys set
+  # on the columns we are joining by.
+  data.table::setkey(long_dt, pair_id, element)
+  data.table::setkey(intersecting_dt, pair_id, element)
+
+  # --- The Anti-Join ---
+  # The `!` operator in a data.table join means "not in".
+  # This single, highly optimized command selects all rows from `long_dt`
+  # that do NOT have a match in `intersecting_dt`. This is the vectorized
+  # equivalent of a set difference.
+  disjoint_elements <- long_dt[!intersecting_dt]
+  print("-- 7 -- disjoint_elements")
+  print(disjoint_elements)
+
+  return(disjoint_elements)
+}
+
+vectorized_setdiff_step4 <- function(disjoint_dt, pairs_dt) {
+
+  # --- 4a. Aggregate the disjoint elements into lists ---
+  # Group the long table by pair_id and the original variable ('term1' or 'term2')
+  # and aggregate the elements into a list for each.
+  aggregated_disjoint <- disjoint_dt[, .(disjoint_set = list(element)), by = .(pair_id, variable)]
+
+  # --- 4b. Separate the results for term1 and term2 ---
+  disjoint1 <- aggregated_disjoint[variable == "term1", .(pair_id, elements1_disjoint = disjoint_set)]
+  disjoint2 <- aggregated_disjoint[variable == "term2", .(pair_id, elements2_disjoint = disjoint_set)]
+
+  # --- 4c. Perform a full join to merge the two sets ---
+  # A full join (`all = TRUE`) is crucial. It correctly handles cases where a
+  # pair_id exists in one table but not the other (i.e., one of the disjoint sets is empty).
+  data.table::setkey(disjoint1, pair_id)
+  data.table::setkey(disjoint2, pair_id)
+  merged_disjoint <- merge(disjoint1, disjoint2, by = "pair_id", all = TRUE)
+
+  # --- 4d. Join back with the original pairs table ---
+  # This ensures we have a row for every original pair, even those with no disjoint elements.
+  pairs_with_id <- pairs_dt[, .(pair_id = .I, term1, term2)]
+  data.table::setkey(pairs_with_id, pair_id)
+  final_output <- merged_disjoint[pairs_with_id, on = "pair_id"]
+
+  # --- 4e. Clean up NA values ---
+  # The full join will create NA for list-columns where a disjoint set was empty.
+  # We replace these with a properly typed empty list (`list(character(0))`).
+  final_output[sapply(elements1_disjoint, is.null), elements1_disjoint := list(list(character(0)))]
+  final_output[sapply(elements2_disjoint, is.null), elements2_disjoint := list(list(character(0)))]
+
+  return(final_output[, .(term1, term2, elements1_disjoint, elements2_disjoint)])
+}
+
+# Create a small test case
+test_pairs <- data.table(
+  term1 = c("GO:A", "GO:C"),
+  term2 = c("GO:B", "GO:D")
+)
+bipartite_edges <- data.table(
+  term = c("GO:A", "GO:A", "GO:B", "GO:C", "GO:D"),
+  element = c("E1", "E2", "E2", "E3", "E4")
+)
+
+# Run step1
+long_dt <- vectorized_setdiff_step1(test_pairs, bipartite_edges)
+# Run step2
+intersecting_dt <- vectorized_setdiff_step2(long_dt)
+# Run step3
+disjoint_dt <- vectorized_setdiff_step3(long_dt, intersecting_dt)
+# Run step4
+final_wide_dt <- vectorized_setdiff_step4(disjoint_dt, test_pairs)
+print("-- 8 -- final_wide_dt")
+print(final_wide_dt)
+str(final_wide_dt)
+# # --- Running the Comparison ---
+#
+# # Take a subset of the candidate pairs for a quick but meaningful test
+# test_pairs <- head(candidate_pairs_v3, 100000)
+#
+# message("\n--- Benchmarking get_disjoint_sets ---")
+#
+# message("Running v1 (slow but safe loop)...")
+# start_time_v1 <- Sys.time()
+# disjoint_v1 <- get_disjoint_sets_v1_slow(test_pairs, bipartite_edges)
+# end_time_v1 <- Sys.time()
+# time_diff_v1 <- as.numeric(end_time_v1 - start_time_v1, units = "secs")
+# print(paste("v1 time:", round(time_diff_v1, 4), "seconds"))
+#
+#
+# message("Running v3 (fast S4 method)...")
+# start_time_v3 <- Sys.time()
+# disjoint_v3 <- get_disjoint_sets_v3_fast(test_pairs, bipartite_edges)
+# end_time_v3 <- Sys.time()
+# time_diff_v3 <- as.numeric(end_time_v3 - start_time_v3, units = "secs")
+# print(paste("v3 time:", round(time_diff_v3, 4), "seconds"))
+#
+#
+# message("\n--- Comparing v1 and v3 outputs for identity ---")
+# # Sort both results to ensure a fair comparison
+# setorder(disjoint_v1, term1, term2)
+# setorder(disjoint_v3, term1, term2)
+#
+# comparison_result <- all.equal(disjoint_v1, disjoint_v3, check.attributes = FALSE)
+#
+# if (isTRUE(comparison_result)) {
+#   message("SUCCESS: The outputs of the slow and fast methods are identical.")
+# } else {
+#   message("FAILURE: The outputs are different. Details below:")
+#   print(comparison_result)
+# }
+
+
+get_disjoint_sets_fast <- function(pairs_dt, bipartite_edges) {
+
+  # --- STEP 1: Reshape data into a long format ---
+  pairs_with_id <- pairs_dt[, .(pair_id = .I, term1, term2)]
+
+  long_pairs <- melt(pairs_with_id,
+                     id.vars = "pair_id",
+                     measure.vars = c("term1", "term2"),
+                     value.name = "term")
+
+  setkey(long_pairs, term)
+  setkey(bipartite_edges, term)
+  all_elements_by_pair <- bipartite_edges[long_pairs, on = "term", allow.cartesian = TRUE]
+
+
+  # --- STEP 2: Find intersecting elements ---
+  intersecting_elements <- all_elements_by_pair[, .N, by = .(pair_id, element)][N == 2]
+  setkey(intersecting_elements, pair_id, element)
+
+
+  # --- STEP 3: Find disjoint elements with an anti-join ---
+  setkey(all_elements_by_pair, pair_id, element)
+  disjoint_elements <- all_elements_by_pair[!intersecting_elements]
+
+
+  # --- STEP 4: Robustly reshape back to a wide format ---
+  # Aggregate the disjoint elements for term1 and term2 separately
+  disjoint1 <- disjoint_elements[variable == "term1", .(elements1_disjoint = list(element)), by = pair_id]
+  disjoint2 <- disjoint_elements[variable == "term2", .(elements2_disjoint = list(element)), by = pair_id]
+
+  # Join these results back to the original pairs table.
+  # This is a more robust method than a full join of list-columns.
+  setkey(pairs_with_id, pair_id)
+  setkey(disjoint1, pair_id)
+  setkey(disjoint2, pair_id)
+
+  final_output <- disjoint2[disjoint1[pairs_with_id]]
+
+  # Replace any NA list-columns (from pairs with no disjoint sets) with a typed empty list
+  final_output[is.na(elements1_disjoint), elements1_disjoint := list(list(character(0)))]
+  final_output[is.na(elements2_disjoint), elements2_disjoint := list(list(character(0)))]
+
+  # Return the final, clean table
+  return(final_output[, .(term1, term2, elements1_disjoint, elements2_disjoint)])
+}
+
+
+# --- THE FINAL BENCHMARK SCRIPT ---
+# ... (load sample data) ...
+# ... (create test_pairs and bipartite_edges) ...
 
 message("\n--- Benchmarking get_disjoint_sets ---")
 
 message("Running v1 (slow but safe loop)...")
 start_time_v1 <- Sys.time()
 disjoint_v1 <- get_disjoint_sets_v1_slow(test_pairs, bipartite_edges)
-end_time_v1 <- Sys.time()
-time_diff_v1 <- as.numeric(end_time_v1 - start_time_v1, units = "secs")
-print(paste("v1 time:", round(time_diff_v1, 4), "seconds"))
+# ... (timing and print) ...
 
+message("Running the final fast vectorized method...")
+start_time_fast <- Sys.time()
+disjoint_fast <- get_disjoint_sets_fast(test_pairs, bipartite_edges)
+# ... (timing and print) ...
 
-message("Running v3 (fast S4 method)...")
-start_time_v3 <- Sys.time()
-disjoint_v3 <- get_disjoint_sets_v3_fast(test_pairs, bipartite_edges)
-end_time_v3 <- Sys.time()
-time_diff_v3 <- as.numeric(end_time_v3 - start_time_v3, units = "secs")
-print(paste("v3 time:", round(time_diff_v3, 4), "seconds"))
-
-
-message("\n--- Comparing v1 and v3 outputs for identity ---")
-# Sort both results to ensure a fair comparison
+message("\n--- Comparing v1 and fast method outputs for identity ---")
 setorder(disjoint_v1, term1, term2)
-setorder(disjoint_v3, term1, term2)
+setorder(disjoint_fast, term1, term2)
 
-comparison_result <- all.equal(disjoint_v1, disjoint_v3, check.attributes = FALSE)
+# Custom comparison for list-columns
+are_identical <- all(sapply(1:nrow(disjoint_v1), function(i) {
+  setequal(disjoint_v1$elements1_disjoint[[i]], disjoint_fast$elements1_disjoint[[i]]) &&
+    setequal(disjoint_v1$elements2_disjoint[[i]], disjoint_fast$elements2_disjoint[[i]])
+}))
 
-if (isTRUE(comparison_result)) {
-  message("SUCCESS: The outputs of the slow and fast methods are identical.")
+if (isTRUE(are_identical)) {
+  message("SUCCESS: The fast method is correct and produces identical output.")
 } else {
-  message("FAILURE: The outputs are different. Details below:")
-  print(comparison_result)
+  message("FAILURE: The outputs are different.")
 }
