@@ -3,7 +3,7 @@
 \name{get_disjoint_sets}
 \alias{get_disjoint_sets}
 \alias{get_disjoint_sets,ECProb-method}
-\title{Get Disjoint Sets for Multiple Term Pairs (Vectorized)}
+\title{Get Disjoint Sets for Multiple Term Pairs (Vectorized version more)}
 \usage{
 get_disjoint_sets(object, pairs_dt, bipartite_edges)
 

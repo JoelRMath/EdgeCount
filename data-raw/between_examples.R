@@ -187,96 +187,6 @@ score_pairs_v1 <- function(candidate_pairs_dt) {
   return(final_dt)
 }
 
-score_pairs_v2 <- function(candidate_pairs_dt) {
-
-  # --- Setup: This part is identical to v1 ---
-  ecp <- ECProb(sample_ecg)
-  bipartite_edges <- as.data.table(to_dataframe(sample_ects))
-  bipartite_edges[, term := as.character(term)]
-  term_to_elements_list <- split(bipartite_edges$element, bipartite_edges$term)
-
-  # --- The "Fast" Vectorized Operation ---
-  results_dt <- candidate_pairs_dt[, {
-    elements1 <- term_to_elements_list[[term1]]
-    elements2 <- term_to_elements_list[[term2]]
-    observed <- get_edge_count_between(sample_ecg, elements1, elements2)
-    stats <- edge_count_statistics(ecp, elements1, elements2, observed)
-
-    list(
-      observed_edges = as.integer(observed),
-      p_value = stats$p_value,
-      lambda = stats$lambda,
-      log2_anscombe = stats$log2_Anscombe_ratio
-    )
-  }, by = .(nrow = 1:nrow(candidate_pairs_dt))] # Use a named column for the 'by'
-
-  # --- THE FIX: Remove the 'by' column by its correct name ---
-  results_dt[, nrow := NULL]
-
-  # Combine the results with the original pairs
-  final_dt <- cbind(candidate_pairs_dt, results_dt)
-
-  return(final_dt)
-}
-
-score_all_pairs_fast <- function() {
-
-  # --- STEP 1: Find pairs AND their edge counts (fast method) ---
-  net_edges <- data.table(to_dataframe(sample_ecg))
-  setnames(net_edges, c("from", "to"), c("element1", "element2"))
-
-  bip_edges <- as.data.table(to_dataframe(sample_ects))
-  bip_edges[, `:=`(term = as.character(term), element = as.character(element))]
-
-  merged1 <- net_edges[bip_edges, on = .(element1 = element), nomatch = 0, allow.cartesian = TRUE]
-  setnames(merged1, "term", "term1")
-  merged2 <- merged1[bip_edges, on = .(element2 = element), nomatch = 0, allow.cartesian = TRUE]
-  setnames(merged2, "term", "term2")
-
-  pairs_with_counts <- merged2[term1 != term2,
-                               .(
-                                 term_canon_1 = pmin(term1, term2), term_canon_2 = pmax(term1, term2),
-                                 edge_canon_1 = pmin(element1, element2), edge_canon_2 = pmax(element1, element2)
-                               )
-  ][,
-    unique(.SD, by = c("term_canon_1", "term_canon_2", "edge_canon_1", "edge_canon_2"))
-  ][,
-    .(observed_edges = .N), by = .(term1 = term_canon_1, term2 = term_canon_2)
-  ]
-
-
-  # --- STEP 2: Pre-calculate summary stats for all terms ---
-  ecp <- ECProb(sample_ecg)
-  element_degrees <- unlist(sample_ecg@degrees)
-  term_summary <- bip_edges[, .(
-    term_size = .N,
-    sum_of_degrees = sum(element_degrees[element])
-  ), by = term]
-
-
-  # --- STEP 3: Annotate with joins ---
-  annotated_pairs <- copy(pairs_with_counts)
-  setkey(annotated_pairs, term1)
-  setkey(term_summary, term)
-  annotated_pairs[term_summary, `:=`(size1 = i.term_size, sum_degrees1 = i.sum_of_degrees), on = .(term1 = term)]
-
-  setkey(annotated_pairs, term2)
-  annotated_pairs[term_summary, `:=`(size2 = i.term_size, sum_degrees2 = i.sum_of_degrees), on = .(term2 = term)]
-
-
-  # --- STEP 4: Perform final vectorized calculations ---
-  annotated_pairs[, `:=`(
-    lambda = (sum_degrees1 * sum_degrees2) / (2 * ecp@graph_size),
-    max_possible_edges = size1 * size2
-  )]
-
-  annotated_pairs[, p_value := calculate_p_value(ecp, observed_edges, max_possible_edges, lambda)]
-  annotated_pairs[, log2_anscombe := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
-
-  final_dt <- annotated_pairs[, .(term1, term2, observed_edges, p_value, lambda, log2_anscombe)]
-
-  return(final_dt)
-}
 
 message("--- Loading sample data ---")
 data(sample_ecg)
@@ -326,34 +236,7 @@ if (!file.exists(benchmark_file)) {
   scored_pairs_v1 <- readRDS(benchmark_file)
 }
 
-# start_time_v2 <- Sys.time()
-# scored_pairs_v2 <- score_pairs_v2(candidate_pairs_v3)
-# end_time_v2 <- Sys.time()
-# ellapsed_time <- as.numeric(end_time_v2 - start_time_v2, units = "secs")
-# print(paste("scoring pairs v2:", round(ellapsed_time, 2), "seconds"))
 
-message("\n--- Scoring pairs with the fast, vectorized method ---")
-start_time_fast <- Sys.time()
-scored_pairs_fast <- score_all_pairs_fast()
-end_time_fast <- Sys.time()
-time_diff_fast <- as.numeric(end_time_fast - start_time_fast, units = "secs")
-print(paste("Fast scoring time:", round(time_diff_fast, 2), "seconds"))
-
-
-message("\n--- Comparing v1 and fast method outputs ---")
-# Note: This comparison is for the APPROXIMATE fast lambda.
-# A perfect match is not expected, but the correlation should be high.
-setorder(scored_pairs_v1, term1, term2)
-setorder(scored_pairs_fast, term1, term2)
-
-# Check correlation of a key metric
-correlation <- cor(scored_pairs_v1$log2_anscombe,
-                   scored_pairs_fast$log2_anscombe,
-                   use = "complete.obs")
-print(paste("Correlation between v1 and fast scores:", round(correlation, 6)))
-
-
-#
 # # Load the lookup tables
 # data(sample_term_lookup)
 # data(sample_gene_symbol_lookup) # Not used here, but for annotating element lists
@@ -370,3 +253,127 @@ print(paste("Correlation between v1 and fast scores:", round(correlation, 6)))
 # print(head(scored_pairs_v1))
 #
 
+# bipartite_edges <- as.data.table(to_dataframe(sample_ects))
+# disjoint_sets_dt <- get_disjoint_sets(sample_ects@ecprob,
+#                                        candidate_pairs_v3,
+#                                        bipartite_edges)
+
+get_disjoint_sets_v1_slow <- function(pairs_dt, bipartite_edges) {
+
+  # Setup: Create a fast term -> element lookup list
+  bipartite_edges[, term := as.character(term)]
+  term_to_elements_list <- split(bipartite_edges$element, bipartite_edges$term)
+
+  # Pre-allocate lists to store the results
+  results1 <- vector("list", nrow(pairs_dt))
+  results2 <- vector("list", nrow(pairs_dt))
+
+  for (i in 1:nrow(pairs_dt)) {
+    term1 <- pairs_dt$term1[i]
+    term2 <- pairs_dt$term2[i]
+
+    elements1 <- term_to_elements_list[[term1]]
+    elements2 <- term_to_elements_list[[term2]]
+
+    results1[[i]] <- setdiff(elements1, elements2)
+    results2[[i]] <- setdiff(elements2, elements1)
+  }
+
+  # Combine results into the final data.table
+  final_dt <- copy(pairs_dt)
+  final_dt[, `:=`(
+    elements1_disjoint = results1,
+    elements2_disjoint = results2
+  )]
+
+  return(final_dt)
+}
+
+
+# Fast version: A wrapper around the new S4 method
+get_disjoint_sets_v2_fast <- function(pairs_dt, bipartite_edges) {
+  # This directly calls the new S4 method we are testing
+  get_disjoint_sets(sample_ects@ecprob, pairs_dt, bipartite_edges)
+}
+
+get_disjoint_sets_v3_fast <- function(pairs_dt, bipartite_edges) {
+
+  # Create a unique ID for each pair for grouping
+  pairs_with_id <- pairs_dt[, .(pair_id = .I, term1, term2)]
+
+  # Melt the pairs table into a long format
+  long_pairs <- melt(pairs_with_id,
+                     id.vars = "pair_id",
+                     measure.vars = c("term1", "term2"),
+                     value.name = "term")
+
+  # Join to get all elements for all terms in all pairs
+  setkey(long_pairs, term)
+  setkey(bipartite_edges, term)
+  all_elements_by_pair <- bipartite_edges[long_pairs, on = "term", allow.cartesian = TRUE]
+
+  # Find the INTERSECTING elements for each pair
+  intersecting_elements <- all_elements_by_pair[, .N, by = .(pair_id, element)][N == 2]
+  setkey(intersecting_elements, pair_id, element)
+
+  # Use an ANTI-JOIN to find the DISJOINT elements
+  setkey(all_elements_by_pair, pair_id, element)
+  disjoint_elements <- all_elements_by_pair[!intersecting_elements]
+
+  # --- NEW: Robustly aggregate the results back ---
+  # Aggregate the disjoint elements for term1
+  disjoint1 <- disjoint_elements[variable == "term1", .(elements1_disjoint = list(element)), by = pair_id]
+  # Aggregate the disjoint elements for term2
+  disjoint2 <- disjoint_elements[variable == "term2", .(elements2_disjoint = list(element)), by = pair_id]
+
+  # Perform a full join to merge the two sets of results
+  setkey(disjoint1, pair_id)
+  setkey(disjoint2, pair_id)
+  merged_disjoint <- merge(disjoint1, disjoint2, by = "pair_id", all = TRUE)
+
+  # Join back with the original pairs table to get the final output
+  setkey(pairs_with_id, pair_id)
+  final_output <- merged_disjoint[pairs_with_id, on = "pair_id"]
+
+  # Replace any NA list-columns (from pairs with no disjoint sets) with an empty list
+  final_output[is.na(elements1_disjoint), elements1_disjoint := list(list(character(0)))]
+  final_output[is.na(elements2_disjoint), elements2_disjoint := list(list(character(0)))]
+
+  return(final_output[, .(term1, term2, elements1_disjoint, elements2_disjoint)])
+}
+# --- Running the Comparison ---
+
+# Take a subset of the candidate pairs for a quick but meaningful test
+test_pairs <- head(candidate_pairs_v3, 100000)
+
+message("\n--- Benchmarking get_disjoint_sets ---")
+
+message("Running v1 (slow but safe loop)...")
+start_time_v1 <- Sys.time()
+disjoint_v1 <- get_disjoint_sets_v1_slow(test_pairs, bipartite_edges)
+end_time_v1 <- Sys.time()
+time_diff_v1 <- as.numeric(end_time_v1 - start_time_v1, units = "secs")
+print(paste("v1 time:", round(time_diff_v1, 4), "seconds"))
+
+
+message("Running v3 (fast S4 method)...")
+start_time_v3 <- Sys.time()
+disjoint_v3 <- get_disjoint_sets_v3_fast(test_pairs, bipartite_edges)
+end_time_v3 <- Sys.time()
+time_diff_v3 <- as.numeric(end_time_v3 - start_time_v3, units = "secs")
+print(paste("v3 time:", round(time_diff_v3, 4), "seconds"))
+
+
+message("\n--- Comparing v1 and v3 outputs for identity ---")
+# Sort both results to ensure a fair comparison
+setorder(disjoint_v1, term1, term2)
+setorder(disjoint_v3, term1, term2)
+
+comparison_result <- all.equal(disjoint_v1, disjoint_v3, check.attributes = FALSE)
+
+if (isTRUE(comparison_result)) {
+  message("SUCCESS: The outputs of the slow and fast methods are identical.")
+} else {
+  message("FAILURE: The outputs are different. Details below:")
+  print(comparison_result)
+}
