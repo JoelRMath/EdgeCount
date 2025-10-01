@@ -531,58 +531,57 @@ setMethod("summarize_suitability_fast",
             ))
           })
 
-#' @title Get Disjoint Sets for Multiple Term Pairs (Vectorized version more)
+#' @title Get Disjoint Sets for Multiple Pairs (Vectorized)
 #'
-#' @description A high-performance, vectorized function that calculates the
-#' disjoint element sets for a list of term pairs.
+#' @description A vectorized function that calculates the
+#' disjoint element sets for a list of set pairs.
 #'
-#' @details This function is designed for efficiency when processing many term
-#' pairs at once. It takes a `data.table` where each row is a term pair and
-#' returns that table with added list-columns containing the disjoint sets of
-#' elements (elements in term1 but not term2, and vice-versa). It uses an
-#' optimized `data.table` operation to avoid slow R-level loops. This is a
-#' foundational step for vectorized lambda and p-value calculations.
+#' @param pairs_dt A `data.table` with two columns ("set1", "set2") that
+#'   define the pairs of sets to be processed.
+#' @param set_membership_dt A `data.table` mapping set IDs to their element
+#'   members. Must have "set_id" and "element" columns.
 #'
-#' @param object An ECProb object.
-#' @param pairs_dt A `data.table` with two columns (e.g., "term1", "term2")
-#'   that define the pairs of vertex sets to be processed.
-#' @param bipartite_edges A `data.table` mapping terms to their element members.
-#'   Must have "term" and "element" columns.
-#'
-#' @return A `data.table` with the original pairs and two added list-columns:
-#'   `elements1_disjoint` and `elements2_disjoint`.
-#' @export
-setGeneric("get_disjoint_sets",
-           function(object, pairs_dt, bipartite_edges) standardGeneric("get_disjoint_sets"))
+#' @return A `data.table` with four columns: "set1", "set2",
+#'   "elements1_disjoint" (list), and "elements2_disjoint" (list).
+get_disjoint_sets <- function(pairs_dt, set_membership_dt) {
 
-#' @describeIn get_disjoint_sets Method for ECProb objects.
-setMethod("get_disjoint_sets", "ECProb",
-          function(object, pairs_dt, bipartite_edges) {
+  # --- Step 1: long format ---
+  pairs_with_id <- pairs_dt[, .(pair_id = .I, set1, set2)]
 
-            # --- Setup: Create a fast term -> element lookup list (hash map) ---
-            bipartite_edges[, term := as.character(term)]
-            term_to_elements_list <- split(bipartite_edges$element, bipartite_edges$term)
+  long_pairs <- melt(pairs_with_id,
+                     id.vars = "pair_id",
+                     measure.vars = c("set1", "set2"),
+                     value.name = "set_id")
 
-            # --- Use data.table's fast row-wise operation to get disjoint sets ---
-            results_dt <- pairs_dt[, {
-              # For each row, get the element lists from the hash map
-              elements1 <- term_to_elements_list[[term1]]
-              elements2 <- term_to_elements_list[[term2]]
+  setkey(long_pairs, set_id)
+  setkey(set_membership_dt, set_id)
+  all_elements_by_pair <- set_membership_dt[long_pairs, on = "set_id", allow.cartesian = TRUE]
 
-              # Calculate the two disjoint sets
-              elements1_disjoint <- setdiff(elements1, elements2)
-              elements2_disjoint <- setdiff(elements2, elements1)
 
-              # Return the results as a list, which will form the new columns
-              .(
-                elements1_disjoint = list(elements1_disjoint),
-                elements2_disjoint = list(elements2_disjoint)
-              )
-            }, by = .(nrow = 1:nrow(pairs_dt))] # Use a named 'by' column
+  # --- Step 2: intersecting elements ---
+  intersecting_elements <- all_elements_by_pair[, .N, by = .(pair_id, element)][N == 2]
+  setkey(intersecting_elements, pair_id, element)
 
-            # Clean up the temporary 'by' column
-            results_dt[, nrow := NULL]
 
-            # Combine the results with the original pairs
-            return(cbind(pairs_dt, results_dt))
-          })
+  # --- Step 3: disjoint elements with anti-join ---
+  setkey(all_elements_by_pair, pair_id, element)
+  disjoint_elements <- all_elements_by_pair[!intersecting_elements]
+
+
+  # --- Step 4: Back to wide format ---
+  disjoint1 <- disjoint_elements[variable == "set1", .(elements1_disjoint = list(element)), by = pair_id]
+  disjoint2 <- disjoint_elements[variable == "set2", .(elements2_disjoint = list(element)), by = pair_id]
+
+  setkey(disjoint1, pair_id)
+  setkey(disjoint2, pair_id)
+  merged_disjoint <- merge(disjoint1, disjoint2, by = "pair_id", all = TRUE)
+
+  setkey(pairs_with_id, pair_id)
+  final_output <- merged_disjoint[pairs_with_id, on = "pair_id"]
+
+  final_output[sapply(elements1_disjoint, is.null), elements1_disjoint := list(list(character(0)))]
+  final_output[sapply(elements2_disjoint, is.null), elements2_disjoint := list(list(character(0)))]
+
+
+  return(final_output[, .(set1, set2, elements1_disjoint, elements2_disjoint)])
+}

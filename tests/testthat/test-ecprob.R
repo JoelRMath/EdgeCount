@@ -322,3 +322,44 @@ test_that("ECProb lambda_expected", {
   }
   # print(df)
 })
+
+test_that("ECProb get_disjoint_sets", {
+
+  pairs_dt <- data.table(
+    set1 = c("SA", "SA", "SC"),
+    set2 = c("SB", "SC", "SD")
+  )
+  set_membership_dt <- data.table(
+    set_id = c("SA", "SA", "SA", "SB", "SB", "SC", "SC", "SD"),
+    element = c("E1", "E2", "E3", "E2", "E3", "E3", "E4", "E5")
+  )
+
+  expected_disjoint_sets <- data.table(
+    set1 = c("SA", "SA", "SC"),
+    set2 = c("SB", "SC", "SD"),
+    elements1_disjoint = list("E1", c("E1","E2"), c("E3","E4")),
+    elements2_disjoint = list(character(0), "E4", "E5")
+  )
+
+  disjoint_sets <- get_disjoint_sets(pairs_dt, set_membership_dt)
+
+  expect_equal(nrow(disjoint_sets), nrow(expected_disjoint_sets))
+  expect_equal(names(disjoint_sets), names(expected_disjoint_sets))
+
+  setorder(disjoint_sets, set1, set2)
+  setorder(expected_disjoint_sets, set1, set2)
+
+  for (i in 1:nrow(expected_disjoint_sets)) {
+    expect_equal(disjoint_sets$set1[i], expected_disjoint_sets$set1[i])
+    expect_equal(disjoint_sets$set2[i], expected_disjoint_sets$set2[i])
+
+    expect_setequal(
+      disjoint_sets$elements1_disjoint[[i]],
+      expected_disjoint_sets$elements1_disjoint[[i]]
+    )
+    expect_setequal(
+      disjoint_sets$elements2_disjoint[[i]],
+      expected_disjoint_sets$elements2_disjoint[[i]]
+    )
+  }
+})

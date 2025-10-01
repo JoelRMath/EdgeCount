@@ -188,53 +188,6 @@ score_pairs_v1 <- function(candidate_pairs_dt) {
 }
 
 
-message("--- Loading sample data ---")
-data(sample_ecg)
-data(sample_ects)
-
-message("---  Getting candidate pairs ---")
-# start_time <- Sys.time()
-# candidate_pairs_v1 <- get_candidate_pairs_v1()
-# elapsed_time_v1 <- as.numeric(Sys.time()-start_time)
-# print(paste("v1:", paste(round(elapsed_time_v1, 2), "seconds")))
-#
-# start_time <- Sys.time()
-# candidate_pairs_v2 <- get_candidate_pairs_v2()
-# elapsed_time_v2 <- as.numeric(Sys.time()-start_time)
-# print(paste("v2:", paste(round(elapsed_time_v2, 2), "seconds")))
-
-start_time <- Sys.time()
-candidate_pairs_v3 <- get_candidate_pairs_v3()
-elapsed_time <- as.numeric(Sys.time() - start_time, units = "secs")
-message(paste("getting pairs v3:", paste(round(elapsed_time, 2), "seconds")))
-
-# data.table::setorder(candidate_pairs_v1, term1, term2)
-# data.table::setorder(candidate_pairs_v2, term1, term2)
-data.table::setorder(candidate_pairs_v3, term1, term2)
-
-# comparison_result <- all.equal(candidate_pairs_v1, candidate_pairs_v3)
-#
-# if (isTRUE(comparison_result)) {
-#   message("SUCCESS: The outputs of v1 and v3 are identical.")
-# } else {
-#   message("FAILURE: The outputs are different. Details below:")
-#   print(comparison_result)
-# }
-
-benchmark_file <- "data-raw/scored_pairs_v1.rds"
-
-if (!file.exists(benchmark_file)) {
-  message("--- Scoring pairs with v1 and saving to file ---")
-  start_time_v1 <- Sys.time()
-  scored_pairs_v1 <- score_pairs_v1(candidate_pairs_v3)
-  end_time_v1 <- Sys.time()
-  ellapsed_time <- as.numeric(end_time_v1 - start_time_v1, units = "secs")
-  message(paste("scoring pairs v1:", round(ellapsed_time, 2), "seconds"))
-  saveRDS(scored_pairs_v1, benchmark_file)
-} else {
-  message("--- Loading pre-computed v1 benchmark results from file... ---")
-  scored_pairs_v1 <- readRDS(benchmark_file)
-}
 
 
 # # Load the lookup tables
@@ -481,43 +434,6 @@ final_wide_dt <- vectorized_setdiff_step4(disjoint_dt, test_pairs)
 print("-- 8 -- final_wide_dt")
 print(final_wide_dt)
 str(final_wide_dt)
-# # --- Running the Comparison ---
-#
-# # Take a subset of the candidate pairs for a quick but meaningful test
-# test_pairs <- head(candidate_pairs_v3, 100000)
-#
-# message("\n--- Benchmarking get_disjoint_sets ---")
-#
-# message("Running v1 (slow but safe loop)...")
-# start_time_v1 <- Sys.time()
-# disjoint_v1 <- get_disjoint_sets_v1_slow(test_pairs, bipartite_edges)
-# end_time_v1 <- Sys.time()
-# time_diff_v1 <- as.numeric(end_time_v1 - start_time_v1, units = "secs")
-# print(paste("v1 time:", round(time_diff_v1, 4), "seconds"))
-#
-#
-# message("Running v3 (fast S4 method)...")
-# start_time_v3 <- Sys.time()
-# disjoint_v3 <- get_disjoint_sets_v3_fast(test_pairs, bipartite_edges)
-# end_time_v3 <- Sys.time()
-# time_diff_v3 <- as.numeric(end_time_v3 - start_time_v3, units = "secs")
-# print(paste("v3 time:", round(time_diff_v3, 4), "seconds"))
-#
-#
-# message("\n--- Comparing v1 and v3 outputs for identity ---")
-# # Sort both results to ensure a fair comparison
-# setorder(disjoint_v1, term1, term2)
-# setorder(disjoint_v3, term1, term2)
-#
-# comparison_result <- all.equal(disjoint_v1, disjoint_v3, check.attributes = FALSE)
-#
-# if (isTRUE(comparison_result)) {
-#   message("SUCCESS: The outputs of the slow and fast methods are identical.")
-# } else {
-#   message("FAILURE: The outputs are different. Details below:")
-#   print(comparison_result)
-# }
-
 
 get_disjoint_sets_fast <- function(pairs_dt, bipartite_edges) {
 
@@ -567,20 +483,109 @@ get_disjoint_sets_fast <- function(pairs_dt, bipartite_edges) {
 
 
 # --- THE FINAL BENCHMARK SCRIPT ---
-# ... (load sample data) ...
-# ... (create test_pairs and bipartite_edges) ...
+
+message("--- Loading sample data ---")
+data(sample_ecg)
+data(sample_ects)
+
+message("---  Getting candidate pairs ---")
+
+# start_time <- Sys.time()
+# candidate_pairs_v1 <- get_candidate_pairs_v1()
+# elapsed_time_v1 <- as.numeric(Sys.time()-start_time)
+# print(paste("v1:", paste(round(elapsed_time_v1, 2), "seconds")))
+#
+# start_time <- Sys.time()
+# candidate_pairs_v2 <- get_candidate_pairs_v2()
+# elapsed_time_v2 <- as.numeric(Sys.time()-start_time)
+# print(paste("v2:", paste(round(elapsed_time_v2, 2), "seconds")))
+
+start_time <- Sys.time()
+candidate_pairs_v3 <- get_candidate_pairs_v3()
+elapsed_time <- as.numeric(Sys.time() - start_time, units = "secs")
+message(paste("getting pairs v3:", paste(round(elapsed_time, 2), "seconds")))
+#
+# # data.table::setorder(candidate_pairs_v1, term1, term2)
+# # data.table::setorder(candidate_pairs_v2, term1, term2)
+# data.table::setorder(candidate_pairs_v3, term1, term2)
+
+# comparison_result <- all.equal(candidate_pairs_v1, candidate_pairs_v3)
+#
+# if (isTRUE(comparison_result)) {
+#   message("SUCCESS: The outputs of v1 and v3 are identical.")
+# } else {
+#   message("FAILURE: The outputs are different. Details below:")
+#   print(comparison_result)
+# }
+
+benchmark_file <- "data-raw/scored_pairs_v1.rds"
+
+if (!file.exists(benchmark_file)) {
+  message("--- Scoring pairs with v1 and saving to file ---")
+  start_time_v1 <- Sys.time()
+  scored_pairs_v1 <- score_pairs_v1(candidate_pairs_v3)
+  end_time_v1 <- Sys.time()
+  ellapsed_time <- as.numeric(end_time_v1 - start_time_v1, units = "secs")
+  message(paste("scoring pairs v1:", round(ellapsed_time, 2), "seconds"))
+  saveRDS(scored_pairs_v1, benchmark_file)
+} else {
+  message("--- Loading pre-computed v1 benchmark results from file... ---")
+  scored_pairs_v1 <- readRDS(benchmark_file)
+}
+
+# --- Running the Comparison ---
+
+# Take a subset of the candidate pairs for a quick but meaningful test
+test_pairs <- head(candidate_pairs_v3, 1000)
+
+# message("\n--- Benchmarking get_disjoint_sets ---")
+#
+# message("Running v1 (slow but safe loop)...")
+# start_time_v1 <- Sys.time()
+# disjoint_v1 <- get_disjoint_sets_v1_slow(test_pairs, bipartite_edges)
+#
+#
+# message("Running v3 (fast S4 method)...")
+# start_time_v3 <- Sys.time()
+# disjoint_v3 <- get_disjoint_sets_v3_fast(test_pairs, bipartite_edges)
+#
+#
+# message("\n--- Comparing v1 and v3 outputs for identity ---")
+# # Sort both results to ensure a fair comparison
+# setorder(disjoint_v1, term1, term2)
+# setorder(disjoint_v3, term1, term2)
+#
+# comparison_result <- all.equal(disjoint_v1, disjoint_v3, check.attributes = FALSE)
+#
+# if (isTRUE(comparison_result)) {
+#   message("SUCCESS: The outputs of the slow and fast methods are identical.")
+# } else {
+#   message("FAILURE: The outputs are different. Details below:")
+#   print(comparison_result)
+# }
+
 
 message("\n--- Benchmarking get_disjoint_sets ---")
+
+bipartite_edges <- as.data.table(to_dataframe(sample_ects))
+test_pairs <- head(candidate_pairs_v3, 100000)
+
 
 message("Running v1 (slow but safe loop)...")
 start_time_v1 <- Sys.time()
 disjoint_v1 <- get_disjoint_sets_v1_slow(test_pairs, bipartite_edges)
-# ... (timing and print) ...
+end_time_v1 <- Sys.time()
+time_diff_v1 <- as.numeric(end_time_v1 - start_time_v1, units = "secs")
+print(paste("v1 time:", round(time_diff_v1, 4), "seconds"))
+
 
 message("Running the final fast vectorized method...")
 start_time_fast <- Sys.time()
 disjoint_fast <- get_disjoint_sets_fast(test_pairs, bipartite_edges)
-# ... (timing and print) ...
+end_time_fast <- Sys.time()
+time_diff_fast <- as.numeric(end_time_fast - start_time_fast, units = "secs")
+print(paste("v3 time:", round(time_diff_fast, 4), "seconds"))
+
 
 message("\n--- Comparing v1 and fast method outputs for identity ---")
 setorder(disjoint_v1, term1, term2)

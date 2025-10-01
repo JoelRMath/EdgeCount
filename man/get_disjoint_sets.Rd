@@ -2,40 +2,22 @@
 % Please edit documentation in R/ECProb.R
 \name{get_disjoint_sets}
 \alias{get_disjoint_sets}
-\alias{get_disjoint_sets,ECProb-method}
-\title{Get Disjoint Sets for Multiple Term Pairs (Vectorized version more)}
+\title{Get Disjoint Sets for Multiple Pairs (Vectorized)}
 \usage{
-get_disjoint_sets(object, pairs_dt, bipartite_edges)
-
-\S4method{get_disjoint_sets}{ECProb}(object, pairs_dt, bipartite_edges)
+get_disjoint_sets(pairs_dt, set_membership_dt)
 }
 \arguments{
-\item{object}{An ECProb object.}
+\item{pairs_dt}{A `data.table` with two columns ("set1", "set2") that
+define the pairs of sets to be processed.}
 
-\item{pairs_dt}{A `data.table` with two columns (e.g., "term1", "term2")
-that define the pairs of vertex sets to be processed.}
-
-\item{bipartite_edges}{A `data.table` mapping terms to their element members.
-Must have "term" and "element" columns.}
+\item{set_membership_dt}{A `data.table` mapping set IDs to their element
+members. Must have "set_id" and "element" columns.}
 }
 \value{
-A `data.table` with the original pairs and two added list-columns:
-  `elements1_disjoint` and `elements2_disjoint`.
+A `data.table` with four columns: "set1", "set2",
+  "elements1_disjoint" (list), and "elements2_disjoint" (list).
 }
 \description{
-A high-performance, vectorized function that calculates the
-disjoint element sets for a list of term pairs.
+A vectorized function that calculates the
+disjoint element sets for a list of set pairs.
 }
-\details{
-This function is designed for efficiency when processing many term
-pairs at once. It takes a `data.table` where each row is a term pair and
-returns that table with added list-columns containing the disjoint sets of
-elements (elements in term1 but not term2, and vice-versa). It uses an
-optimized `data.table` operation to avoid slow R-level loops. This is a
-foundational step for vectorized lambda and p-value calculations.
-}
-\section{Methods (by class)}{
-\itemize{
-\item \code{get_disjoint_sets(ECProb)}: Method for ECProb objects.
-
-}}
