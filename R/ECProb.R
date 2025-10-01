@@ -585,3 +585,101 @@ get_disjoint_sets <- function(pairs_dt, set_membership_dt) {
 
   return(final_output[, .(set1, set2, elements1_disjoint, elements2_disjoint)])
 }
+
+#' @title Vectorized calculation of fast between statistics
+#'
+#' @description Calculates fast between statistics for a collection of set pairs
+#' using vectorization. The method first transforms pairs to disjoint sets in a
+#' vectorized way and then uses vectorization to calculate lambda, observed edge count
+#' and associated statistics. Note that vectorization implies that the fast
+#' approximation p_ij = k_ik_j/(2M) is utilized.
+#'
+#' @param object An ECProb object.
+#' @param pairs_dt A data table of pairs of element sets represented by pairs:
+#' two columns "set1" and "set2" giving set IDs
+#' @param set_membership_dt A data table mapping set IDs to their elements.
+#' Must have "set_id" and "element" columns.
+#' @return A data.table with pairs_id, disjoint_set1, disjointt_set2 and list
+#'  of statistics.
+#' @export
+#' @examples
+#' TBD
+setGeneric("calculate_between_stats_fast_vectorized",
+           function(object, pairs_dt, set_membership_dt) standardGeneric("calculate_between_stats_fast_vectorized"))
+
+#' @describeIn calculate_between_stats_fast_vectorized Method for ECProb objects
+setMethod("calculate_between_stats_fast_vectorized",
+          "ECProb",
+          function(object, pairs_dt, set_membership_dt) {
+
+            # --- Intermediate Steps from before ---
+            disjoint_sets_dt <- get_disjoint_sets(pairs_dt, set_membership_dt)
+            disjoint_sets_dt[, pair_id := .I]
+
+            all_element_degrees_dt <- data.table(
+              element = object@names,
+              degree = unlist(object@degrees)
+            )
+            data.table::setkey(all_element_degrees_dt, element)
+
+            long_disjoint1 <- disjoint_sets_dt[, .(element = unlist(elements1_disjoint)), by = pair_id]
+            data.table::setkey(long_disjoint1, element)
+            sums1_dt <- all_element_degrees_dt[long_disjoint1, on = "element", nomatch = 0][,
+                                                                                            .(sum_degrees1 = sum(degree, na.rm = TRUE)), by = pair_id]
+
+            long_disjoint2 <- disjoint_sets_dt[, .(element = unlist(elements2_disjoint)), by = pair_id]
+            data.table::setkey(long_disjoint2, element)
+            sums2_dt <- all_element_degrees_dt[long_disjoint2, on = "element", nomatch = 0][,
+                                                                                            .(sum_degrees2 = sum(degree, na.rm = TRUE)), by = pair_id]
+
+            ecg_edges <- data.table(to_dataframe(object))
+            setnames(ecg_edges, c("from", "to"), c("e1", "e2"))
+            ecg_edges[, `:=`(canon1 = pmin(e1, e2), canon2 = pmax(e1, e2))]
+            ecg_edges <- unique(ecg_edges, by = c("canon1", "canon2"))
+            setkey(ecg_edges, canon1, canon2)
+
+            setkey(long_disjoint1, pair_id)
+            setkey(long_disjoint2, pair_id)
+            possible_edges <- long_disjoint1[long_disjoint2, on = "pair_id", allow.cartesian = TRUE, nomatch=0]
+            setnames(possible_edges, c("element", "i.element"), c("element1", "element2"))
+            possible_edges[, `:=`(canon1 = pmin(element1, element2), canon2 = pmax(element1, element2))]
+            observed_edges_long <- ecg_edges[possible_edges, on = .(canon1, canon2), nomatch = 0]
+            observed_edges_dt <- observed_edges_long[, .(observed_edges = .N), by = pair_id]
+
+            all_pairs_ids <- data.table(pair_id = 1:nrow(disjoint_sets_dt))
+            setkey(all_pairs_ids, pair_id)
+            setkey(observed_edges_dt, pair_id)
+            observed_edges_dt <- observed_edges_dt[all_pairs_ids]
+            observed_edges_dt[is.na(observed_edges), observed_edges := 0L]
+
+
+            # --- Join all intermediate results to create the final table ---
+            data.table::setkey(sums1_dt, pair_id)
+            data.table::setkey(sums2_dt, pair_id)
+            degree_sums_dt <- merge(sums1_dt, sums2_dt, by = "pair_id", all = TRUE)
+            degree_sums_dt[is.na(sum_degrees1), sum_degrees1 := 0]
+            degree_sums_dt[is.na(sum_degrees2), sum_degrees2 := 0]
+
+            data.table::setkey(disjoint_sets_dt, pair_id)
+            final_dt <- degree_sums_dt[disjoint_sets_dt, on = "pair_id"]
+
+            # --- NEW STEP: Join the observed_edges to the final table ---
+            data.table::setkey(observed_edges_dt, pair_id)
+            final_dt <- observed_edges_dt[final_dt, on = "pair_id"]
+
+            # --- Now, perform the final calculations on this complete table ---
+            final_dt[, `:=`(
+              size1 = lengths(elements1_disjoint),
+              size2 = lengths(elements2_disjoint)
+            )]
+            final_dt[, max_possible_edges := as.numeric(size1) * as.numeric(size2)]
+            final_dt[, lambda := (sum_degrees1 * sum_degrees2) / (2 * object@graph_size)]
+            final_dt[, p_value := calculate_p_value(object, observed_edges, max_possible_edges, lambda)]
+            final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
+
+
+            message("\n--- Final Result: Table with all intermediate calculations ---")
+            print(final_dt)
+
+            return(final_dt)
+          })

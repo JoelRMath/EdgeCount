@@ -363,3 +363,24 @@ test_that("ECProb get_disjoint_sets", {
     )
   }
 })
+
+test_that("ECProb calculate_between_stats_fast_vectorized", {
+
+
+  pairs_dt <- data.table(
+    set1 = c("SA", "SA", "SC"),
+    set2 = c("SB", "SC", "SD")
+  )
+  set_membership_dt <- data.table(
+    set_id = c("SA", "SA", "SA", "SB", "SB", "SC", "SC", "SD", "SC"),
+    element = c("E1", "E2", "E3", "E2", "E3", "E3", "E4", "E5", "E6")
+  )
+  edges_dt <- data.table(
+    col1 = c("E1", "E1", "E1", "E1", "E3", "E3", "E3", "E6"),
+    col2 = c("E2", "E3", "E4", "E5", "E4", "E5", "E2", "E1")
+  )
+  ecg <- ECGraph(edges_dt)
+  ecp <- ECProb(ecg)
+
+  calculate_between_stats_fast_vectorized(ecp, pairs_dt, set_membership_dt)
+})
