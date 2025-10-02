@@ -24,19 +24,10 @@ Calculates the lambda parameter between two vertex sets using a
 speed-optimized and accurate algorithm. This is the recommended method for accurate calculation.
 }
 \details{
-This method has a time complexity of O(n*log(n) + m*log(m)) due to the
-sorting of degree sequences, which is significantly faster than the O(n*m)
-complexity of the naive method for large sets. It produces the exact same
-result as the naive method.
+This method has a time complexity of O(n*log(n) + m*log(m)).
 }
 \section{Methods (by class)}{
 \itemize{
 \item \code{calculate_lambda_between(ECProb)}: Method for ECProb objects.
 
 }}
-\examples{
-ecg <- ECGraph(data.frame(p1=c("A","B","C"), p2=c("X","Y","Z")))
-ecp <- ECProb(ecg)
-calculate_lambda_between(ecp, c("A", "B"), c("X", "Y"))
-
-}

@@ -7,17 +7,16 @@
 get_disjoint_sets(pairs_dt, set_membership_dt)
 }
 \arguments{
-\item{pairs_dt}{A `data.table` with two columns ("set1", "set2") that
-define the pairs of sets to be processed.}
+\item{pairs_dt}{A `data.table` with two columns ("set1", "set2").}
 
-\item{set_membership_dt}{A `data.table` mapping set IDs to their element
-members. Must have "set_id" and "element" columns.}
+\item{set_membership_dt}{A `data.table` with "set_id" and "element" columns.}
 }
 \value{
-A `data.table` with four columns: "set1", "set2",
-  "elements1_disjoint" (list), and "elements2_disjoint" (list).
+A `data.table` with "set1", "set2", "elements1_disjoint" (list),
+  and "elements2_disjoint" (list).
 }
 \description{
-A vectorized function that calculates the
+An internal, high-performance function that calculates the
 disjoint element sets for a list of set pairs.
 }
+\keyword{internal}

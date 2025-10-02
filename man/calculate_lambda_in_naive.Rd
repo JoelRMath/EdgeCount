@@ -22,18 +22,10 @@ Calculates the lambda parameter for edges within a single set
 of vertices using a direct, unoptimized summation.
 }
 \details{
-The naive method has a time complexity of O(n^2), where n is the
-size of the set. It is accurate but can be very slow for large sets.
-Its primary purpose is for validation and speed-testing purposes.
+The naive method has a time complexity of O(n^2).
 }
 \section{Methods (by class)}{
 \itemize{
 \item \code{calculate_lambda_in_naive(ECProb)}: Method for ECProb objects.
 
 }}
-\examples{
-ecg <- ECGraph(data.frame(p1=c("A","B","C"), p2=c("B","C","A")))
-ecp <- ECProb(ecg)
-calculate_lambda_in_naive(ecp, c("A", "B"))
-
-}

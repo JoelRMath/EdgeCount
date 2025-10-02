@@ -40,27 +40,4 @@ ecp@graph_size # 3
 }
 \seealso{
 The base class for graph representation: \code{\link{ECGraph}}
-
-Lambda calculation methods:
-\itemize{
-  \item Lambda between two sets
-  \itemize{
-    \item \code{\link{calculate_lambda_between}} (optimized and accurate)
-    \item \code{\link{calculate_lambda_between_naive}} (slow, for validation only)
-    \item \code{\link{calculate_lambda_between_fast}} (fast approximation)
-   }
-   \item Lamda within a set
-   \itemize{
-    \item \code{\link{calculate_lambda_in}} (optimized and accurate)
-    \item \code{\link{calculate_lambda_in_naive}} (slow, for validation only)
-    \item \code{\link{calculate_lambda_in_fast}} (fast approximation)
-   }
-}
-
-Probability and statistics functions:
-\itemize{
-  \item \code{\link{calculate_p_value}}
-  \item \code{\link{edge_count_statistics}}
-  \item \code{\link{summarize_suitability_fast}}
-}
 }

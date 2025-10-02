@@ -12,25 +12,16 @@ calculate_in_stats_fast_vectorized(object, sets_dt, set_membership_dt)
 \arguments{
 \item{object}{An ECProb object.}
 
-\item{sets_dt}{A data table with a single column ("set_id") listing the
-sets to be analyzed.}
+\item{sets_dt}{A data table with a single column ("set_id")}
 
-\item{set_membership_dt}{A data table mapping set IDs to their elements.
-Must have "set_id" and "element" columns.}
+\item{set_membership_dt}{A data table with "set_id" and "element" columns.}
 }
 \value{
-A final `data.table` with the input set IDs and columns for all
-  calculated statistics (`observed_edges`, `lambda`, `p_value`, etc.).
+A final `data.table` with stats (`observed_edges`, `lambda`, etc.).
 }
 \description{
 Calculates fast within-set statistics for a collection of sets
 using a high-performance, vectorized algorithm.
-}
-\details{
-This function is designed for efficiency when processing many sets
-at once. It uses a series of `data.table` joins and aggregations to
-avoid slow R-level loops. Note that this method uses the "fast" lambda
-approximation.
 }
 \section{Methods (by class)}{
 \itemize{
@@ -38,5 +29,15 @@ approximation.
 
 }}
 \examples{
-# TBD
+# Create sample data
+ecg <- ECGraph(data.frame(p1=c("E1","E3"), p2=c("E2","E4")))
+ecp <- ECProb(ecg)
+sets <- data.table(set_id = c("SA", "SB"))
+memberships <- data.table(
+  set_id = c("SA","SA","SA","SB","SB"),
+  element = c("E1","E2","E3","E3","E4")
+)
+# Run vectorized calculation
+calculate_in_stats_fast_vectorized(ecp, sets, memberships)
+
 }

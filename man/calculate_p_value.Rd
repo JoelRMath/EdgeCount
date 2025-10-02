@@ -30,10 +30,3 @@ truncated Poisson distribution.
 \item \code{calculate_p_value(ECProb)}: Method for ECProb objects.
 
 }}
-\examples{
-ecg <- ECGraph(data.frame(p1="A", p2="B")) # Dummy graph
-ecp <- ECProb(ecg)
-# P-value for observing 5 edges when max is 10 and lambda is 2
-calculate_p_value(ecp, z = 5, m = 10, lambda = 2)
-
-}

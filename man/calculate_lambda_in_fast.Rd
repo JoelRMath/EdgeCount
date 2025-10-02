@@ -22,21 +22,10 @@ Calculates an approximation of the lambda parameter for edges
 within a single set of vertices.
 }
 \details{
-This method is the fastest, with a complexity of O(n). It is an
-approximation based on the assumption that the Bernoulli probability of an edge
-between any two vertices i and j, p_ij = (k_i * k_j) / (2M), is always less than 1.
-The accuracy of this method decreases as the proportion of vertex pairs for which
-p_ij > 1 increases. You can estimate this proportion for your graph using
-\code{\link{summarize_suitability_fast}}.
+This method is the fastest, with a complexity of O(n).
 }
 \section{Methods (by class)}{
 \itemize{
 \item \code{calculate_lambda_in_fast(ECProb)}: Method for ECProb objects.
 
 }}
-\examples{
-ecg <- ECGraph(data.frame(p1=c("A","B","C"), p2=c("B","C","A")))
-ecp <- ECProb(ecg)
-calculate_lambda_in_fast(ecp, c("A", "B"))
-
-}

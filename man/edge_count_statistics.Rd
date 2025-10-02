@@ -36,19 +36,11 @@ edge_count_statistics(
 A list containing the p-value, lambda, log2_Anscombe_ratio and log2_relative_change.
 }
 \description{
-A wrapper that calculates a suite of statistics (p-value, z-score, etc.)
-for an observed edge count. It automatically determines the correct lambda and
-maximum edge count based on the input parameters.
+A wrapper that calculates a suite of statistics
+for an observed edge count.
 }
 \section{Methods (by class)}{
 \itemize{
 \item \code{edge_count_statistics(ECProb)}: Method for ECProb objects.
 
 }}
-\examples{
-ecg <- ECGraph(data.frame(p1=c("A","B","C"), p2=c("B","C","A")))
-ecp <- ECProb(ecg)
-# Calculate stats for observing 3 edges within the set {A, B, C}
-edge_count_statistics(ecp, set1 = c("A", "B", "C"), observed_edge_count = 3)
-
-}

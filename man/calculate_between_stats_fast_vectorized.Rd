@@ -3,7 +3,7 @@
 \name{calculate_between_stats_fast_vectorized}
 \alias{calculate_between_stats_fast_vectorized}
 \alias{calculate_between_stats_fast_vectorized,ECProb-method}
-\title{Vectorized calculation of fast between statistics}
+\title{Vectorized calculation of fast between-set statistics}
 \usage{
 calculate_between_stats_fast_vectorized(object, pairs_dt, set_membership_dt)
 
@@ -12,22 +12,16 @@ calculate_between_stats_fast_vectorized(object, pairs_dt, set_membership_dt)
 \arguments{
 \item{object}{An ECProb object.}
 
-\item{pairs_dt}{A data table of pairs of element sets represented by pairs:
-two columns "set1" and "set2" giving set IDs}
+\item{pairs_dt}{A data table of pairs of element sets.}
 
-\item{set_membership_dt}{A data table mapping set IDs to their elements.
-Must have "set_id" and "element" columns.}
+\item{set_membership_dt}{A data table mapping set IDs to their elements.}
 }
 \value{
-A data.table with pairs_id, disjoint_set1, disjointt_set2 and list
- of statistics.
+A final `data.table` with stats (`observed_edges`, `lambda`, etc.).
 }
 \description{
-Calculates fast between statistics for a collection of set pairs
-using vectorization. The method first transforms pairs to disjoint sets in a
-vectorized way and then uses vectorization to calculate lambda, observed edge count
-and associated statistics. Note that vectorization implies that the fast
-approximation p_ij = k_ik_j/(2M) is utilized.
+Calculates fast between-set statistics for a collection of set pairs
+using a high-performance, vectorized algorithm.
 }
 \section{Methods (by class)}{
 \itemize{
@@ -35,5 +29,15 @@ approximation p_ij = k_ik_j/(2M) is utilized.
 
 }}
 \examples{
-TBD
+# Create sample data
+ecg <- ECGraph(data.frame(p1=c("E1","E3"), p2=c("E4","E5")))
+ecp <- ECProb(ecg)
+pairs <- data.table(set1 = c("SA", "SC"), set2 = c("SB", "SD"))
+memberships <- data.table(
+  set_id = c("SA","SA","SB","SC","SC","SD"),
+  element = c("E1","E2","E2","E3","E4","E5")
+)
+# Run vectorized calculation
+calculate_between_stats_fast_vectorized(ecp, pairs, memberships)
+
 }

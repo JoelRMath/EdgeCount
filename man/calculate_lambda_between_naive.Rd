@@ -33,9 +33,3 @@ Its primary purpose is for validation and speed-testing against optimized method
 \item \code{calculate_lambda_between_naive(ECProb)}: Method for ECProb objects.
 
 }}
-\examples{
-ecg <- ECGraph(data.frame(p1=c("A","B","C"), p2=c("X","Y","Z")))
-ecp <- ECProb(ecg)
-calculate_lambda_between_naive(ecp, c("A", "B"), c("X", "Y"))
-
-}

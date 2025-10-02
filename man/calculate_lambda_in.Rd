@@ -22,18 +22,10 @@ Calculates the lambda parameter for edges within a single set
 of vertices using a speed-optimized and accurate algorithm.
 }
 \details{
-This method has a time complexity of O(n*log(n)) due to the sorting
-of the degree sequence, which is significantly faster than the O(n^2)
-complexity of the naive method for large sets.
+This method has a time complexity of O(n*log(n)).
 }
 \section{Methods (by class)}{
 \itemize{
 \item \code{calculate_lambda_in(ECProb)}: Method for ECProb objects.
 
 }}
-\examples{
-ecg <- ECGraph(data.frame(p1=c("A","B","C"), p2=c("B","C","A")))
-ecp <- ECProb(ecg)
-calculate_lambda_in(ecp, c("A", "B"))
-
-}

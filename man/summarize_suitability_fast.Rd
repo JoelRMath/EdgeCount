@@ -24,12 +24,3 @@ to help assess if fast lambda approximation methods are suitable for the graph.
 \item \code{summarize_suitability_fast(ECProb)}: Method for ECProb objects
 
 }}
-\examples{
-# A dense graph might be less suitable for fast approximation
-ecg_dense <- ECGraph(as.data.frame(as.matrix(igraph::as_adjacency_matrix(
-  igraph::make_full_graph(10)
-))))
-ecp_dense <- ECProb(ecg_dense)
-summarize_suitability_fast(ecp_dense)
-
-}
