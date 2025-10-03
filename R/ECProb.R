@@ -484,10 +484,12 @@ setGeneric("calculate_in_stats_fast_vectorized",
 #' @describeIn calculate_in_stats_fast_vectorized Method for ECProb objects
 setMethod("calculate_in_stats_fast_vectorized",
           "ECProb",
-          function(object, sets_dt, set_membership_dt) {
+          calculate_in_stats_fast_vectorized <- function(object, sets_dt, set_membership_dt) {
 
+            # Ensure input is unique
             set_membership_dt <- unique(set_membership_dt, by = c("set_id", "element"))
 
+            # --- Step 1: Calculate Observed Edge Counts ---
             ecg_edges <- data.table(to_dataframe(object))
             setnames(ecg_edges, c("from", "to"), c("e1", "e2"))
             ecg_edges[, `:=`(canon1 = pmin(e1, e2), canon2 = pmax(e1, e2))]
@@ -506,10 +508,8 @@ setMethod("calculate_in_stats_fast_vectorized",
               observed_edges_dt <- data.table(set_id = character(), observed_edges = integer())
             }
 
-            all_element_degrees_dt <- data.table(
-              element = object@names,
-              degree = unlist(object@degrees)
-            )
+            # --- Step 2: Calculate Lambda Components ---
+            all_element_degrees_dt <- data.table(element = object@names, degree = unlist(object@degrees))
             setkey(all_element_degrees_dt, element)
 
             setkey(set_membership_dt, element)
@@ -521,6 +521,7 @@ setMethod("calculate_in_stats_fast_vectorized",
               set_size = .N
             ), by = set_id]
 
+            # --- Step 3: Join all results and perform final calculations ---
             final_dt <- copy(sets_dt)
 
             final_dt[observed_edges_dt, on = "set_id", observed_edges := i.observed_edges]
@@ -530,18 +531,20 @@ setMethod("calculate_in_stats_fast_vectorized",
               set_size = i.set_size
             )]
 
-            final_dt[is.na(observed_edges), observed_edges := 0L]
-            final_dt[is.na(sum_of_degrees), sum_of_degrees := 0]
-            final_dt[is.na(sum_of_sq_degrees), sum_of_sq_degrees := 0]
-            final_dt[is.na(set_size), set_size := 0]
+            # Clean NAs from joins for all columns
+            cols_to_clean <- c("observed_edges", "sum_of_degrees", "sum_of_sq_degrees", "set_size")
+            for (col in cols_to_clean) {
+              final_dt[is.na(get(col)), (col) := 0]
+            }
 
+            # Calculate final statistics
             final_dt[, lambda := (sum_of_degrees^2 - sum_of_sq_degrees) / (4 * object@graph_size)]
             final_dt[, max_possible_edges := set_size * (set_size - 1) / 2]
             final_dt[, p_value := calculate_p_value(object, observed_edges, max_possible_edges, lambda)]
             final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
 
             return(final_dt[, .(set_id, observed_edges, lambda, p_value, log2_Anscombe_ratio)])
-          })
+          }
 
 # --------------------------------------------------------------------------- #
 # General Utility Functions

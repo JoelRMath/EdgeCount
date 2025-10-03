@@ -65,6 +65,7 @@ candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects)
 set_membership <- as.data.table(to_dataframe(sample_ects))
 setnames(set_membership, c("term", "element"), c("set_id", "element"))
 
+print(length(candidate_pairs[,set1]))
 test_pairs <- head(candidate_pairs, 10000)
 
 message("Running 'slow but safe' version...")
