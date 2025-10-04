@@ -480,11 +480,10 @@ setMethod("calculate_between_stats_fast_vectorized",
 #'
 setGeneric("calculate_in_stats_fast_vectorized",
            function(object, sets_dt, set_membership_dt) standardGeneric("calculate_in_stats_fast_vectorized"))
-
 #' @describeIn calculate_in_stats_fast_vectorized Method for ECProb objects
 setMethod("calculate_in_stats_fast_vectorized",
           "ECProb",
-          calculate_in_stats_fast_vectorized <- function(object, sets_dt, set_membership_dt) {
+          function(object, sets_dt, set_membership_dt) {
 
             # Ensure input is unique
             set_membership_dt <- unique(set_membership_dt, by = c("set_id", "element"))
@@ -544,7 +543,7 @@ setMethod("calculate_in_stats_fast_vectorized",
             final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
 
             return(final_dt[, .(set_id, observed_edges, lambda, p_value, log2_Anscombe_ratio)])
-          }
+          })
 
 # --------------------------------------------------------------------------- #
 # General Utility Functions
