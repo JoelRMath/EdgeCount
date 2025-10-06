@@ -384,3 +384,54 @@ test_that("ECProb calculate_between_stats_fast_vectorized", {
 
   calculate_between_stats_fast_vectorized(ecp, pairs_dt, set_membership_dt)
 })
+
+test_that("calculate_in_stats_fast_vectorized", {
+
+  calculate_in_stats_slow <- function(object, sets_to_test, set_membership_dt){
+
+    results_list <- vector("list", length(sets_to_test))
+
+    for (i in seq_along(sets_to_test)) {
+      current_set_id <- sets_to_test[i]
+
+      all_elements_for_set <- set_membership_dt[set_id == current_set_id, element]
+      valid_elements <- unique(all_elements_for_set[all_elements_for_set %in% object@names])
+
+      observed_ec <- if (length(valid_elements) < 2) 0L else get_edge_count_in(object, valid_elements)
+
+      stats <- edge_count_statistics(object, valid_elements, NULL, observed_ec, "fast")
+
+      results_list[[i]] <- list(
+        set_id = current_set_id,
+        observed_edges = as.integer(observed_ec),
+        lambda = stats$lambda,
+        p_value = stats$p_value,
+        log2_Anscombe_ratio = stats$log2_Anscombe_ratio
+      )
+    }
+
+    slow_results_dt <- rbindlist(results_list)
+    return(slow_results_dt)
+  }
+
+
+  edges_dt <- data.table(p1 = c("E1", "E3", "E6"), p2 = c("E2", "E4", "E7"))
+  ecg <- ECGraph(edges_dt)
+  ecp <- ECProb(ecg)
+
+  sets_dt <- data.table(set_id = c("SA", "SB", "SC")) # SC has no edges
+
+  set_membership_dt <- data.table(
+    set_id = c("SA", "SA", "SA", "SB", "SB", "SB", "SC"),
+    element = c("E1", "E2", "E3", "E3", "E4", "E5", "E6") # E5 is not in the graph
+  )
+
+  results_slow <- calculate_in_stats_slow(ecp, sets_dt$set_id, set_membership_dt)
+
+  results_fast <- calculate_in_stats_fast_vectorized(ecp, sets_dt, set_membership_dt)
+
+  setorder(results_slow, set_id)
+  setorder(results_fast, set_id)
+
+  expect_equal(results_slow, results_fast)
+})

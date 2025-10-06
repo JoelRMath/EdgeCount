@@ -176,14 +176,12 @@ setMethod(
   "ECTermScoring",
   function(object, element_set, lambda_method = "optimized") {
 
-    # Ensure element_set contains valid elements known to the ECTermScoring object
     valid_element_set <- unique(element_set[element_set %in% object@elements])
     if (length(valid_element_set) < 1){
       warning("No valid elements from the input set found in the ECTermScoring object.")
       return(NULL)
     }
 
-    # Get terms connected to any element in the valid_element_set
     connected_terms <- get_neighbors(object@ecprob, valid_element_set)
     relevant_terms <- intersect(connected_terms, object@terms)
 
@@ -192,7 +190,6 @@ setMethod(
       return(NULL)
     }
 
-    # Calculate stats for a single term
     ect_stats_single_term <- function(ecprob_obj, single_term_id, current_element_set, current_lambda_method) {
 
       max_possible_edges <- length(current_element_set)
@@ -259,6 +256,109 @@ setMethod(
       return(NULL)
     }
   })
+
+#' @title Vectorized Scoring of Terms Against Multiple Element Sets
+#'
+#' @description A high-performance, vectorized function that calculates enrichment
+#' statistics for all terms against a collection of input element sets.
+#'
+#' @details This function is designed for efficiency when testing many input sets
+#' (e.g., multiple experimental signatures) against the term database at once.
+#' It uses a join-based approach to first identify all relevant `(input_set, term)`
+#' pairs and then calculates statistics in a fully vectorized manner.
+#'
+#' @param object An ECTermScoring object.
+#' @param input_sets An object defining the input element sets. This can be either:
+#'   \itemize{
+#'     \item A `data.table` with two columns: `set_id` and `element`.
+#'     \item A named `list` where names are the set IDs and values are character
+#'       vectors of elements.
+#'   }
+#' @param lambda_method The method for lambda calculation. Currently, only "fast"
+#'   is supported for this vectorized function.
+#'
+#' @return A named list of `data.table`s. Each name corresponds to an
+#'   `input_set_id`, and each `data.table` contains the enrichment statistics
+#'   for all connected terms.
+#' @export
+#' @examples
+#' # Load sample data included with the package
+#' data(sample_ects)
+#'
+#' # --- Example 1: Using a data.table as input ---
+#' input_dt <- data.table(
+#'   set_id = c("Set_A", "Set_A", "Set_B"),
+#'   element = c(sample_ects@elements[1], sample_ects@elements[2], sample_ects@elements[3])
+#' )
+#' results_dt <- terms_ecset_statistics_vectorized(sample_ects, input_dt)
+#' print(results_dt$Set_A)
+#'
+#' # --- Example 2: Using a named list as input ---
+#' input_list <- list(
+#'   Set_A = c(sample_ects@elements[1], sample_ects@elements[2]),
+#'   Set_B = c(sample_ects@elements[3])
+#' )
+#' results_list <- terms_ecset_statistics_vectorized(sample_ects, input_list)
+#' print(results_list$Set_A)
+#'
+setGeneric("terms_ecset_statistics_vectorized",
+           function(object, input_sets, lambda_method = "fast")
+             standardGeneric("terms_ecset_statistics_vectorized"))
+
+#' @describeIn terms_ecset_statistics_vectorized Method for ECTermScoring objects.
+setMethod("terms_ecset_statistics_vectorized",
+          "ECTermScoring",
+          function(object, input_sets, lambda_method = "fast") {
+            if (is.list(input_sets) && !is.data.frame(input_sets)) {
+              input_sets_dt <- as.data.table(utils::stack(input_sets))
+              setnames(input_sets_dt, c("values", "ind"), c("element", "set_id"))
+            } else {
+              input_sets_dt <- as.data.table(input_sets)
+            }
+
+            bipartite_edges <- as.data.table(to_dataframe(object))
+            setnames(bipartite_edges, "term", "term_id")
+            bipartite_edges[, term_id := as.character(term_id)]
+
+            input_sets_dt_unique <- unique(input_sets_dt, by = c("set_id", "element"))
+
+            setkey(input_sets_dt_unique, element)
+            setkey(bipartite_edges, element)
+            all_connections <- bipartite_edges[input_sets_dt_unique, on = "element", nomatch = 0, allow.cartesian = TRUE]
+
+            observed_edges_dt <- all_connections[, .(observed_edges = .N), by = .(input_set_id = set_id, term_id)]
+
+            all_element_degrees <- unlist(object@ecprob@degrees)
+
+            term_degrees <- all_element_degrees[bipartite_edges[, unique(term_id)]]
+            term_summary <- data.table(term_id = names(term_degrees), term_degree = term_degrees)
+
+            valid_input_elements <- all_connections[, .(input_set_id = set_id, element)] |> unique()
+            input_set_summary <- valid_input_elements[,
+                                                      .(sum_degrees_set = sum(all_element_degrees[element], na.rm = TRUE)),
+                                                      by = input_set_id
+            ]
+
+            final_dt <- copy(observed_edges_dt)
+
+            final_dt[term_summary, on = "term_id", term_degree := i.term_degree]
+            final_dt[input_set_summary, on = "input_set_id", sum_degrees_set := i.sum_degrees_set]
+
+            input_set_sizes <- valid_input_elements[, .(set_size = .N), by = input_set_id]
+            final_dt[input_set_sizes, on = "input_set_id", max_possible_edges := i.set_size]
+
+            final_dt[, lambda := (term_degree * sum_degrees_set) / (2 * object@ecprob@graph_size)]
+            final_dt[, p_value := calculate_p_value(object@ecprob, observed_edges, max_possible_edges, lambda)]
+            final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
+
+            setnames(final_dt, "input_set_id", "set1")
+            setnames(final_dt, "term_id", "set2")
+
+            results_list <- split(final_dt, by = "set1")
+
+            return(results_list)
+          })
+
 
 #' @title Score Terms Against a Ranked List of Elements
 #'

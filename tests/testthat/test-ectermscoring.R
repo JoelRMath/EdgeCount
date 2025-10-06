@@ -242,6 +242,81 @@ create_vsea_test_object <- function(full_ects, n_terms) {
   return(new_ects)
 }
 
+test_that("terms_ecset_statistics_vectorized is correct", {
+
+  # --- Gold Standard: A slow but safe wrapper around the original function ---
+  terms_ecset_statistics_slow_wrapper <- function(object, input_sets_dt, lambda_method = "fast") {
+    all_set_ids <- unique(input_sets_dt$set_id)
+    results_list <- list()
+
+    for (current_set_id in all_set_ids) {
+      current_element_set <- input_sets_dt[set_id == current_set_id, element]
+
+      single_result_df <- terms_ecset_statistics(
+        object,
+        element_set = current_element_set,
+        lambda_method = lambda_method
+      )
+
+      if (!is.null(single_result_df) && nrow(single_result_df) > 0) {
+        single_result_dt <- as.data.table(single_result_df)
+        # Add the input_set_id to the results table
+        single_result_dt[, input_set_id := current_set_id]
+        results_list[[current_set_id]] <- single_result_dt
+      }
+    }
+    return(results_list)
+  }
+
+  # --- 1. Define the test data ---
+  te_df <- data.frame(
+    term = c("T1", "T1", "T2", "T3"),
+    element = c("E1", "E2", "E2", "E3")
+  )
+  ects <- ECTermScoring(te_df)
+
+  input_sets_dt <- data.table(
+    set_id = c("SetA", "SetA", "SetB", "SetB"),
+    element = c("E1", "E3", "E2", "E99") # E99 is not in the graph
+  )
+
+  # --- 2. Run both the slow and fast versions ---
+  results_slow <- terms_ecset_statistics_slow_wrapper(ects, input_sets_dt)
+
+  # This now calls the formal S4 method from the package
+  results_fast <- terms_ecset_statistics_vectorized(ects, input_sets_dt)
+
+  # --- 3. Perform the automated comparison ---
+  expect_setequal(names(results_slow), names(results_fast))
+
+  harmonize_df <- function(df) {
+    if (is.null(df) || nrow(df) == 0) return(data.table())
+    # The original function has slightly different column names
+    if ("log2_Anscombe" %in% names(df)) setnames(df, "log2_Anscombe", "log2_Anscombe_ratio")
+    if ("observed_edge_count" %in% names(df)) setnames(df, "observed_edge_count", "observed_edges")
+
+    # Rename for consistency
+    if("input_set_id" %in% names(df)) setnames(df, "input_set_id", "set1")
+    if("term_id" %in% names(df)) setnames(df, "term_id", "set2")
+
+    cols_to_keep <- c("set1", "set2", "observed_edges", "lambda", "p_value", "log2_Anscombe_ratio")
+
+    # Ensure all columns to keep actually exist before subsetting
+    cols_that_exist <- intersect(cols_to_keep, names(df))
+
+    return(df[, ..cols_that_exist])
+  }
+
+  for(set_id in names(results_slow)) {
+    slow_dt <- harmonize_df(results_slow[[set_id]])
+    fast_dt <- harmonize_df(results_fast[[set_id]])
+
+    setorder(slow_dt, set2)
+    setorder(fast_dt, set2)
+
+    expect_equal(slow_dt, fast_dt, info = paste("Results for set_id", set_id, "do not match."))
+  }
+})
 test_that("ECTermScoring vsea", {
 
   toggle <- FALSE
