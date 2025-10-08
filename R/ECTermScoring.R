@@ -359,135 +359,101 @@ setMethod("terms_ecset_statistics_vectorized",
             return(results_list)
           })
 
-
 #' @title Score Terms Against a Ranked List of Elements
 #'
 #' @description Calculates a running enrichment score for terms based on a ranked list of elements.
-#' @details This method implements a fast algorithm for ranked list analysis, similar in
-#' principle to GSEA. For each term, it calculates a profile of statistics (Anscombe-ratio, lambda, p-value, etc.)
-#' at each rank position occupied by an element from that term. The time complexity is
-#' approximately O(N + sum_k k*log(k)), where N is the total number of ranked elements and k is the
-#' size of a term, as it uses an efficient cumulative sum approach for lambda calculation.
+#' @details This method implements a fast, vectorized algorithm. For statistical
+#' rigor, the analysis is conditioned on the universe of elements provided in the
+#' `element_ranks` argument.
 #'
 #' @param object An ECTermScoring object.
-#' @param element_ranks A named list or vector where names are element IDs and values
-#'   are their numeric ranks (1 being the highest rank).
-#' @param terms A character vector of term IDs to score. If NULL (default),
-#'   all terms in the object are processed.
+#' @param element_ranks A named list or vector of element ranks.
 #'
-#' @return A named list where each name is a term ID. Each element of the list is a
-#'   data frame containing the running enrichment statistics for that term.
+#' @return A named list where each element is a data frame of statistics for a term.
 #' @export
-#' @examples
-#' # Create a sample ECTermScoring object
-#' te_df <- data.frame(
-#'   term = c("TermA", "TermA", "TermB"),
-#'   element = c("Elem1", "Elem3", "Elem2")
-#' )
-#' ects <- ECTermScoring(te_df)
-#'
-#' # Create a sample ranked list
-#' ranks <- c(Elem1 = 1, Elem2 = 2, Elem3 = 3, Elem4 = 4)
-#'
-#' # Get the ranked scoring profile for TermA
-#' ranked_scores <- terms_ecranks_statistics(ects, ranks, terms = "TermA")
-#' print(ranked_scores)
-#'
 setGeneric("terms_ecranks_statistics",
-           function(object, element_ranks, terms = NULL)
+           function(object, element_ranks)
              standardGeneric("terms_ecranks_statistics"))
 
 #' @describeIn terms_ecranks_statistics Method for ECTermScoring objects.
 setMethod(
   "terms_ecranks_statistics",
   "ECTermScoring",
-  function(object, element_ranks, terms = NULL) {
+  function(object, element_ranks) {
 
-    input_elements <- names(element_ranks)
-    d_elements <- setdiff(input_elements, object@elements)
-    if (length(d_elements) > 0){
-      warning(paste("some input elements are not in the ECTErmScoring element universe:",
-                    toString(d_elements)))
+    # --- Step 1: Condition the analysis on the provided ranked list ---
+    valid_elements <- intersect(names(element_ranks), object@elements)
+    if (length(valid_elements) < 1) {
+      stop("None of the elements in `element_ranks` are in the ECTermScoring object.")
     }
-    input_elements <- input_elements[input_elements %in% object@elements]
-    if (length(input_elements) < 1){
-      stop("no input element in the ECTErmScoring element universe")
-    }
+    # Create a new, smaller object for this specific analysis
+    analysis_object <- reduce_universe(object, valid_elements)
+    element_ranks <- element_ranks[valid_elements]
 
-    input_terms <- NULL
-    if (is.null(terms)){
-      input_terms <- object@terms
-    } else {
-      d_terms <- setdiff(terms, object@terms)
-      if (length(d_terms) > 0){
-        warning(paste("some input terms are not in the ECTErmScoring term universe:",
-                      toString(d_terms)))
-      }
-      input_terms <- terms[terms %in% object@terms]
-      if (length(input_terms) < 1){
-        stop("no input term in the ECTErmScoring term universe")
-      }
-    }
 
-    ecprob <- object@ecprob
-    M_g <- ecprob@graph_size
-    N_e <- length(object@elements)
+    # --- Step 2: Prepare data structures for vectorized calculation ---
+    ranks_dt <- data.table(element = names(element_ranks), rank = as.numeric(element_ranks))
+    setorder(ranks_dt, rank)
 
-    df <- data.frame(elements = names(element_ranks), ranks = as.numeric(unlist(element_ranks)))
-    df <- df[order(df$ranks),]
-    ranked_elements <- unlist(df$elements)
-    K <- unlist(ecprob@degrees[ranked_elements])
-    cumul_sum_K <- cumsum(K)
+    all_degrees <- unlist(analysis_object@ecprob@degrees)
+    ranks_dt[, degree := all_degrees[element]]
+    ranks_dt[is.na(degree), degree := 0]
+    ranks_dt[, cumul_sum_K := cumsum(degree)]
 
-    score_one_term <- function(obj, term, element_to_ranks, cumul_K, M, N){
+    bipartite_edges <- as.data.table(to_dataframe(analysis_object))
+    setnames(bipartite_edges, "term", "term_id")
 
-      elements_term <- get_neighbors(obj, term)
-      sz <- length(elements_term)
-      size_term <- rep(sz, sz)
-      ranks_term <- unlist(element_to_ranks[elements_term])
-      df_term <- data.frame(ranks = ranks_term, elements = elements_term)
-      df_term <- df_term[order(df_term$ranks),]
-      elements_term <- df_term$elements
-      ranks_term <- df_term$ranks
-      K_term <- rep(obj@degrees[[term]], length(elements_term))
-      one_over_2M <- rep((1/(2*M)), length(elements_term))
-      lambda_term <- K_term * one_over_2M * cumul_sum_K[ranks_term]
-      observed_ec_term <- 1:length(elements_term)
-      max_ec_term <- ranks_term
-      log2_anscombe_ratio_term <- 0.5 * (log2(observed_ec_term + 3/8) - log2(lambda_term + 3/8))
-      log2_relative_change_term <- log2(observed_ec_term) - log2(lambda_term)
-      p_value_term <- mapply(calculate_p_value,
-                             z = observed_ec_term,
-                             m = max_ec_term,
-                             lambda = lambda_term,
-                             MoreArgs = list(object = obj),
-                             SIMPLIFY = TRUE)
-      df <- data.frame(element = elements_term,
-                       element_relative_rank = ranks_term/N,
-                       lambda = lambda_term,
-                       observed_edge_count = observed_ec_term,
-                       max_ec = max_ec_term,
-                       term_size = size_term,
-                       log2_Anscombe_ratio = log2_anscombe_ratio_term,
-                       log2_relative_change = log2_relative_change_term,
-                       p_value = p_value_term)
-      return(df)
-    }
+    # This line is the crucial fix to prevent faulty joins
+    bipartite_edges[, term_id := as.character(term_id)]
 
-    all_results_list <- lapply(input_terms, function(term_id_iter) {
-      score_one_term(
-        obj = ecprob,
-        term = term_id_iter,
-        element_to_ranks = element_ranks,
-        cumul_K = cumul_sum_K,
-        M = M_g,
-        N = N_e
-      )
+    setkey(bipartite_edges, element)
+    setkey(ranks_dt, element)
+
+    long_dt <- bipartite_edges[ranks_dt, on = "element", nomatch = 0]
+
+    if (nrow(long_dt) == 0) return(list())
+
+    term_degrees <- all_degrees[unique(long_dt$term_id)]
+    term_degrees_dt <- data.table(term_id = names(term_degrees), term_degree = term_degrees)
+    long_dt[term_degrees_dt, on = "term_id", term_degree := i.term_degree]
+
+
+    # --- Step 3: Perform vectorized calculations ---
+    long_dt[, `:=`(
+      observed_ec = 1:.N,
+      term_size = .N
+    ), by = term_id]
+
+    long_dt[, max_ec := rank]
+
+    M_g <- analysis_object@ecprob@graph_size
+    N_e <- length(analysis_object@elements)
+
+    long_dt[, `:=`(
+      element_relative_rank = rank / N_e,
+      lambda = term_degree * (1 / (2 * M_g)) * cumul_sum_K
+    )]
+    long_dt[, log2_relative_change := log2(observed_ec) - log2(lambda)]
+
+    long_dt[, p_value := calculate_p_value(analysis_object@ecprob, observed_ec, max_ec, lambda)]
+    long_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_ec + 3/8) - log2(lambda + 3/8))]
+
+
+    # --- Step 4: Reshape output to the required named list format ---
+    results_list <- split(long_dt, by = "term_id")
+
+    final_cols <- c("element", "element_relative_rank", "lambda",
+                    "observed_edge_count", "max_ec", "term_size",
+                    "log2_Anscombe_ratio", "log2_relative_change", "p_value")
+
+    results_list_final <- lapply(results_list, function(dt) {
+      setnames(dt, "observed_ec", "observed_edge_count")
+      dt[, ..final_cols]
     })
-    names(all_results_list) <- input_terms
 
-    return(all_results_list)
-  })
+    return(results_list_final)
+  }
+)
 
 #' @title Summarize and Rank Term Scoring Profiles
 #'
@@ -1099,3 +1065,29 @@ setMethod("to_dataframe",
 
             edge_df[, c("term", "element")]
           })
+
+#' @title Reduce the Universe of an ECTermScoring Object
+#'
+#' @description Creates a new, smaller ECTermScoring object by restricting it
+#' to a specified subset of elements.
+#'
+#' @details This is a crucial helper for ensuring statistical tests are correctly
+#' conditioned. It takes an ECTermScoring object and a vector of elements, finds
+#' the intersection, and returns a new object where all properties (degrees, graph
+#' size, etc.) are recalculated based on this smaller universe.
+#'
+#' @param object An ECTermScoring object.
+#' @param elements_to_keep A character vector of element IDs to keep.
+#'
+#' @return A new, smaller ECTermScoring object.
+#' @export
+setGeneric("reduce_universe", function(object, elements_to_keep) standardGeneric("reduce_universe"))
+
+#' @describeIn reduce_universe Method for ECTermScoring objects.
+setMethod("reduce_universe", "ECTermScoring", function(object, elements_to_keep) {
+
+  bipartite_edges <- as.data.table(to_dataframe(object))
+  reduced_edges <- bipartite_edges[element %in% elements_to_keep]
+
+  return(ECTermScoring(reduced_edges))
+})
