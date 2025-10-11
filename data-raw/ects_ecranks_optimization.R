@@ -2,141 +2,156 @@ library(EdgeCount)
 library(data.table)
 
 # ---
-# GOLD STANDARD: The original implementation, corrected for universe reduction
+# GOLD STANDARD: A "flat" data.table implementation for easy verification
 # ---
-terms_ecranks_statistics_old <- function(object, element_ranks) {
+terms_ecranks_statistics_gs <- function(object, element_ranks) {
 
   # --- Condition the analysis on the provided ranked list ---
   valid_elements <- intersect(names(element_ranks), object@elements)
   if (length(valid_elements) < 1) {
     stop("None of the elements in `element_ranks` are in the ECTermScoring object.")
   }
-  object <- reduce_universe(object, valid_elements)
-  element_ranks <- element_ranks[valid_elements]
+  object <- reduce_universe_by_elements(object, valid_elements)
+  element_ranks <- rank(element_ranks[valid_elements])
 
-  input_terms <- object@terms
+  # --- Pre-computation of core data structures ---
 
-  # --- All subsequent calculations now use the CORRECT, reduced object ---
-  ecprob <- object@ecprob
-  M_g <- ecprob@graph_size
-  N_e <- length(object@elements)
+  # 1. Create a data.table of ranked elements with their degrees & cumsum
+  all_element_degrees <- unlist(object@ecprob@degrees)
+  ranks_dt <- data.table(element_id = names(element_ranks), global_rank = element_ranks)
+  setorder(ranks_dt, global_rank)
+  ranks_dt[, degree := all_element_degrees[element_id]]
+  ranks_dt[, cumsum_degrees := cumsum(degree)]
 
-  # Prepare the ranked elements and cumulative sum once
-  sorted_ranks <- sort(element_ranks)
-  ranked_elements <- names(sorted_ranks)
+  # 2. Create the long-form term-element table
+  bipartite_edges <- as.data.table(to_dataframe(object))
+  setnames(bipartite_edges, c("term", "element"), c("term_id", "element_id"))
+  bipartite_edges[, term_id := as.character(term_id)]
 
-  K <- unlist(ecprob@degrees[ranked_elements])
-  K[is.na(K)] <- 0 # Ensure elements not in degrees get a 0
-  cumul_sum_K <- cumsum(K)
-  # Create a lookup for rank positions for the cumsum
-  cumsum_lookup <- setNames(cumul_sum_K, ranked_elements)
+  # 3. Join all information into a single flat table
+  setkey(bipartite_edges, element_id)
+  setkey(ranks_dt, element_id)
+  final_dt <- ranks_dt[bipartite_edges, on = "element_id"]
 
-  # --- Inner function to score one term ---
-  score_one_term <- function(obj, term, element_to_ranks, cumul_sum_lookup, M, N){
-    elements_term <- get_neighbors(obj, term)
-    if(length(elements_term) == 0) return(NULL)
+  # 4. Sort by term, then by global rank to calculate rank_in_term
+  setorder(final_dt, term_id, global_rank)
+  final_dt[, rank_in_term := 1:.N, by = term_id]
 
-    # Sort the term's elements by their rank
-    ranks_term <- unlist(element_to_ranks[elements_term])
-    elements_term_sorted <- names(sort(ranks_term))
-    ranks_term_sorted <- sort(ranks_term)
+  # 5. Add term-level information (size and degree) using joins
+  #    In this bipartite context, a term's degree IS its size.
+  term_sizes <- lengths(object@ecprob@adj[object@terms])
+  term_summary <- data.table(
+    term_id = names(term_sizes),
+    term_size = term_sizes,
+    term_degree = term_sizes  # Assign the same value to both
+  )
+  final_dt[term_summary, on = "term_id", `:=`(term_size = i.term_size, term_degree = i.term_degree)]
 
-    sz <- length(elements_term_sorted)
+  # 6. Final, fully vectorized statistics calculation
+  final_dt[, `:=`(
+    observed_ec = rank_in_term,
+    max_ec = pmin(term_size, global_rank),
+    lambda = (term_degree / (2 * object@ecprob@graph_size)) * cumsum_degrees
+  )]
 
-    K_term <- obj@degrees[[term]]
-    lambda_term <- (K_term / (2*M)) * cumul_sum_lookup[elements_term_sorted]
+  # NEW: Add the final statistical columns
+  final_dt[, `:=`(
+    p_value = calculate_p_value(object@ecprob, observed_ec, max_ec, lambda),
+    log2_Anscombe_ratio = 0.5 * (log2(observed_ec + 3/8) - log2(lambda + 3/8))
+  )]
 
-    observed_ec_term <- 1:sz
-    max_ec_term <- ranks_term_sorted
+  # 7. Reorder for final output
+  setcolorder(final_dt, c("p_value", "log2_Anscombe_ratio", "lambda", "observed_ec",
+                          "max_ec", "term_id", "element_id", "term_size", "term_degree",
+                          "global_rank", "cumsum_degrees"))
+  setorder(final_dt, p_value)
+  return(final_dt)
+}
 
-    p_value_term <- calculate_p_value(obj, observed_ec_term, max_ec_term, lambda_term)
-    log2_anscombe_ratio_term <- 0.5 * (log2(observed_ec_term + 3/8) - log2(lambda_term + 3/8))
-    log2_relative_change_term <- log2(observed_ec_term) - log2(lambda_term)
 
-    df <- data.frame(
-      element = elements_term_sorted,
-      element_relative_rank = ranks_term_sorted / N,
-      lambda = lambda_term,
-      observed_edge_count = observed_ec_term,
-      max_ec = max_ec_term,
-      term_size = sz,
-      log2_Anscombe_ratio = log2_anscombe_ratio_term,
-      log2_relative_change = log2_relative_change_term,
-      p_value = p_value_term,
-      stringsAsFactors = FALSE
-    )
-    return(df)
+# ---
+# SCRIPT TO RUN THE FUNCTION
+# ---
+data(sample_ects)
+set.seed(2)
+
+ects <- sample_ects
+term_selection_dt <- data.table(term = ects@terms,
+                                term_degree = unlist(ects@ecprob@degrees[ects@terms]))
+term_selection_dt <- term_selection_dt[term_degree >= 2]
+selected_terms <- sample(unlist(term_selection_dt$term), 10)
+ects <- reduce_universe_by_terms(ects, selected_terms)
+elements <- ects@elements
+element_ranks <- setNames(seq_along(elements), elements)
+
+# Run the gold standard function
+gs_data <- terms_ecranks_statistics_gs(ects, element_ranks)
+
+# Print the head of the final data.table for inspection
+print(head(gs_data, 20))
+
+#' @title Summarize a "flat" gold standard data table
+#'
+#' @description This function takes the "flat" data table from
+#' `terms_ecranks_statistics_gs` and computes summary statistics (min, median, max)
+#' for the `log2_Anscombe_ratio` for each term.
+#'
+#' @param gs_data The data.table output from `terms_ecranks_statistics_gs`.
+#'
+#' @return A `data.table` with one row per term, containing the summary statistics.
+summarize_gs_statistics <- function(gs_data) {
+
+  if (!is.data.table(gs_data) || nrow(gs_data) == 0) {
+    return(data.table())
   }
 
-  all_results_list <- lapply(input_terms, function(term_id_iter) {
-    score_one_term(
-      obj = ecprob,
-      term = term_id_iter,
-      element_to_ranks = element_ranks,
-      cumul_sum_lookup = cumsum_lookup,
-      M = M_g,
-      N = N_e
+  # This single, vectorized operation groups by term_id and calculates all
+  # summary statistics at once.
+  summary_dt <- gs_data[, {
+    # Find the indices of the min, max, and median score
+    idx_min <- which.min(log2_Anscombe_ratio)
+    idx_max <- which.max(log2_Anscombe_ratio)
+    idx_median <- which.min(abs(log2_Anscombe_ratio - median(log2_Anscombe_ratio, na.rm = TRUE)))
+
+    # Create a list of the summary stats for this term
+    .(
+      term_size = term_size[1],
+      min_score = log2_Anscombe_ratio[idx_min],
+      element_at_min = element_id[idx_min],
+      observed_ec_at_min = observed_ec[idx_min],
+      median_score = log2_Anscombe_ratio[idx_median],
+      element_at_median = element_id[idx_median],
+      observed_ec_at_median = observed_ec[idx_median],
+      max_score = log2_Anscombe_ratio[idx_max],
+      element_at_max = element_id[idx_max],
+      observed_ec_at_max = observed_ec[idx_max]
     )
-  })
-  names(all_results_list) <- input_terms
-  all_results_list <- all_results_list[!sapply(all_results_list, is.null)]
-  return(all_results_list)
+  }, by = term_id]
+
+  return(summary_dt)
 }
 
 
 # ---
-# MAIN DEBUGGING SCRIPT
+# SCRIPT TO RUN THE FUNCTION
 # ---
+# data(sample_ects)
+# set.seed(2)
+#
+# ects_full <- sample_ects
+# term_selection_dt <- data.table(term = ects_full@terms, term_degree = unlist(ects_full@ecprob@degrees[ects_full@terms]))
+# term_selection_dt <- term_selection_dt[term_degree >= 2]
+# selected_terms <- sample(unlist(term_selection_dt$term), 10)
+# ects_reduced <- reduce_universe_by_terms(ects_full, selected_terms)
+# elements <- ects_reduced@elements
+# element_ranks <- setNames(seq_along(elements), elements)
+#
+# # Run the gold standard function to get the flat table
+# gs_data <- terms_ecranks_statistics_gs(ects_reduced, element_ranks)
+#
+# # Run the new summary function on the result
+# gs_summary <- summarize_gs_statistics(gs_data)
+#
+# # Print the summary table for inspection
+# print(gs_summary)
 
-# 1. Create a more complex toy example designed to fail
-message("--- Creating complex toy example to test universe reduction ---")
-te_df <- data.frame(
-  term = c("TermA", "TermA", "TermB", "TermB", "TermB", "TermC", "TermD", "TermE", "TermE"),
-  element = c("E1", "E3", "E3", "E4", "E5", "E5", "E6", "E7", "E8")
-)
-ects <- ECTermScoring(te_df)
-
-# Ranked list is a SUBSET of the elements, designed to trigger edge cases.
-# It omits E3 and E5, which will change the composition of TermA, TermB, and TermC,
-# and it omits E6, which should cause TermD to be dropped entirely.
-element_ranks <- c("E1" = 1, "E2" = 2, "E4" = 3, "E7" = 4, "E8" = 5)
-
-
-# 2. Run the "slow but safe" gold standard
-message("\n--- Running 'slow' (original) version ---")
-results_slow <- suppressWarnings(terms_ecranks_statistics_old(ects, element_ranks))
-message("Output from slow version:")
-print(results_slow)
-
-
-# 3. Run the new, fast S4 method
-message("\n--- Running 'fast' vectorized version ---")
-results_fast <- suppressWarnings(terms_ecranks_statistics(ects, element_ranks))
-message("Output from fast version:")
-print(results_fast)
-
-
-# --- Verification ---
-message("\n--- Verifying correctness ---")
-
-# Harmonize the objects for a fair comparison
-results_fast_df <- lapply(results_fast, as.data.frame)
-results_slow_clean <- lapply(results_slow, function(df) { row.names(df) <- NULL; df })
-results_fast_clean <- lapply(results_fast_df, function(df) { row.names(df) <- NULL; df })
-
-# Sort the lists by name before comparing
-if (!isTRUE(all.equal(sort(names(results_slow_clean)), sort(names(results_fast_clean))))) {
-  comparison <- "The two methods produced results for different sets of terms."
-} else {
-  sorted_slow <- results_slow_clean[sort(names(results_slow_clean))]
-  sorted_fast <- results_fast_clean[sort(names(results_fast_clean))]
-  comparison <- all.equal(sorted_slow, sorted_fast)
-}
-
-
-if (isTRUE(comparison)) {
-  message("SUCCESS: The new, fast method produces identical results to the original.")
-} else {
-  message("FAILURE: The outputs of the slow and fast methods are different.")
-  print(comparison)
-}

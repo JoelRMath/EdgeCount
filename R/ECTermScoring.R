@@ -1066,28 +1066,55 @@ setMethod("to_dataframe",
             edge_df[, c("term", "element")]
           })
 
-#' @title Reduce the Universe of an ECTermScoring Object
+#' @title Reduce the Universe of an ECTermScoring Object to a Set of Elements
 #'
 #' @description Creates a new, smaller ECTermScoring object by restricting it
 #' to a specified subset of elements.
 #'
-#' @details This is a crucial helper for ensuring statistical tests are correctly
+#' @details This is an important helper for ensuring statistical tests are correctly
 #' conditioned. It takes an ECTermScoring object and a vector of elements, finds
 #' the intersection, and returns a new object where all properties (degrees, graph
-#' size, etc.) are recalculated based on this smaller universe.
+#' size, etc.) are recalculated based on this smaller universe. This method is an
+#' internal helper for rank scoring.
 #'
 #' @param object An ECTermScoring object.
 #' @param elements_to_keep A character vector of element IDs to keep.
 #'
 #' @return A new, smaller ECTermScoring object.
 #' @export
-setGeneric("reduce_universe", function(object, elements_to_keep) standardGeneric("reduce_universe"))
+setGeneric("reduce_universe_by_elements", function(object, elements_to_keep) standardGeneric("reduce_universe_by_elements"))
 
-#' @describeIn reduce_universe Method for ECTermScoring objects.
-setMethod("reduce_universe", "ECTermScoring", function(object, elements_to_keep) {
+#' @describeIn reduce_universe_by_elements Method for ECTermScoring objects.
+setMethod("reduce_universe_by_elements", "ECTermScoring", function(object, elements_to_keep) {
 
   bipartite_edges <- as.data.table(to_dataframe(object))
   reduced_edges <- bipartite_edges[element %in% elements_to_keep]
+
+  return(ECTermScoring(reduced_edges))
+})
+
+#' @title Reduce the Universe of an ECTermScoring Object to a Set of Terms
+#'
+#' @description Creates a new, smaller ECTermScoring object by restricting it
+#' to a specified subset of terms.
+#'
+#' @details This is a convenience method which also ensures that statistical tests are correctly
+#' conditioned. It takes an ECTermScoring object and a vector of terms, finds
+#' the intersection, and returns a new object where all properties (degrees, graph
+#' size, etc.) are recalculated based on the input constraint.
+#'
+#' @param object An ECTermScoring object.
+#' @param terms_to_keep A character vector of term IDs to keep.
+#'
+#' @return A new, smaller ECTermScoring object.
+#' @export
+setGeneric("reduce_universe_by_terms", function(object, terms_to_keep) standardGeneric("reduce_universe_by_terms"))
+
+#' @describeIn reduce_universe_by_terms Method for ECTermScoring objects.
+setMethod("reduce_universe_by_terms", "ECTermScoring", function(object, terms_to_keep) {
+
+  bipartite_edges <- as.data.table(to_dataframe(object))
+  reduced_edges <- bipartite_edges[term %in% terms_to_keep]
 
   return(ECTermScoring(reduced_edges))
 })
