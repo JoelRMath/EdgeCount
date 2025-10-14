@@ -6,39 +6,65 @@ library(data.table)
 # ---
 terms_ecranks_statistics_gs <- function(object, element_ranks) {
 
-  # --- Condition the analysis on the provided ranked list ---
+  # 0.
+  start_time <- Sys.time()
   valid_elements <- intersect(names(element_ranks), object@elements)
   if (length(valid_elements) < 1) {
     stop("None of the elements in `element_ranks` are in the ECTermScoring object.")
   }
   object <- reduce_universe_by_elements(object, valid_elements)
   element_ranks <- rank(element_ranks[valid_elements])
+  end_time<- Sys.time()
+  time_diff_step0<- as.numeric(end_time - start_time, units = "secs")
+  print(paste("Step 0:", round(time_diff_step0, 4), "seconds"))
 
-  # --- Pre-computation of core data structures ---
+  total_time_without_step0 <- 0
 
-  # 1. Create a data.table of ranked elements with their degrees & cumsum
+  # 1.
+  start_time <- Sys.time()
   all_element_degrees <- unlist(object@ecprob@degrees)
   ranks_dt <- data.table(element_id = names(element_ranks), global_rank = element_ranks)
   setorder(ranks_dt, global_rank)
   ranks_dt[, degree := all_element_degrees[element_id]]
   ranks_dt[, cumsum_degrees := cumsum(degree)]
+  end_time<- Sys.time()
+  time_diff<- as.numeric(end_time - start_time, units = "secs")
+  print(paste("Step 1:", round(time_diff, 4), "seconds"))
+  total_time_without_step0 <- total_time_without_step0 + time_diff
 
-  # 2. Create the long-form term-element table
+
+  # 2.
+  start_time <- Sys.time()
   bipartite_edges <- as.data.table(to_dataframe(object))
   setnames(bipartite_edges, c("term", "element"), c("term_id", "element_id"))
   bipartite_edges[, term_id := as.character(term_id)]
+  end_time<- Sys.time()
+  time_diff<- as.numeric(end_time - start_time, units = "secs")
+  print(paste("Step 2:", round(time_diff, 4), "seconds"))
+  total_time_without_step0 <- total_time_without_step0 + time_diff
 
-  # 3. Join all information into a single flat table
+
+  # 3.
+  start_time <- Sys.time()
   setkey(bipartite_edges, element_id)
   setkey(ranks_dt, element_id)
   final_dt <- ranks_dt[bipartite_edges, on = "element_id"]
+  end_time<- Sys.time()
+  time_diff<- as.numeric(end_time - start_time, units = "secs")
+  print(paste("Step 3:", round(time_diff, 4), "seconds"))
+  total_time_without_step0 <- total_time_without_step0 + time_diff
 
-  # 4. Sort by term, then by global rank to calculate rank_in_term
+  # 4.
+  start_time <- Sys.time()
   setorder(final_dt, term_id, global_rank)
   final_dt[, rank_in_term := 1:.N, by = term_id]
+  end_time<- Sys.time()
+  time_diff<- as.numeric(end_time - start_time, units = "secs")
+  print(paste("Step 4:", round(time_diff, 4), "seconds"))
+  total_time_without_step0 <- total_time_without_step0 + time_diff
 
-  # 5. Add term-level information (size and degree) using joins
-  #    In this bipartite context, a term's degree IS its size.
+  # 5.
+  start_time <- Sys.time()
   term_sizes <- lengths(object@ecprob@adj[object@terms])
   term_summary <- data.table(
     term_id = names(term_sizes),
@@ -46,25 +72,50 @@ terms_ecranks_statistics_gs <- function(object, element_ranks) {
     term_degree = term_sizes  # Assign the same value to both
   )
   final_dt[term_summary, on = "term_id", `:=`(term_size = i.term_size, term_degree = i.term_degree)]
+  end_time<- Sys.time()
+  time_diff<- as.numeric(end_time - start_time, units = "secs")
+  print(paste("Step 5:", round(time_diff, 4), "seconds"))
+  total_time_without_step0 <- total_time_without_step0 + time_diff
 
-  # 6. Final, fully vectorized statistics calculation
+  # 6.
+  start_time <- Sys.time()
   final_dt[, `:=`(
     observed_ec = rank_in_term,
     max_ec = pmin(term_size, global_rank),
     lambda = (term_degree / (2 * object@ecprob@graph_size)) * cumsum_degrees
   )]
+  end_time<- Sys.time()
+  time_diff<- as.numeric(end_time - start_time, units = "secs")
+  print(paste("Step 6:", round(time_diff, 4), "seconds"))
+  total_time_without_step0 <- total_time_without_step0 + time_diff
 
-  # NEW: Add the final statistical columns
+  # 7.
+  start_time <- Sys.time()
   final_dt[, `:=`(
     p_value = calculate_p_value(object@ecprob, observed_ec, max_ec, lambda),
     log2_Anscombe_ratio = 0.5 * (log2(observed_ec + 3/8) - log2(lambda + 3/8))
   )]
+  end_time<- Sys.time()
+  time_diff<- as.numeric(end_time - start_time, units = "secs")
+  print(paste("Step 7:", round(time_diff, 4), "seconds"))
+  total_time_without_step0 <- total_time_without_step0 + time_diff
 
-  # 7. Reorder for final output
+  # 8.
+  start_time <- Sys.time()
   setcolorder(final_dt, c("p_value", "log2_Anscombe_ratio", "lambda", "observed_ec",
                           "max_ec", "term_id", "element_id", "term_size", "term_degree",
                           "global_rank", "cumsum_degrees"))
-  setorder(final_dt, p_value)
+  setorder(final_dt, -log2_Anscombe_ratio)
+  end_time<- Sys.time()
+  time_diff<- as.numeric(end_time - start_time, units = "secs")
+  print(paste("Step 8:", round(time_diff, 4), "seconds"))
+  total_time_without_step0 <- total_time_without_step0 + time_diff
+
+  print(paste("Total time without step 0:", round(total_time_without_step0, 4), "seconds"))
+  total_time_with_step0 <- total_time_without_step0 + time_diff_step0
+  print(paste("Total time with step 0:", round(total_time_with_step0, 4), "seconds"))
+
+
   return(final_dt)
 }
 
@@ -72,23 +123,37 @@ terms_ecranks_statistics_gs <- function(object, element_ranks) {
 # ---
 # SCRIPT TO RUN THE FUNCTION
 # ---
+# data(sample_ects)
+# set.seed(2)
+#
+# ects <- sample_ects
+# term_selection_dt <- data.table(term = ects@terms,
+#                                 term_degree = unlist(ects@ecprob@degrees[ects@terms]))
+# term_selection_dt <- term_selection_dt[term_degree >= 2]
+# selected_terms <- sample(unlist(term_selection_dt$term), 10)
+# ects <- reduce_universe_by_terms(ects, selected_terms)
+# elements <- ects@elements
+# element_ranks <- setNames(seq_along(elements), elements)
+#
+# # Run the gold standard function
+# gs_data <- terms_ecranks_statistics_gs(ects, element_ranks)
+#
+# # Print the head of the final data.table for inspection
+# print(head(gs_data, 20))
+
+## Speed Test
+
 data(sample_ects)
-set.seed(2)
-
 ects <- sample_ects
-term_selection_dt <- data.table(term = ects@terms,
-                                term_degree = unlist(ects@ecprob@degrees[ects@terms]))
-term_selection_dt <- term_selection_dt[term_degree >= 2]
-selected_terms <- sample(unlist(term_selection_dt$term), 10)
-ects <- reduce_universe_by_terms(ects, selected_terms)
 elements <- ects@elements
+start_time <- Sys.time()
+elements <- sample(elements)
 element_ranks <- setNames(seq_along(elements), elements)
+end_time <- Sys.time()
+time_diff <- as.numeric(end_time - start_time, units = "secs")
+print(paste("Initial ordering time:", round(time_diff, 4), "seconds"))
 
-# Run the gold standard function
 gs_data <- terms_ecranks_statistics_gs(ects, element_ranks)
-
-# Print the head of the final data.table for inspection
-print(head(gs_data, 20))
 
 #' @title Summarize a "flat" gold standard data table
 #'
@@ -130,6 +195,7 @@ summarize_gs_statistics <- function(gs_data) {
 
   return(summary_dt)
 }
+
 
 
 # ---
