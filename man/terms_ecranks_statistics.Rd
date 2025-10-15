@@ -15,7 +15,7 @@ terms_ecranks_statistics(object, element_ranks)
 \item{element_ranks}{A named list or vector of element ranks.}
 }
 \value{
-A named list where each element is a data frame of statistics for a term.
+A named list where each element is a `data.table` of statistics for a term.
 }
 \description{
 Calculates a running enrichment score for terms based on a ranked list of elements.
@@ -30,3 +30,23 @@ rigor, the analysis is conditioned on the universe of elements provided in the
 \item \code{terms_ecranks_statistics(ECTermScoring)}: Method for ECTermScoring objects.
 
 }}
+\examples{
+# Load sample data included with the package
+data(sample_ects)
+
+# Create a ranked list using a subset of the elements
+set.seed(1)
+elements_subset <- sample(sample_ects@elements, 2000)
+ranked_list <- setNames(seq_along(elements_subset), elements_subset)
+
+# Run the analysis
+ranked_scores <- terms_ecranks_statistics(sample_ects, ranked_list)
+
+# View the results for a specific term
+terms <- get_neighbors(sample_ects@ecprob, elements_subset[1])
+term_sizes <- lengths(sample_ects@ecprob@adj[terms])
+term <- terms[which.max(term_sizes)]
+print(term)
+print(ranked_scores[[term]])
+
+}

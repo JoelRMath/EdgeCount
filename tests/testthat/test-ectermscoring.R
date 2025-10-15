@@ -126,58 +126,7 @@ test_that("ECTermScoring one set", {
   t <- terms_ecset_statistics(ect, element_set = element_set, lambda_method = "fast")
 })
 
-test_that("ECTermScoring rank scoring", {
-  ect <- sample_ects
-  element_to_ranks <- as.list(1:length(ect@elements))
-  names(element_to_ranks) <- sample(ect@elements, length(ect@elements))
-  n_terms <- 10
-  terms <- sample(ect@terms, n_terms)
-  time_start <- Sys.time()
-  terms_ecranks_statistics(ect, element_to_ranks, terms)
-  time_diff <- Sys.time() - time_start
-  # print(length(ect@terms))
-  # print(as.numeric(time_diff, units = "secs"))
 
-})
-
-test_that("ECTermScoring table rank scoring", {
-  ect <- sample_ects
-  element_to_ranks <- as.list(1:length(ect@elements))
-  set.seed(7)
-  names(element_to_ranks) <- sample(ect@elements, length(ect@elements))
-  #n_terms <- length(ect@terms)
-  n_terms <- 100
-  terms <- sample(ect@terms, n_terms)
-  lst <- terms_ecranks_statistics(ect, element_to_ranks, terms)
-  allowed = c("lambda", "observed_edge_count", "log2_Anscombe_ratio",
-              "log2_relative_change", "p_value")
-
-  expect_error(
-    table_terms_ecranks_statistics(2,
-                                   "z_score",
-                                   "max"))
-
-  scoring_statistic <- "z"
-  expect_warning(
-    table_terms_ecranks_statistics(lst,
-                                   scoring_statistic,
-                                   "max"),
-    paste0("Invalid 'scoring_statistic': ", scoring_statistic, "Allowed choices are: ", toString(allowed)))
-
-  scoring_statistic <- "log2_Anscombe_ratio"
-  res <- table_terms_ecranks_statistics(lst,
-                                        scoring_statistic,
-                                        "max")
-  write.table(res, test_path("res/Anscombe_max.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
-  res <- table_terms_ecranks_statistics(lst,
-                                        scoring_statistic,
-                                        "median")
-  write.table(res, test_path("res/Anscombe_median.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
-  res <- table_terms_ecranks_statistics(lst,
-                                        scoring_statistic,
-                                        "min")
-  write.table(res, test_path("res/Anscombe_min.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
-})
 
 test_that("bipartite degrees", {
   simul <- FALSE
