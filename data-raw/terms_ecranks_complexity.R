@@ -58,16 +58,16 @@ ects_base <- reduce_universe_by_terms(sample_ects, terms_to_keep)
 all_available_terms <- ects_base@terms
 
 # Benchmark parameters
-term_sample_sizes <- seq(from = 500, to = 5000, by = 500) # (3) Outer loop: Varies T
+term_sample_sizes <- seq(from = 250, to = 5000, by = 250) # (3) Outer loop: Varies T
 n_term_sets <- 10       # (2) Intermediate loop: Number of random sets for each T
-n_replicates <- 10       # (1) Inner loop: Number of times to time each specific set
+n_replicates <- 100     # (1) Inner loop: Number of times to time each specific set
 
 # A list to store run results
 benchmark_results <- list()
 
 # Simulation
 message("\n--- Starting benchmark simulations ---")
-set.seed(9) # for reproducibility
+set.seed(1) # for reproducibility
 
 for (T in term_sample_sizes) {
 
@@ -110,7 +110,7 @@ for (T in term_sample_sizes) {
       complexity_metric_old = complexity_metric_terms,
       complexity_metric_elements = complexity_metric_elements,
       new_complexity_metric = new_complexity_metric,
-      avg_runtime_secs = median(run_times)
+      med_runtime_secs = median(run_times)
     )))
   }
 }
@@ -126,16 +126,16 @@ fwrite(final_summary, output_file, sep = "\t")
 message(paste("\nSaved detailed benchmark results to", output_file))
 
 message("\n\n--- Linear Model Summary (Runtime vs. OLD Complexity Metric) ---")
-model_old <- lm(avg_runtime_secs ~ complexity_metric_old, data = final_summary)
+model_old <- lm(med_runtime_secs ~ complexity_metric_old, data = final_summary)
 print(summary(model_old))
 
 message("\n\n--- Linear Model Summary (Runtime vs. NEW Complexity Metric) ---")
-model_new <- lm(avg_runtime_secs ~ new_complexity_metric, data = final_summary)
+model_new <- lm(med_runtime_secs ~ new_complexity_metric, data = final_summary)
 print(summary(model_new))
 
 message("\n\n--- Multiple Linear Regression Model ---")
 model_multiple <- lm(
-  avg_runtime_secs ~ complexity_metric_old + complexity_metric_elements,
+  med_runtime_secs ~ complexity_metric_old + complexity_metric_elements,
   data = final_summary
 )
 print(summary(model_multiple))

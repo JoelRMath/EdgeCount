@@ -464,165 +464,205 @@ setMethod(
   })
 
 
-#' @title Summarize and Rank Term Scoring Profiles
+#' #' @title Summarize and Rank Term Scoring Profiles
+#' #'
+#' #' @description Processes the list output from \code{\link{terms_ecranks_statistics}}
+#' #' to produce a single, ranked data frame. For each term, it calculates summary
+#' #' statistics (min, median, max) for a chosen score and identifies the elements
+#' #' where these scores occurred. \strong{WARNING: The scores this function produces are
+#' #' not corrected for multiple testing. For a statistically rigorous analysis that includes a
+#' #' Normalized Enrichment Score (NES) and an FDR q-value, use the main
+#' #' analysis function}
+#' #' @param term_scores_list A list of data frames, the output of \code{\link{terms_ecranks_statistics}}.
+#' #' @param scoring_statistic The name of the column to use for calculating summary statistics.
+#' #' @param rank_by A character string specifying which summary statistic to use for
+#' #'   sorting the final data frame. Must be one of "min", "median", or "max".
+#' #'
+#' #' @return A data frame with one row per term, containing a rich summary including
+#' #'   the min, median, and max scores, and the elements/ranks where they were found.
+#' #' @export
+#' #' @examples
+#' #' # Create a sample ECTermScoring object and ranks
+#' #' te_df <- data.frame(
+#' #'   term = c("TermA", "TermA", "TermB"),
+#' #'   element = c("Elem1", "Elem3", "Elem2")
+#' #' )
+#' #' ects <- ECTermScoring(te_df)
+#' #' ranks <- c(Elem1 = 1, Elem2 = 2, Elem3 = 3, Elem4 = 4)
+#' #'
+#' #' # 1. Get the ranked scoring profiles
+#' #' ranked_scores <- terms_ecranks_statistics(ects, ranks)
+#' #'
+#' #' # 2. Summarize the results, ranking by the maximum log2_Anscombe_ratio
+#' #' summary_table <- table_terms_ecranks_statistics(
+#' #'   ranked_scores,
+#' #'   scoring_statistic = "log2_Anscombe_ratio",
+#' #'   rank_by = "max"
+#' #' )
+#' #' print(summary_table)
+#' #'
+#' table_terms_ecranks_statistics <- function(term_scores_list,
+#'                                            scoring_statistic = "log2_Anscombe_ratio",
+#'                                            rank_by = "median") {
 #'
-#' @description Processes the list output from \code{\link{terms_ecranks_statistics}}
-#' to produce a single, ranked data frame. For each term, it calculates summary
-#' statistics (min, median, max) for a chosen score and identifies the elements
-#' where these scores occurred. \strong{WARNING: The scores this function produces are
-#' not corrected for multiple testing. For a statistically rigorous analysis that includes a
-#' Normalized Enrichment Score (NES) and an FDR q-value, use the main
-#' analysis function}
-#' @param term_scores_list A list of data frames, the output of \code{\link{terms_ecranks_statistics}}.
-#' @param scoring_statistic The name of the column to use for calculating summary statistics.
-#' @param rank_by A character string specifying which summary statistic to use for
-#'   sorting the final data frame. Must be one of "min", "median", or "max".
+#'   if (!is.list(term_scores_list)){
+#'     stop("term_scores_list must be a list")
+#'   }
 #'
-#' @return A data frame with one row per term, containing a rich summary including
-#'   the min, median, and max scores, and the elements/ranks where they were found.
-#' @export
-#' @examples
-#' # Create a sample ECTermScoring object and ranks
-#' te_df <- data.frame(
-#'   term = c("TermA", "TermA", "TermB"),
-#'   element = c("Elem1", "Elem3", "Elem2")
-#' )
-#' ects <- ECTermScoring(te_df)
-#' ranks <- c(Elem1 = 1, Elem2 = 2, Elem3 = 3, Elem4 = 4)
+#'   if (length(term_scores_list) == 0) {
+#'     warning("Input 'term_scores_list' is empty.")
+#'     return(data.frame())
+#'   }
 #'
-#' # 1. Get the ranked scoring profiles
-#' ranked_scores <- terms_ecranks_statistics(ects, ranks)
+#'   allowed_stats = c("lambda", "observed_edge_count", "log2_Anscombe_ratio", "log2_relative_change", "p_value", "element_relative_rank")
+#'   if (!scoring_statistic %in% allowed_stats){
+#'     warning(paste0("Invalid 'scoring_statistic': ", scoring_statistic, "Allowed choices are: ", toString(allowed_stats)))
+#'     return(data.frame())
+#'   }
 #'
-#' # 2. Summarize the results, ranking by the maximum log2_Anscombe_ratio
-#' summary_table <- table_terms_ecranks_statistics(
-#'   ranked_scores,
-#'   scoring_statistic = "log2_Anscombe_ratio",
-#'   rank_by = "max"
-#' )
-#' print(summary_table)
+#'   required_cols <- c("element", "element_relative_rank", "observed_edge_count",
+#'                      "lambda", "p_value", "log2_Anscombe_ratio",
+#'                      "log2_relative_change")
 #'
-table_terms_ecranks_statistics <- function(term_scores_list,
-                                           scoring_statistic = "log2_Anscombe_ratio",
-                                           rank_by = "median") {
+#'   first_valid_df <- NULL
+#'   for(item in term_scores_list){
+#'     if(is.data.frame(item) && nrow(item) > 0){
+#'       first_valid_df <- item
+#'       break
+#'     }
+#'   }
+#'
+#'   missing_cols <- setdiff(required_cols, names(first_valid_df))
+#'   if (length(missing_cols) > 0) {
+#'     warning(paste0("Data frame in 'term_scores_list' is missing required columns: ",
+#'                    toString(missing_cols)))
+#'   }
+#'
+#'   if(is.null(first_valid_df) || !(scoring_statistic %in% names(first_valid_df))){
+#'     stop(paste0("Specified 'scoring_statistic': '", scoring_statistic,
+#'                 "' not found in the result data frames. Valid columns include: ",
+#'                 toString(intersect(allowed_stats, names(first_valid_df)))))
+#'   }
+#'
+#'   get_term_row <- function(term_id){
+#'
+#'     term_df <- term_scores_list[[term_id]]
+#'
+#'     na_row <- data.frame(
+#'       term_id = term_id,
+#'       term_size = NA_integer_,
+#'       min_score = NA_real_, element_at_min = NA_character_, rank_at_min = NA_real_,
+#'       median_score = NA_real_, element_at_median = NA_character_, rank_at_median = NA_real_,
+#'       max_score = NA_real_, element_at_max = NA_character_, rank_at_max = NA_real_,
+#'       stringsAsFactors = FALSE
+#'     )
+#'
+#'     if (!is.data.frame(term_df) || nrow(term_df) == 0) {
+#'       return(na_row)
+#'     }
+#'
+#'     if (!(scoring_statistic %in% names(term_df))) {
+#'       warning(paste("Column '", scoring_statistic, "' not found for term:", term_id, ". Skipping term."))
+#'       return(na_row)
+#'     }
+#'
+#'     scores_vec <- as.numeric(term_df[[scoring_statistic]])
+#'     if (all(is.na(scores_vec))) {
+#'       return(na_row)
+#'     }
+#'
+#'     is_valid_score <- is.finite(scores_vec)
+#'     finite_scores <- scores_vec[is_valid_score]
+#'
+#'     min_val <- min(finite_scores, na.rm = TRUE)
+#'     median_val <- stats::median(finite_scores, na.rm = TRUE)
+#'     max_val <- max(finite_scores, na.rm = TRUE)
+#'
+#'     min_idx <- which(scores_vec == min_val)[1]
+#'     max_idx <- which(scores_vec == max_val)[1]
+#'     median_idx <- which.min(abs(scores_vec - median_val))[1]
+#'
+#'     summary_row <- data.frame(
+#'       term_id = term_id,
+#'       term_size = term_df$term_size[1],
+#'       min_score = min_val,
+#'       element_at_min = term_df$element[min_idx],
+#'       rank_at_min = term_df$element_relative_rank[min_idx],
+#'       median_score = median_val,
+#'       element_at_median = term_df$element[median_idx],
+#'       rank_at_median = term_df$element_relative_rank[median_idx],
+#'       max_score = max_val,
+#'       element_at_max = term_df$element[max_idx],
+#'       rank_at_max = term_df$element_relative_rank[max_idx],
+#'       stringsAsFactors = FALSE
+#'     )
+#'
+#'     return(summary_row)
+#'   }
+#'
+#'   summary_list <- lapply(names(term_scores_list), get_term_row)
+#'   summary_df <- dplyr::bind_rows(summary_list)
+#'
+#'   if (nrow(summary_df) > 0) {
+#'     sort_col <- switch(rank_by,
+#'                        "max" = "max_score",
+#'                        "min" = "min_score",
+#'                        "median" = "median_score",
+#'                        "max_score") # Default to max_score if invalid input
+#'
+#'     decreasing_order <- TRUE
+#'     if (rank_by == "min" || (scoring_statistic == "p_value" && rank_by != "max")) {
+#'       decreasing_order <- FALSE
+#'     }
+#'
+#'     if (any(!is.na(summary_df[[sort_col]]))) {
+#'       summary_df <- summary_df[order(summary_df[[sort_col]], decreasing = decreasing_order), ]
+#'     }
+#'
+#'     rownames(summary_df) <- NULL
+#'   }
+#'
+#'   return(summary_df)
+#' }
 
-  if (!is.list(term_scores_list)){
-    stop("term_scores_list must be a list")
-  }
+#' @title Full Summary of Rank Statistics (for User Output)
+#'
+#' @description A high-performance function that takes the output of
+#' `terms_ecranks_statistics` and calculates a rich summary (min, max, median
+#' scores and their context) for each term.
+#'
+#' @param term_scores_list A named list of data.tables from `terms_ecranks_statistics`.
+#' @param scoring_statistic The column name of the score to summarize.
+#'
+#' @return A `data.table` with one row per term, containing the rich summary.
+summarize_ranks_full <- function(term_scores_list, scoring_statistic = "log2_Anscombe_ratio") {
 
-  if (length(term_scores_list) == 0) {
-    warning("Input 'term_scores_list' is empty.")
-    return(data.frame())
-  }
+  # Step 1: Combine into one large data.table
+  long_dt <- rbindlist(term_scores_list, idcol = "term_id")
 
-  allowed_stats = c("lambda", "observed_edge_count", "log2_Anscombe_ratio", "log2_relative_change", "p_value", "element_relative_rank")
-  if (!scoring_statistic %in% allowed_stats){
-    warning(paste0("Invalid 'scoring_statistic': ", scoring_statistic, "Allowed choices are: ", toString(allowed_stats)))
-    return(data.frame())
-  }
+  # Step 2: Group by term_id and calculate the rich summary
+  summary_dt <- long_dt[, {
+    # Find the row indices of the min, max, and median scores
+    idx_min <- which.min(get(scoring_statistic))
+    idx_max <- which.max(get(scoring_statistic))
+    idx_median <- which.min(abs(get(scoring_statistic) - median(get(scoring_statistic), na.rm = TRUE)))
 
-  required_cols <- c("element", "element_relative_rank", "observed_edge_count",
-                     "lambda", "p_value", "log2_Anscombe_ratio",
-                     "log2_relative_change")
-
-  first_valid_df <- NULL
-  for(item in term_scores_list){
-    if(is.data.frame(item) && nrow(item) > 0){
-      first_valid_df <- item
-      break
-    }
-  }
-
-  missing_cols <- setdiff(required_cols, names(first_valid_df))
-  if (length(missing_cols) > 0) {
-    warning(paste0("Data frame in 'term_scores_list' is missing required columns: ",
-                   toString(missing_cols)))
-  }
-
-  if(is.null(first_valid_df) || !(scoring_statistic %in% names(first_valid_df))){
-    stop(paste0("Specified 'scoring_statistic': '", scoring_statistic,
-                "' not found in the result data frames. Valid columns include: ",
-                toString(intersect(allowed_stats, names(first_valid_df)))))
-  }
-
-  get_term_row <- function(term_id){
-
-    term_df <- term_scores_list[[term_id]]
-
-    na_row <- data.frame(
-      term_id = term_id,
-      term_size = NA_integer_,
-      min_score = NA_real_, element_at_min = NA_character_, rank_at_min = NA_real_,
-      median_score = NA_real_, element_at_median = NA_character_, rank_at_median = NA_real_,
-      max_score = NA_real_, element_at_max = NA_character_, rank_at_max = NA_real_,
-      stringsAsFactors = FALSE
+    # Return a list of all the summary info for this term
+    .(
+      term_size = term_size[1],
+      min_score = get(scoring_statistic)[idx_min],
+      element_at_min = element[idx_min],
+      rank_at_min = global_rank[idx_min],
+      median_score = get(scoring_statistic)[idx_median],
+      element_at_median = element[idx_median],
+      rank_at_median = global_rank[idx_median],
+      max_score = get(scoring_statistic)[idx_max],
+      element_at_max = element[idx_max],
+      rank_at_max = global_rank[idx_max]
     )
+  }, by = term_id]
 
-    if (!is.data.frame(term_df) || nrow(term_df) == 0) {
-      return(na_row)
-    }
-
-    if (!(scoring_statistic %in% names(term_df))) {
-      warning(paste("Column '", scoring_statistic, "' not found for term:", term_id, ". Skipping term."))
-      return(na_row)
-    }
-
-    scores_vec <- as.numeric(term_df[[scoring_statistic]])
-    if (all(is.na(scores_vec))) {
-      return(na_row)
-    }
-
-    is_valid_score <- is.finite(scores_vec)
-    finite_scores <- scores_vec[is_valid_score]
-
-    min_val <- min(finite_scores, na.rm = TRUE)
-    median_val <- stats::median(finite_scores, na.rm = TRUE)
-    max_val <- max(finite_scores, na.rm = TRUE)
-
-    min_idx <- which(scores_vec == min_val)[1]
-    max_idx <- which(scores_vec == max_val)[1]
-    median_idx <- which.min(abs(scores_vec - median_val))[1]
-
-    summary_row <- data.frame(
-      term_id = term_id,
-      term_size = term_df$term_size[1],
-      min_score = min_val,
-      element_at_min = term_df$element[min_idx],
-      rank_at_min = term_df$element_relative_rank[min_idx],
-      median_score = median_val,
-      element_at_median = term_df$element[median_idx],
-      rank_at_median = term_df$element_relative_rank[median_idx],
-      max_score = max_val,
-      element_at_max = term_df$element[max_idx],
-      rank_at_max = term_df$element_relative_rank[max_idx],
-      stringsAsFactors = FALSE
-    )
-
-    return(summary_row)
-  }
-
-  summary_list <- lapply(names(term_scores_list), get_term_row)
-  summary_df <- dplyr::bind_rows(summary_list)
-
-  if (nrow(summary_df) > 0) {
-    sort_col <- switch(rank_by,
-                       "max" = "max_score",
-                       "min" = "min_score",
-                       "median" = "median_score",
-                       "max_score") # Default to max_score if invalid input
-
-    decreasing_order <- TRUE
-    if (rank_by == "min" || (scoring_statistic == "p_value" && rank_by != "max")) {
-      decreasing_order <- FALSE
-    }
-
-    if (any(!is.na(summary_df[[sort_col]]))) {
-      summary_df <- summary_df[order(summary_df[[sort_col]], decreasing = decreasing_order), ]
-    }
-
-    rownames(summary_df) <- NULL
-  }
-
-  return(summary_df)
+  return(summary_dt)
 }
 
 #' @title Perform Full VSEA-style Permutation Analysis for Multiple Metrics
