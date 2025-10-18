@@ -464,166 +464,6 @@ setMethod(
   })
 
 
-#' #' @title Summarize and Rank Term Scoring Profiles
-#' #'
-#' #' @description Processes the list output from \code{\link{terms_ecranks_statistics}}
-#' #' to produce a single, ranked data frame. For each term, it calculates summary
-#' #' statistics (min, median, max) for a chosen score and identifies the elements
-#' #' where these scores occurred. \strong{WARNING: The scores this function produces are
-#' #' not corrected for multiple testing. For a statistically rigorous analysis that includes a
-#' #' Normalized Enrichment Score (NES) and an FDR q-value, use the main
-#' #' analysis function}
-#' #' @param term_scores_list A list of data frames, the output of \code{\link{terms_ecranks_statistics}}.
-#' #' @param scoring_statistic The name of the column to use for calculating summary statistics.
-#' #' @param rank_by A character string specifying which summary statistic to use for
-#' #'   sorting the final data frame. Must be one of "min", "median", or "max".
-#' #'
-#' #' @return A data frame with one row per term, containing a rich summary including
-#' #'   the min, median, and max scores, and the elements/ranks where they were found.
-#' #' @export
-#' #' @examples
-#' #' # Create a sample ECTermScoring object and ranks
-#' #' te_df <- data.frame(
-#' #'   term = c("TermA", "TermA", "TermB"),
-#' #'   element = c("Elem1", "Elem3", "Elem2")
-#' #' )
-#' #' ects <- ECTermScoring(te_df)
-#' #' ranks <- c(Elem1 = 1, Elem2 = 2, Elem3 = 3, Elem4 = 4)
-#' #'
-#' #' # 1. Get the ranked scoring profiles
-#' #' ranked_scores <- terms_ecranks_statistics(ects, ranks)
-#' #'
-#' #' # 2. Summarize the results, ranking by the maximum log2_Anscombe_ratio
-#' #' summary_table <- table_terms_ecranks_statistics(
-#' #'   ranked_scores,
-#' #'   scoring_statistic = "log2_Anscombe_ratio",
-#' #'   rank_by = "max"
-#' #' )
-#' #' print(summary_table)
-#' #'
-#' table_terms_ecranks_statistics <- function(term_scores_list,
-#'                                            scoring_statistic = "log2_Anscombe_ratio",
-#'                                            rank_by = "median") {
-#'
-#'   if (!is.list(term_scores_list)){
-#'     stop("term_scores_list must be a list")
-#'   }
-#'
-#'   if (length(term_scores_list) == 0) {
-#'     warning("Input 'term_scores_list' is empty.")
-#'     return(data.frame())
-#'   }
-#'
-#'   allowed_stats = c("lambda", "observed_edge_count", "log2_Anscombe_ratio", "log2_relative_change", "p_value", "element_relative_rank")
-#'   if (!scoring_statistic %in% allowed_stats){
-#'     warning(paste0("Invalid 'scoring_statistic': ", scoring_statistic, "Allowed choices are: ", toString(allowed_stats)))
-#'     return(data.frame())
-#'   }
-#'
-#'   required_cols <- c("element", "element_relative_rank", "observed_edge_count",
-#'                      "lambda", "p_value", "log2_Anscombe_ratio",
-#'                      "log2_relative_change")
-#'
-#'   first_valid_df <- NULL
-#'   for(item in term_scores_list){
-#'     if(is.data.frame(item) && nrow(item) > 0){
-#'       first_valid_df <- item
-#'       break
-#'     }
-#'   }
-#'
-#'   missing_cols <- setdiff(required_cols, names(first_valid_df))
-#'   if (length(missing_cols) > 0) {
-#'     warning(paste0("Data frame in 'term_scores_list' is missing required columns: ",
-#'                    toString(missing_cols)))
-#'   }
-#'
-#'   if(is.null(first_valid_df) || !(scoring_statistic %in% names(first_valid_df))){
-#'     stop(paste0("Specified 'scoring_statistic': '", scoring_statistic,
-#'                 "' not found in the result data frames. Valid columns include: ",
-#'                 toString(intersect(allowed_stats, names(first_valid_df)))))
-#'   }
-#'
-#'   get_term_row <- function(term_id){
-#'
-#'     term_df <- term_scores_list[[term_id]]
-#'
-#'     na_row <- data.frame(
-#'       term_id = term_id,
-#'       term_size = NA_integer_,
-#'       min_score = NA_real_, element_at_min = NA_character_, rank_at_min = NA_real_,
-#'       median_score = NA_real_, element_at_median = NA_character_, rank_at_median = NA_real_,
-#'       max_score = NA_real_, element_at_max = NA_character_, rank_at_max = NA_real_,
-#'       stringsAsFactors = FALSE
-#'     )
-#'
-#'     if (!is.data.frame(term_df) || nrow(term_df) == 0) {
-#'       return(na_row)
-#'     }
-#'
-#'     if (!(scoring_statistic %in% names(term_df))) {
-#'       warning(paste("Column '", scoring_statistic, "' not found for term:", term_id, ". Skipping term."))
-#'       return(na_row)
-#'     }
-#'
-#'     scores_vec <- as.numeric(term_df[[scoring_statistic]])
-#'     if (all(is.na(scores_vec))) {
-#'       return(na_row)
-#'     }
-#'
-#'     is_valid_score <- is.finite(scores_vec)
-#'     finite_scores <- scores_vec[is_valid_score]
-#'
-#'     min_val <- min(finite_scores, na.rm = TRUE)
-#'     median_val <- stats::median(finite_scores, na.rm = TRUE)
-#'     max_val <- max(finite_scores, na.rm = TRUE)
-#'
-#'     min_idx <- which(scores_vec == min_val)[1]
-#'     max_idx <- which(scores_vec == max_val)[1]
-#'     median_idx <- which.min(abs(scores_vec - median_val))[1]
-#'
-#'     summary_row <- data.frame(
-#'       term_id = term_id,
-#'       term_size = term_df$term_size[1],
-#'       min_score = min_val,
-#'       element_at_min = term_df$element[min_idx],
-#'       rank_at_min = term_df$element_relative_rank[min_idx],
-#'       median_score = median_val,
-#'       element_at_median = term_df$element[median_idx],
-#'       rank_at_median = term_df$element_relative_rank[median_idx],
-#'       max_score = max_val,
-#'       element_at_max = term_df$element[max_idx],
-#'       rank_at_max = term_df$element_relative_rank[max_idx],
-#'       stringsAsFactors = FALSE
-#'     )
-#'
-#'     return(summary_row)
-#'   }
-#'
-#'   summary_list <- lapply(names(term_scores_list), get_term_row)
-#'   summary_df <- dplyr::bind_rows(summary_list)
-#'
-#'   if (nrow(summary_df) > 0) {
-#'     sort_col <- switch(rank_by,
-#'                        "max" = "max_score",
-#'                        "min" = "min_score",
-#'                        "median" = "median_score",
-#'                        "max_score") # Default to max_score if invalid input
-#'
-#'     decreasing_order <- TRUE
-#'     if (rank_by == "min" || (scoring_statistic == "p_value" && rank_by != "max")) {
-#'       decreasing_order <- FALSE
-#'     }
-#'
-#'     if (any(!is.na(summary_df[[sort_col]]))) {
-#'       summary_df <- summary_df[order(summary_df[[sort_col]], decreasing = decreasing_order), ]
-#'     }
-#'
-#'     rownames(summary_df) <- NULL
-#'   }
-#'
-#'   return(summary_df)
-#' }
 
 #' @title Full Summary of Rank Statistics (for User Output)
 #'
@@ -697,163 +537,204 @@ summarize_ranks_full <- function(term_scores_list, scoring_statistic = "log2_Ans
 #'
 #' @export
 #' @examples
-#' \dontrun{
-#' # This is a computationally intensive function.
-#' te_df <- data.frame(
-#'   term = c("TermA", "TermA", "TermB"),
-#'   element = c("Elem1", "Elem3", "Elem2")
-#' )
-#' ects <- ECTermScoring(te_df)
-#' ranks <- c(Elem1 = 1, Elem2 = 2, Elem3 = 3, Elem4 = 4)
+#' library(EdgeCount)
+#' library(data.table)
 #'
-#' # Run the full analysis for all three summary metrics
+#' start_time <- Sys.time()
+#' # 1. Load the sample data included with the package
+#' data(sample_ects)
+#' # 2. Create a small, reproducible example object
+#' #    We'll select 3 terms of size 5 and 3 terms of size 10.
+#' set.seed(1) # for reproducibility
+#' term_sizes <- lengths(sample_ects@ecprob@adj[sample_ects@terms])
+#' terms_size_5 <- names(term_sizes[term_sizes == 5])
+#' terms_size_10 <- names(term_sizes[term_sizes == 10])
+#' selected_terms <- c(
+#'   sample(terms_size_5, 3),
+#'   sample(terms_size_10, 3)
+#' )
+#' ects_example <- reduce_universe_by_terms(sample_ects, selected_terms)
+#' # 3. Create a reproducible random ranked list from the example object's universe
+#' element_ranks <- setNames(
+#'   sample(seq_along(ects_example@elements)),
+#'   ects_example@elements
+#' )
+#' # 4. Run the full VSEA analysis
 #' vsea_results <- run_vsea_analysis(
-#'   ects,
-#'   ranks,
-#'   scoring_statistic = "log2_Anscombe_ratio",
-#'   n_permutations = 100 # Use a smaller number for quick tests
+#'   ects_example,
+#'   element_ranks,
+#   scoring_statistic = "log2_Anscombe_ratio",
+#'   n_permutations = 100,
+#'   seed = 1
 #' )
-#'
-#' # View the top results for enrichment at the top of the list
-#' print(head(vsea_results$max_score_summary))
-#'
-#' # View the top results for enrichment at the bottom of the list
-#' print(head(vsea_results$min_score_summary))
-#' }
-#'
-run_vsea_analysis <- function(ects_object,
-                              element_ranks,
-                              scoring_statistic = "log2_Anscombe_ratio",
-                              n_permutations = 1000,
-                              seed = NULL) {
+#' # 5. View the top results for enrichment at the top of the list
+#' print(vsea_results$max_score_summary)
+setGeneric("run_vsea_analysis",
+           function(object, element_ranks, scoring_statistic = "log2_Anscombe_ratio", n_permutations = 1000, seed = NULL)
+             standardGeneric("run_vsea_analysis"))
 
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
+#' @describeIn run_vsea_analysis Method for ECTermScoring objects.
+setMethod("run_vsea_analysis",
+          "ECTermScoring",
+          function(object,
+                   element_ranks,
+                   scoring_statistic = "log2_Anscombe_ratio",
+                   n_permutations = 1000,
+                   seed = NULL) {
 
-  # --- Step 1: Calculate the REAL scores for the actual ranked list ---
-  message("Calculating real enrichment scores...")
-  real_scores_list <- terms_ecranks_statistics(ects_object, element_ranks)
+            if (!is.null(seed)) {
+              set.seed(seed)
+            }
 
-  # Get all three summary tables up front
-  real_summary_max    <- table_terms_ecranks_statistics(real_scores_list, scoring_statistic, "max")
-  real_summary_min    <- table_terms_ecranks_statistics(real_scores_list, scoring_statistic, "min")
-  real_summary_median <- table_terms_ecranks_statistics(real_scores_list, scoring_statistic, "median")
+            valid_elements <- intersect(names(element_ranks), object@elements)
+            if (length(valid_elements) < 1) {
+              stop("None of the elements in `element_ranks` are in the ECTermScoring object.")
+            }
+            analysis_object <- reduce_universe_by_elements(object, valid_elements)
+            element_ranks <- rank(element_ranks[valid_elements])
 
-  # Extract the real scores into named vectors
-  real_scores_max    <- stats::setNames(real_summary_max$max_score, real_summary_max$term_id)
-  real_scores_min    <- stats::setNames(real_summary_min$min_score, real_summary_min$term_id)
-  real_scores_median <- stats::setNames(real_summary_median$median_score, real_summary_median$term_id)
+            all_element_degrees <- unlist(analysis_object@ecprob@degrees)
+            bipartite_edges <- as.data.table(to_dataframe(analysis_object))
+            setnames(bipartite_edges, c("term", "element"), c("term_id", "element_id"))
+            bipartite_edges[, term_id := as.character(term_id)]
 
-  # --- Step 2: Build the NULL distribution via permutation ---
-  message(paste("Running", n_permutations, "permutations..."))
+            term_sizes <- lengths(analysis_object@ecprob@adj[analysis_object@terms])
+            term_summary <- data.table(
+              term_id = names(term_sizes),
+              term_size = term_sizes,
+              term_degree = term_sizes
+            )
 
-  # Helper function
-  get_all_summary_scores <- function(term_df, stat) {
-    if (is.null(term_df) || nrow(term_df) == 0) {
-      return(c(max_score = NA_real_, min_score = NA_real_, median_score = NA_real_))
-    }
-    scores <- term_df[[stat]]
-    scores <- scores[is.finite(scores)]
-    if (length(scores) == 0) {
-      return(c(max_score = NA_real_, min_score = NA_real_, median_score = NA_real_))
-    }
-    return(c(
-      max_score = max(scores, na.rm = TRUE),
-      min_score = min(scores, na.rm = TRUE),
-      median_score = stats::median(scores, na.rm = TRUE)
-    ))
-  }
+            # Internal scoring engine
+            score_core <- function(obj, ranks_dt, summary_only = FALSE) {
+              ranks_dt[, degree := all_element_degrees[element_id]]
+              ranks_dt[, cumsum_degrees := cumsum(degree)]
+              setkey(bipartite_edges, element_id)
+              setkey(ranks_dt, element_id)
+              final_dt <- ranks_dt[bipartite_edges, on = "element_id"]
+              setorder(final_dt, term_id, global_rank)
+              final_dt[term_summary, on = "term_id", `:=`(term_size = i.term_size, term_degree = i.term_degree)]
+              final_dt[, `:=`(observed_ec = 1:.N, max_ec = pmin(term_size, global_rank)), by = term_id]
+              final_dt[, lambda := (term_degree / (2 * obj@ecprob@graph_size)) * cumsum_degrees]
+              final_dt[, `:=`(
+                p_value = calculate_p_value(obj@ecprob, observed_ec, max_ec, lambda),
+                log2_Anscombe_ratio = 0.5 * (log2(observed_ec + 3/8) - log2(lambda + 3/8))
+              )]
+              if (summary_only) {
+                return(final_dt[, .(
+                  min_score = min(get(scoring_statistic), na.rm = TRUE),
+                  max_score = max(get(scoring_statistic), na.rm = TRUE),
+                  median_score = median(get(scoring_statistic), na.rm = TRUE)
+                ), by = term_id])
+              } else {
+                return(final_dt)
+              }
+            }
 
-  # List where each element is a matrix from a single permutation
-  # (rows = terms, cols = max/min/median)
-  perm_results_list <- replicate(n_permutations, {
-    permuted_ranks <- sample(element_ranks)
-    names(permuted_ranks) <- names(element_ranks)
-    permuted_scores_list <- terms_ecranks_statistics(ects_object, permuted_ranks)
-    t(sapply(permuted_scores_list, get_all_summary_scores, stat = scoring_statistic))
-  }, simplify = FALSE)
+            # Real scores
+            real_ranks_dt <- data.table(element_id = names(element_ranks), global_rank = element_ranks)
+            setorder(real_ranks_dt, global_rank)
+            real_scores_flat_dt <- score_core(analysis_object, real_ranks_dt, summary_only = FALSE)
 
-  # Combine the list of matrices into three separate null score matrices
-  term_names <- names(real_scores_list)
-  null_scores_max    <- do.call(cbind, lapply(perm_results_list, function(m) m[term_names, "max_score"]))
-  null_scores_min    <- do.call(cbind, lapply(perm_results_list, function(m) m[term_names, "min_score"]))
-  null_scores_median <- do.call(cbind, lapply(perm_results_list, function(m) m[term_names, "median_score"]))
+            real_summary_lean <- real_scores_flat_dt[, .(
+              min_score = min(get(scoring_statistic), na.rm = TRUE),
+              max_score = max(get(scoring_statistic), na.rm = TRUE),
+              median_score = median(get(scoring_statistic), na.rm = TRUE)
+            ), by = term_id]
 
+            # Permutations
+            perm_results_list <- replicate(n_permutations, {
+              shuffled_ranks <- sample(element_ranks)
+              shuffled_ranks_dt <- data.table(element_id = names(element_ranks), global_rank = shuffled_ranks)
+              setorder(shuffled_ranks_dt, global_rank)
+              score_core(analysis_object, shuffled_ranks_dt, summary_only = TRUE)
+            }, simplify = FALSE)
 
-  # --- Step 3 & 4: Calculate NES and FDR for each metric ---
-  message("Calculating NES and FDR for each summary metric...")
+            null_scores_long <- rbindlist(perm_results_list, idcol = "perm_id")
 
-  calculate_nes_fdr <- function(real_scores, null_scores_matrix) {
-    # Normalize real scores
-    mean_null_pos <- apply(null_scores_matrix, 1, function(x) mean(x[x > 0], na.rm = TRUE))
-    mean_null_neg <- apply(null_scores_matrix, 1, function(x) mean(abs(x[x < 0]), na.rm = TRUE))
-    mean_null_pos[is.nan(mean_null_pos)] <- 1
-    mean_null_neg[is.nan(mean_null_neg)] <- 1
+            # NES and FDR
+            calculate_nes_fdr <- function(real_summary_dt, null_scores_dt, score_col) {
+              mean_nulls <- null_scores_dt[, .(
+                mean_pos = mean(get(score_col)[get(score_col) > 0], na.rm = TRUE),
+                mean_neg = mean(abs(get(score_col)[get(score_col) < 0]), na.rm = TRUE)
+              ), by = term_id]
+              mean_nulls[is.nan(mean_pos), mean_pos := 1]
+              mean_nulls[is.nan(mean_neg), mean_neg := 1]
 
-    nes_real <- ifelse(
-      real_scores > 0,
-      real_scores / mean_null_pos[names(real_scores)],
-      real_scores / mean_null_neg[names(real_scores)]
-    )
+              real_summary_dt[mean_nulls, on="term_id", `:=`(mean_null_pos = i.mean_pos, mean_null_neg = i.mean_neg)]
+              real_summary_dt[, nes := ifelse(get(score_col) > 0, get(score_col) / mean_null_pos, get(score_col) / mean_null_neg)]
 
-    # Normalize null scores
-    null_nes_matrix <- ifelse(
-      null_scores_matrix > 0,
-      null_scores_matrix / mean_null_pos,
-      null_scores_matrix / mean_null_neg
-    )
-    all_null_nes <- as.vector(null_nes_matrix)
-    all_null_nes <- all_null_nes[is.finite(all_null_nes)]
-    null_nes_pos <- all_null_nes[all_null_nes > 0]
-    null_nes_neg <- all_null_nes[all_null_nes < 0]
+              null_scores_dt[mean_nulls, on="term_id", `:=`(mean_null_pos = i.mean_pos, mean_null_neg = i.mean_neg)]
+              null_scores_dt[, null_nes := ifelse(get(score_col) > 0, get(score_col) / mean_null_pos, get(score_col) / mean_null_neg)]
 
-    # Calculate FDR
-    fdr_pos <- vapply(nes_real[nes_real > 0], function(score) {
-      if (length(null_nes_pos) == 0) return(1)
-      frac_null <- sum(null_nes_pos >= score) / length(null_nes_pos)
-      frac_real <- sum(nes_real > 0 & nes_real >= score) / sum(nes_real > 0)
-      if (frac_real == 0) return(1)
-      return(frac_null / frac_real)
-    }, FUN.VALUE = numeric(1))
+              all_null_nes <- na.omit(null_scores_dt$null_nes)
+              null_nes_pos <- all_null_nes[all_null_nes > 0]
+              null_nes_neg <- all_null_nes[all_null_nes < 0]
 
-    fdr_neg <- vapply(nes_real[nes_real < 0], function(score) {
-      if (length(null_nes_neg) == 0) return(1)
-      frac_null <- sum(null_nes_neg <= score) / length(null_nes_neg)
-      frac_real <- sum(nes_real < 0 & nes_real <= score) / sum(nes_real < 0)
-      if (frac_real == 0) return(1)
-      return(frac_null / frac_real)
-    }, FUN.VALUE = numeric(1))
+              nes_real_vec <- real_summary_dt$nes
 
-    fdr_q_values <- c(fdr_pos, fdr_neg)
-    fdr_q_values[fdr_q_values > 1] <- 1
+              fdr_values <- vapply(nes_real_vec, function(score) {
+                if (score > 0) {
+                  if (length(null_nes_pos) == 0) return(1)
+                  frac_null <- (sum(null_nes_pos >= score) + 1) / (length(null_nes_pos) + 1)
+                  frac_real <- sum(nes_real_vec > 0 & nes_real_vec >= score) / sum(nes_real_vec > 0)
+                  return(if (frac_real == 0) 1 else frac_null / frac_real)
+                } else if (score < 0) {
+                  if (length(null_nes_neg) == 0) return(1)
+                  frac_null <- (sum(null_nes_neg <= score) + 1) / (length(null_nes_neg) + 1)
+                  frac_real <- sum(nes_real_vec < 0 & nes_real_vec <= score) / sum(nes_real_vec < 0)
+                  return(if (frac_real == 0) 1 else frac_null / frac_real)
+                } else {
+                  return(1)
+                }
+              }, FUN.VALUE = numeric(1))
 
-    return(list(nes = nes_real, fdr_q_value = fdr_q_values))
-  }
+              fdr_values[fdr_values > 1] <- 1
+              real_summary_dt[, fdr_q_value := fdr_values]
 
-  results_max    <- calculate_nes_fdr(real_scores_max, null_scores_max)
-  results_min    <- calculate_nes_fdr(real_scores_min, null_scores_min)
-  results_median <- calculate_nes_fdr(real_scores_median, null_scores_median)
+              return(real_summary_dt)
+            }
 
-  # --- Step 5: Combine, sort, and return ---
-  add_results_and_sort <- function(summary_df, results) {
-    summary_df$nes <- results$nes[summary_df$term_id]
-    summary_df$fdr_q_value <- results$fdr_q_value[summary_df$term_id]
-    summary_df <- summary_df[order(summary_df$fdr_q_value, decreasing = FALSE), ]
-    rownames(summary_df) <- NULL
-    return(summary_df)
-  }
+            results_max <- calculate_nes_fdr(real_summary_lean[, .(term_id, max_score)], null_scores_long, "max_score")
+            results_min <- calculate_nes_fdr(real_summary_lean[, .(term_id, min_score)], null_scores_long, "min_score")
+            results_median <- calculate_nes_fdr(real_summary_lean[, .(term_id, median_score)], null_scores_long, "median_score")
 
-  final_max    <- add_results_and_sort(real_summary_max, results_max)
-  final_min    <- add_results_and_sort(real_summary_min, results_min)
-  final_median <- add_results_and_sort(real_summary_median, results_median)
+            summarize_ranks_full <- function(flat_dt) {
+              flat_dt[, {
+                scores <- get(scoring_statistic)
+                idx_min <- which.min(scores)
+                idx_max <- which.max(scores)
+                idx_median <- which.min(abs(scores - median(scores, na.rm = TRUE)))
+                .(
+                  term_size = term_size[1],
+                  min_score = scores[idx_min],
+                  element_at_min = element_id[idx_min],
+                  rank_at_min = global_rank[idx_min],
+                  median_score = scores[idx_median],
+                  element_at_median = element_id[idx_median],
+                  rank_at_median = global_rank[idx_median],
+                  max_score = scores[idx_max],
+                  element_at_max = element_id[idx_max],
+                  rank_at_max = global_rank[idx_max]
+                )
+              }, by = term_id]
+            }
+            real_summary_rich <- summarize_ranks_full(real_scores_flat_dt)
 
-  return(list(
-    max_score_summary = final_max,
-    min_score_summary = final_min,
-    median_score_summary = final_median
-  ))
-}
+            final_max <- real_summary_rich[results_max, on = "term_id"]
+            setorder(final_max, fdr_q_value)
+
+            final_min <- real_summary_rich[results_min, on = "term_id"]
+            setorder(final_min, fdr_q_value)
+
+            final_median <- real_summary_rich[results_median, on = "term_id"]
+            setorder(final_median, fdr_q_value)
+
+            return(list(max_score_summary = final_max,
+                        min_score_summary = final_min,
+                        median_score_summary = final_median))
+          })
+
 
 #' @title Trim High-Degree Vertices from a Bipartite Graph
 #'

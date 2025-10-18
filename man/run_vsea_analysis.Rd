@@ -2,10 +2,19 @@
 % Please edit documentation in R/ECTermScoring.R
 \name{run_vsea_analysis}
 \alias{run_vsea_analysis}
+\alias{run_vsea_analysis,ECTermScoring-method}
 \title{Perform Full VSEA-style Permutation Analysis for Multiple Metrics}
 \usage{
 run_vsea_analysis(
-  ects_object,
+  object,
+  element_ranks,
+  scoring_statistic = "log2_Anscombe_ratio",
+  n_permutations = 1000,
+  seed = NULL
+)
+
+\S4method{run_vsea_analysis}{ECTermScoring}(
+  object,
   element_ranks,
   scoring_statistic = "log2_Anscombe_ratio",
   n_permutations = 1000,
@@ -13,8 +22,6 @@ run_vsea_analysis(
 )
 }
 \arguments{
-\item{ects_object}{An ECTermScoring object.}
-
 \item{element_ranks}{A named list or vector of element ranks.}
 
 \item{scoring_statistic}{The score to use for enrichment (e.g., "log2_Anscombe_ratio").}
@@ -23,6 +30,8 @@ run_vsea_analysis(
 distribution. 1000 is a common choice for publication.}
 
 \item{seed}{An optional random seed for reproducibility.}
+
+\item{ects_object}{An ECTermScoring object.}
 }
 \value{
 A named list of three data frames: `max_score_summary`,
@@ -37,31 +46,43 @@ for each term using a permutation-based null distribution. This function
 efficiently calculates results for the **max**, **min**, and **median** summary
 scores from a single set of permutations.
 }
+\section{Methods (by class)}{
+\itemize{
+\item \code{run_vsea_analysis(ECTermScoring)}: Method for ECTermScoring objects.
+
+}}
 \examples{
-\dontrun{
-# This is a computationally intensive function.
-te_df <- data.frame(
-  term = c("TermA", "TermA", "TermB"),
-  element = c("Elem1", "Elem3", "Elem2")
-)
-ects <- ECTermScoring(te_df)
-ranks <- c(Elem1 = 1, Elem2 = 2, Elem3 = 3, Elem4 = 4)
+library(EdgeCount)
+library(data.table)
 
-# Run the full analysis for all three summary metrics
+start_time <- Sys.time()
+# 1. Load the sample data included with the package
+data(sample_ects)
+# 2. Create a small, reproducible example object
+#    We'll select 3 terms of size 5 and 3 terms of size 10.
+set.seed(1) # for reproducibility
+term_sizes <- lengths(sample_ects@ecprob@adj[sample_ects@terms])
+terms_size_5 <- names(term_sizes[term_sizes == 5])
+terms_size_10 <- names(term_sizes[term_sizes == 10])
+selected_terms <- c(
+  sample(terms_size_5, 3),
+  sample(terms_size_10, 3)
+)
+ects_example <- reduce_universe_by_terms(sample_ects, selected_terms)
+# 3. Create a reproducible random ranked list from the example object's universe
+element_ranks <- setNames(
+  sample(seq_along(ects_example@elements)),
+  ects_example@elements
+)
+# 4. Run the full VSEA analysis
 vsea_results <- run_vsea_analysis(
-  ects,
-  ranks,
-  scoring_statistic = "log2_Anscombe_ratio",
-  n_permutations = 100 # Use a smaller number for quick tests
+  ects_example,
+  element_ranks,
+  n_permutations = 100,
+  seed = 1
 )
-
-# View the top results for enrichment at the top of the list
-print(head(vsea_results$max_score_summary))
-
-# View the top results for enrichment at the bottom of the list
-print(head(vsea_results$min_score_summary))
-}
-
+# 5. View the top results for enrichment at the top of the list
+print(vsea_results$max_score_summary)
 }
 \references{
 1. Subramanian, A., et al. (2005). Gene set enrichment analysis: a knowledge-based
