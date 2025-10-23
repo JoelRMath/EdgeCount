@@ -28,7 +28,7 @@ A named list of `data.table`s. Each name corresponds to an
   for all connected terms.
 }
 \description{
-A high-performance, vectorized function that calculates enrichment
+A vectorized function that calculates enrichment
 statistics for all terms against a collection of input element sets.
 }
 \details{

@@ -56,11 +56,10 @@ library(EdgeCount)
 library(data.table)
 
 start_time <- Sys.time()
-# 1. Load the sample data included with the package
+# Load data
 data(sample_ects)
-# 2. Create a small, reproducible example object
-#    We'll select 3 terms of size 5 and 3 terms of size 10.
-set.seed(1) # for reproducibility
+# Reduction to a small object with 3 terms of size 5 and 3 of size 10
+set.seed(1)
 term_sizes <- lengths(sample_ects@ecprob@adj[sample_ects@terms])
 terms_size_5 <- names(term_sizes[term_sizes == 5])
 terms_size_10 <- names(term_sizes[term_sizes == 10])
@@ -69,19 +68,19 @@ selected_terms <- c(
   sample(terms_size_10, 3)
 )
 ects_example <- reduce_universe_by_terms(sample_ects, selected_terms)
-# 3. Create a reproducible random ranked list from the example object's universe
+# Random uniform ranking of element
 element_ranks <- setNames(
   sample(seq_along(ects_example@elements)),
   ects_example@elements
 )
-# 4. Run the full VSEA analysis
+# VSEA analysis
 vsea_results <- run_vsea_analysis(
   ects_example,
   element_ranks,
   n_permutations = 100,
   seed = 1
 )
-# 5. View the top results for enrichment at the top of the list
+# View the results
 print(vsea_results$max_score_summary)
 }
 \references{
