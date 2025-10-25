@@ -345,18 +345,15 @@ test_that("ECTermScoring terms_ecranks_statistics S4 method vs gold standard", {
 
 test_that("run_vsea_analysis correctly finds enrichment", {
 
-  # 1. Create a simple, known universe
   te_df <- data.frame(
     term = c("TermA", "TermA", "TermB", "TermB", "TermC", "TermC"),
     element = c("E1", "E2", "E3", "E4", "E5", "E6")
   )
   ects <- ECTermScoring(te_df)
 
-  # 2. Create a perfectly biased ranked list
   element_ranks <- c(E1 = 1, E2 = 2, E3 = 3, E4 = 4, E5 = 5, E6 = 6)
 
-  # 3. Run the analysis with a small number of permutations
-  vsea_results <- suppressWarnings(run_vsea_analysis(
+ vsea_results <- suppressWarnings(run_vsea_analysis(
     ects,
     element_ranks,
     scoring_statistic = "log2_Anscombe_ratio", # Use the default, robust statistic
@@ -364,23 +361,17 @@ test_that("run_vsea_analysis correctly finds enrichment", {
     seed = 1
   ))
 
-  # --- 4. Make assertions about the results ---
   expect_true(is.list(vsea_results))
   expect_equal(sort(names(vsea_results)),
                sort(c("max_score_summary", "min_score_summary", "median_score_summary")))
 
-  # Check the max_score summary (for enrichment at the top)
   max_summary <- vsea_results$max_score_summary
-  expect_equal(max_summary$term_id[1], "TermA") # TermA should be the top hit
-  expect_gt(max_summary$nes[1], 0)             # NES should be positive
+  expect_equal(max_summary$term_id[1], "TermA")
+  expect_gt(max_summary$nes[1], 0)
 
-  # Check the min_score summary (for enrichment at the bottom)
   min_summary <- vsea_results$min_score_summary
   median_summary <- vsea_results$median_score_summary
 
-  # --- THE FIX: Use a more robust test for negative enrichment ---
-  # We assert that TermB is ranked *lower* (has a smaller NES) than TermA
-  # and that TermA is not the top hit.
   nes_TermA <- min_summary[term_id == "TermA", nes]
   nes_TermB <- min_summary[term_id == "TermB", nes]
 
