@@ -408,8 +408,6 @@ setMethod(
     object <- reduce_universe_by_elements(object, valid_elements)
     element_ranks <- rank(element_ranks[valid_elements])
 
-    # start of core computation #
-    start_time <- Sys.time()
 
     # --- Step 2: Pre-computation of core data structures ---
     all_element_degrees <- unlist(object@ecprob@degrees)
@@ -450,9 +448,6 @@ setMethod(
       log2_Anscombe_ratio = 0.5 * (log2(observed_ec + 3/8) - log2(lambda + 3/8))
     )]
 
-    # end of core computation #
-    end_time <- Sys.time()
-    run_time <- as.numeric(end_time - start_time, units = "secs")
 
     # --- STEP 5: Reshape output to the required named list format ---
     results_list <- split(final_dt, by = "term_id")
@@ -466,8 +461,6 @@ setMethod(
       # It is safer to create the final table with a fresh subset
       dt[, ..final_cols]
     })
-
-    result_list_final[["run_time"]] <- run_time
 
     return(results_list_final)
   })

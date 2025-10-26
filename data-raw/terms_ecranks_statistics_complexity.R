@@ -12,7 +12,7 @@ terms_ecranks_statistics_for_complexity <-  function(object, element_ranks) {
   element_ranks <- rank(element_ranks[valid_elements])
 
   # start of core computation #
-  start_time <- Sys.time()
+  ptm_core <- proc.time()
 
   # --- Step 2: Pre-computation of core data structures ---
   all_element_degrees <- unlist(object@ecprob@degrees)
@@ -54,8 +54,7 @@ terms_ecranks_statistics_for_complexity <-  function(object, element_ranks) {
   )]
 
   # end of core computation #
-  end_time <- Sys.time()
-  run_time <- as.numeric(end_time - start_time, units = "secs")
+  run_time_core <- (proc.time() - ptm_core)[["user.self"]]
 
   # --- STEP 5: Reshape output to the required named list format ---
   results_list <- split(final_dt, by = "term_id")
@@ -70,7 +69,7 @@ terms_ecranks_statistics_for_complexity <-  function(object, element_ranks) {
     dt[, ..final_cols]
   })
 
-  results_list_final[["run_time"]] <- run_time
+  results_list_final[["run_time"]] <- run_time_core
 
   return(results_list_final)
 }
@@ -89,39 +88,62 @@ get_complexity_metric <- function(ects){
 }
 
 data("sample_ects")
+set.seed(1)
+
+term_dt <- data.table(term = sample_ects@terms,
+                      term_degree = unlist(sample_ects@ecprob@degrees[sample_ects@terms]))
+n_repeats <- 8
+min_term_size <- 3
 all_terms <- sample_ects@terms
 term_dt <- data.table(term = all_terms,
                       term_degree = unlist(sample_ects@ecprob@degrees[all_terms]))
+term_selection_dt <- term_dt[term_degree >= min_term_size]
+selected_terms <- unlist(term_selection_dt$term)
+full_ects <- reduce_universe_by_terms(sample_ects, selected_terms)
+print(length(full_ects@elements))
+n_terms <- seq(from = 200, to = 3000, by = 200)
+n_to_terms <-lapply(n_terms, function(n){
+  sample(full_ects@terms, n)
+})
+names(n_to_terms) <- as.character(n_terms)
+n_terms <- sample(rep(n_terms, n_repeats))
+simulation <- FALSE
 
+if (simulation){
 
-term_size_min <- c(5:14)
-n_repeats <- 20
-ne_log_ne <- NULL
-sum_kt_log_kt <- NULL
-run_time <- NULL
-n_elements <- seq(from = 500, to = 5000, by = 500)
-for (n in n_elements){
-  message(n)
-  elements <- sample(sample_ects@elements, n)
-  ects <- reduce_universe_by_elements(sample_ects, elements)
-  metrics <- get_complexity_metric(ects)
-  mean_run_time <- 0.
-  for (i in 1:n_repeats){
+  i <- 0
+  ne_log_ne <- NULL
+  sum_kt_log_kt <- NULL
+  run_time <- NULL
+  for(n_term in n_terms){
+    i <- i + 1
+    message(i,"/",length(n_terms))
+    selected_terms <- n_to_terms[[as.character(n_term)]]
+    ects <- reduce_universe_by_terms(full_ects, selected_terms)
+    lst <- get_complexity_metric(ects)
+    ne_log_ne <- c(ne_log_ne, lst$ne_log_ne)
+    sum_kt_log_kt <- c(sum_kt_log_kt, lst$sum_kt_log_kt)
+    elements <- ects@elements
     element_ranks <- setNames(sample(1:length(elements)), elements)
-    result <- terms_ecranks_statistics_for_complexity(ects, element_ranks)
-    mean_run_time <- mean_run_time + result[["run_time"]]
+    stats <- terms_ecranks_statistics_for_complexity(ects, element_ranks)
+    run_time <- c(run_time, stats[["run_time"]])
   }
-  mean_run_time <- mean_run_time / n_repeats
-  ne_log_ne <- c(ne_log_ne, metrics[["ne_log_ne"]])
-  sum_kt_log_kt <- c(sum_kt_log_kt, metrics[["sum_kt_log_kt"]])
-  run_time <- c(run_time, mean_run_time)
+
+  df <- data.frame(run_time = run_time,
+                   ne_log_ne = ne_log_ne,
+                   sum_kt_log_kt = sum_kt_log_kt)
+  df <- aggregate(. ~ sum_kt_log_kt, data = df, FUN = min)
+  write.table(df,"data-raw/res/ecranks_complexity.tsv",quote = FALSE, sep="\t",row.names = FALSE)
 }
-df <- data.frame(run_time = run_time,
-                 ne_log_ne = ne_log_ne,
-                 sum_kt_log_kt = sum_kt_log_kt)
+
+df <- read.table("data-raw/res/ecranks_complexity.tsv",
+                 sep = "\t",
+                 stringsAsFactors = FALSE,
+                 check.names = FALSE,
+                 header = TRUE)
 model_multiple <- lm(
-  run_time ~ sum_kt_log_kt + ne_log_ne,
+  run_time ~ ne_log_ne + sum_kt_log_kt,
   data = df
 )
 print(summary(model_multiple))
-plot(df$sum_kt_log_kt, df$run_time)
+plot(df$sum_kt_log_kt+df$ne_log_ne, df$run_time)
