@@ -10,11 +10,11 @@ message("--- Loading and preparing base data ---")
 data(sample_ects)
 
 # We will use a fixed, reasonably large subset of terms for all runs
-set.seed(42)
-terms_to_keep <- sample(sample_ects@terms, 3000) # Use 3000 terms
+set.seed(1)
+terms_to_keep <- sample(sample_ects@terms, 2000)
 ects_benchmark <- reduce_universe_by_terms(sample_ects, terms_to_keep)
 elements_benchmark <- ects_benchmark@elements
-element_ranks_benchmark <- setNames(seq_along(elements_benchmark), elements_benchmark)
+element_ranks_benchmark <- setNames(sample(elements_benchmark), elements_benchmark)
 
 message(paste("Benchmark will run on a fixed dataset with",
               length(ects_benchmark@terms), "terms and",
@@ -23,7 +23,7 @@ message(paste("Benchmark will run on a fixed dataset with",
 
 # 2. Define the benchmark parameters
 # We will vary the number of permutations
-permutation_steps <- c(100, 300, 500, 700, 1000)
+permutation_steps <- c(100, 200, 400, 600, 800, 1000)
 
 # A list to store the results
 benchmark_results <- list()
@@ -38,7 +38,7 @@ for (n_perms in permutation_steps) {
   # Measure the execution time of the full function
   time_taken <- system.time({
     suppressWarnings(
-      run_vsea_analysis_fastFDR( # Use the fastest function
+      run_vsea_analysis( # Use the fastest function
         object = ects_benchmark,
         element_ranks = element_ranks_benchmark,
         n_permutations = n_perms,
@@ -56,6 +56,8 @@ for (n_perms in permutation_steps) {
 
 # 4. Combine and display the final results
 final_summary <- rbindlist(benchmark_results)
+df <- as.data.frame(final_summary)
+write.table(df,"data-raw/res/vsea_permutation_scaling.tsv",quote = FALSE, sep="\t",row.names = FALSE)
 
 message("\n\n--- Benchmark Summary ---")
 print(final_summary)
