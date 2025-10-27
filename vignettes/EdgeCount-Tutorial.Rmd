@@ -6,7 +6,7 @@ output:
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
-    number_sections: false
+    number_sections: true
 vignette: >
   %\VignetteIndexEntry{EdgeCount Package Tutorial}
   %\VignetteEngine{knitr::rmarkdown}
@@ -33,25 +33,28 @@ knitr::opts_chunk$set(
 
 ```{css, echo=FALSE}
 body {
-  font-size: 115%;
+  font-size: 110%;
   line-height: 1.6;
   max-width: 940px;
   margin: 0 auto;
   padding: 20px;
 }
 ```
-# Introduction
-The EdgeCount package provides a statistical framework to perform enrichment analysis based on graph connectedness (Edge Count). It is used to perform analysis within large sparse graphs such as protein interaction networks, social networks and bipartite graphs representing membership of items ('element') in a collection of sets ('terms'), provided the collection yields a universe of elements which is large compared to term sizes.
 
-The underlying methodology is based on the Random Graph with Given Expected Degrees (RGGED) model [[1]](#ref1), analytical expressions for connectedness probabilities which are obtained in large sparse graphs [[2]](#ref2) and permutation-based enrichment analysis similar to  GSEA [[3]](#ref3) but now accounting for the number of terms each element is involved in (degree in the membership graph), hence the acronym VSEA (vertex set enrichment analysis).
+# Introduction
+The EdgeCount package provides a statistical framework for enrichment analysis based on graph connectedness. It is designed for large, sparse graphs, such as protein interaction networks, social networks, or term-element membership graphs (bipartite graphs).
+
+The package's methodology combines the Random Graph with Given Expected Degrees (RGGED) model [[1]](#ref1) with analytical expressions for connectedness effect size and p-value [[2]](#ref2). 
+
+It also introduces Vertex Set Enrichment Analysis (VSEA), a permutation-based method similar to GSEA [[3]](#ref3). VSEA uniquely accounts for the degree of each element (e.g., the number of terms an element belongs to).
 
 The primary functions allow users to:
 
-- Test for connectedness of a given vertex set.
-- Test for connectedness between two prescribed vertex sets.
-- Score a collection of terms against a single set of elements.
-- Perform vertex set enrichment analysis (VSEA) based on a ranked list of elements and a collection of terms. 
-- Summarize and interpret results with Normalized Enrichment Scores (NES) and False Discovery Rate (FDR) q-values.
+- Test for internal connectedness within one or more vertex sets.
+- Test for connectedness between pairs of vertex sets.
+- Score all terms against a single element set or a collection of element sets.
+- Perform Vertex Set Enrichment Analysis (VSEA) on a ranked list of elements.
+- Summarize VSEA results with Normalized Enrichment Scores (NES) and FDR q-values.
 
 <br>
 
@@ -80,6 +83,7 @@ devtools::install_github("JoelRMath/EdgeCount")
 ```{r stop_here, echo=FALSE, results='hide'}
 knitr::knit_exit()
 ```
+
 
 ```{r show_categorized_table, echo=FALSE}
 # This code assumes the categorized file is now included in your
