@@ -1,6 +1,6 @@
 ---
 title: "EdgeCount Package Tutorial"  
-author: "Jo&euml;l R. Pradines"
+author: "Joël R. Pradines"
 date: "`r Sys.Date()`"
 output:
   rmarkdown::html_vignette:
@@ -21,38 +21,57 @@ knitr::opts_chunk$set(
 ```
 
 ```{css, echo=FALSE}
-:target {
+/* This rule highlights the reference links (e.g., [1]) */
+a:target {
   background-color: #ffeb3b; /* A nice yellow color */
   transition: background-color 0.8s ease;
+  border-radius: 3px;
+  padding: 0 2px;
+  outline: 1px solid #fbc02d;
+}
+
+/* This rule highlights only the HEADERS for section jumps */
+div:target > h1,
+div:target > h2,
+div:target > h3,
+div:target > h4,
+div:target > h5,
+div:target > h6 {
+  background-color: #ffeb3b; /* A nice yellow color */
+  transition: background-color 0.8s ease;
+  display: inline-block; /* Ensures background only covers the text */
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 ```
 
-```{r setup}
-# library(EdgeCount)
+```{r setup, include=FALSE}
+library(EdgeCount)
+library(data.table)
 ```
 
 ```{css, echo=FALSE}
 body {
-  font-size: 110%;
+  font-size: 115%;
   line-height: 1.6;
   max-width: 940px;
   margin: 0 auto;
   padding: 20px;
 }
 ```
-
 # Introduction
 The EdgeCount package provides a statistical framework for enrichment analysis based on graph connectedness. It is designed for large, sparse graphs, such as protein interaction networks, social networks, or term-element membership graphs (bipartite graphs).
 
 The package's methodology combines the Random Graph with Given Expected Degrees (RGGED) model [[1]](#ref1) with analytical expressions for connectedness effect size and p-value [[2]](#ref2). 
 
-It also introduces Vertex Set Enrichment Analysis (VSEA), a permutation-based method similar to GSEA [[3]](#ref3). VSEA uniquely accounts for the degree of each element (e.g., the number of terms an element belongs to).
+It also introduces Vertex Set Enrichment Analysis (VSEA), a permutation-based method similar to GSEA [[3]](#ref3). VSEA uniquely accounts for the degree of each element (i.e., the number of terms an element belongs to).
 
 The primary functions allow users to:
 
-- Test for internal connectedness within one or more vertex sets.
-- Test for connectedness between pairs of vertex sets.
-- Score all terms against a single element set or a collection of element sets.
+- Evaluate a graph's suitability (e.g., sparseness) for the EdgeCount statistical model.
+- Test for internal connectedness within one or more sets.
+- Test for connectedness between pairs of sets.
+- Score a collection of terms against a single set or a vector of element sets.
 - Perform Vertex Set Enrichment Analysis (VSEA) on a ranked list of elements.
 - Summarize VSEA results with Normalized Enrichment Scores (NES) and FDR q-values.
 
@@ -69,9 +88,151 @@ devtools::install_github("JoelRMath/EdgeCount")
 
 <br>
 
+# Basic Usage
+
+This section provides a quick overview of the main use cases for the `EdgeCount` package.
+
+## Creating a Graph and Checking Suitability
+
+The core objects for any analysis are `ECGraph` (which holds the graph structure) and `ECProb` (which adds the statistical model parameters).
+
+The first step in any analysis is to create these objects from an edge list and check if the graph is suitable for the "fast" lambda approximation, which is used in many vectorized functions.
+
+```{r}
+library(EdgeCount)
+library(data.table)
+
+# 1. Start with a data frame of edges (e.g., a sparse graph)
+edge_df <- data.frame(
+  p1 = c("A", "B", "C", "D", "E"),
+  p2 = c("B", "C", "A", "E", "A"),
+  stringsAsFactors = FALSE
+)
+
+# 2. Create the ECGraph and ECProb objects
+ecg <- ECGraph(edge_df)
+ecp <- ECProb(ecg)
+
+# 3. Test the graph's suitability for the "fast" lambda approximation
+#    We use the summarize_suitability_fast() method.
+suitability_stats <- summarize_suitability_fast(ecp)
+print(suitability_stats)
+```
+
+The most important value here is `pij_over_1`. This estimates the proportion of vertex pairs for which the "fast" approximation (which assumes `p_ij < 1`) might be inaccurate. A value very close to 0, as seen here, indicates the graph is sparse and the "fast" lambda methods are suitable.
+
+Conversely, let's look at a "dense" graph, such as a small complete graph where every node is connected to every other node.
+
+```{r }
+# 1. Create a not-so-sparse graph
+
+edge_df <- data.frame(
+  p1 = c("A", "A", "A", "A", "A", "B", "B", "B", "B", "C", "C", "C"),
+  p2 = c("B", "C", "D", "E", "F", "C", "G", "H", "I", "J", "K", "L"),
+  stringsAsFactors = FALSE
+)
+
+# 2. Create the ECProb object
+ecp <- ECProb(ECGraph(edge_df))
+
+# 3. Test its suitability
+suitability_stats <- summarize_suitability_fast(ecp)
+print(suitability_stats)
+```
+
+Here, the `pij_over_1` value is `1` (or 100%). This indicates that all vertex pairs have an expected edge probability greater than or equal to 1, making the "fast" lambda approximation completely unsuitable. For such graphs, the "accurate" or "optimized" lambda methods must be used.
+
+## Analysis of Interaction Networks (ECProb)
+
+This workflow is for analyzing connectedness within a standard, unipartite graph (like the `ecp` object we just created).
+
+### Test for *within-set* connectedness
+
+This analysis answers the question: "Are the elements within my set more connected to each other than expected by chance?"
+
+```{r ecprob_within_example}
+# We will re-use the sparse 'ecp' object from the previous step.
+
+# 1. Define your set of interest
+my_set <- c("A", "B", "C")
+
+# 2. Calculate statistics
+#    - First, get the observed edge count
+obs_ec <- get_edge_count_in(ecp, my_set)
+print(paste("Observed edges:", obs_ec))
+
+#    - Then, get the full statistics
+stats_in <- edge_count_statistics(
+  ecp,
+  set1 = my_set,
+  observed_edge_count = obs_ec,
+  lambda_method = "fast"
+)
+print(stats_in)
+```
+
+### Test for *between-set* connectedness
+
+This analysis answers the question: "Are my two sets more connected to each other than expected by chance?"
+
+```{r ecprob_between_example}
+# (Continuing from the example above)
+
+# 1. Define two sets of interest
+set_1 <- c("A", "B")
+set_2 <- c("D", "E")
+
+# 2. Calculate statistics
+#    - First, get the observed edge count
+obs_ec <- get_edge_count_between(ecp, set_1, set_2)
+print(paste("Observed edges:", obs_ec))
+
+#    - Then, get the full statistics
+stats_between <- edge_count_statistics(
+  ecp,
+  set1 = set_1,
+  set2 = set_2,
+  observed_edge_count = obs_ec,
+  lambda_method = "fast"
+)
+print(stats_between)
+```
+
+## Analysis of Bipartite Graphs (ECTermScoring)
+
+This workflow is for analyzing term-element membership graphs (e.g., GO terms to genes). The main object for this is `ECTermScoring`. This is the foundation for Vertex Set Enrichment Analysis (VSEA).
+
+```{r ects_example, eval=FALSE}
+# This example is commented out to speed up the vignette build.
+# You can run it manually in your console.
+
+# 1. Load the sample ECTermScoring object
+data("sample_ects")
+
+# 2. Create a ranked list of elements
+#    (Here we use a random ranking for demonstration)
+set.seed(123)
+ranked_elements <- sample(sample_ects@elements)
+element_ranks <- setNames(seq_along(ranked_elements), ranked_elements)
+
+# 3. Run the full VSEA analysis
+#    (We use a small number of permutations for a quick example)
+vsea_results <- run_vsea_analysis(
+  sample_ects,
+  element_ranks,
+  n_permutations = 100,
+  seed = 123
+)
+
+# 4. View the top results for positive enrichment
+print(head(vsea_results$max_score_summary))
+```
+
+<br>
+
 # References
 
-<a id="ref1">(1.)</a> Chung & Lu (2002). The average distances in random graphs with given expected degrees. *PNAS*, 99 (25) 15879-15882. 
+<a id="ref1">(1.)</a> Chung & Lu (2002). The average distances in random graphs with given expected degrees. *PNAS*, 99 (25) 15879-1582. 
 <a href="https://www.pnas.org/doi/10.1073/pnas.252631999" target="_blank">[link]</a>
 
 <a id="ref2">(2.)</a> Pradines, J.R., et al. (2005). Analyzing Protein Lists with Large Networks: Edge-Count Probabilities in Random Graphs with Given Expected Degrees. *Journal of Computational Biology*, 12(2), 113-28.<a href="https://www.liebertpub.com/doi/10.1089/cmb.2005.12.113" target="_blank">[link]</a>
@@ -79,62 +240,3 @@ devtools::install_github("JoelRMath/EdgeCount")
 
 <a id="ref3">(3.)</a> Subramanian, A., et al. (2005). Gene set enrichment analysis: a knowledge-based approach for interpreting genome-wide expression profiles. *PNAS*, 102(43), 15545-50. <a href="https://www.pnas.org/doi/10.1073/pnas.0506580102" target="_blank">[link]</a>
 
-
-```{r stop_here, echo=FALSE, results='hide'}
-knitr::knit_exit()
-```
-
-
-```{r show_categorized_table, echo=FALSE}
-# This code assumes the categorized file is now included in your
-# package's `inst/extdata` directory for use in the vignette.
-
-# For the vignette, we would read the file like this:
-# categorized_pairs <- data.table::fread(
-#   system.file("extdata", "term_pairs_categorized.tsv", package = "EdgeCount")
-# )
-
-# For now, let's just read it from the data-raw folder for this example
-categorized_pairs <- data.table::fread("../data-raw/term_pairs_categorized.tsv")
-
-
-# --- Use kableExtra to create the color-coded table ---
-
-# Define a color palette for your categories
-# You can customize these colors
-palette <- c(
-  "Complex/Subunit" = "#F8766D",
-  "Metabolism" = "#7CAE00",
-  "Signaling" = "#00BFC4",
-  "Development" = "#C77CFF",
-  "Other" = "#A9A9A9"
-)
-
-# Display the top 20 pairs
-knitr::kable(
-  head(categorized_pairs, 20),
-  caption = "Top 20 Most Interconnected Term Pairs"
-) %>%
-  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
-  kableExtra::row_spec(
-    which(categorized_pairs$category[1:20] == "Complex/Subunit"), 
-    background = palette["Complex/Subunit"]
-  ) %>%
-  kableExtra::row_spec(
-    which(categorized_pairs$category[1:20] == "Metabolism"), 
-    background = palette["Metabolism"]
-  ) %>%
-  kableExtra::row_spec(
-    which(categorized_pairs$category[1:20] == "Signaling"), 
-    background = palette["Signaling"]
-  ) %>%
-    kableExtra::row_spec(
-    which(categorized_pairs$category[1:20] == "Development"), 
-    background = palette["Development"]
-  ) %>%
-  kableExtra::row_spec(
-    which(categorized_pairs$category[1:20] == "Other"), 
-    background = palette["Other"]
-  ) %>%
-  kableExtra::scroll_box(width = "100%")
-```

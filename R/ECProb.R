@@ -646,10 +646,14 @@ setMethod(
 #'
 #' @description Provides statistics on the pairwise Bernoulli parameters (p_ij)
 #' to help assess if fast lambda approximation methods are suitable for the graph.
+#' This method also reports the proportion of vertices that are problematic for fast
+#' lambda approximation in the sense that their degree is greater than sqrt(2*M), M
+#' being the graph size.
 #'
 #' @param object An ECProb object.
 #'
-#' @return A list of summary statistics for the p_ij distribution.
+#' @return A list of summary statistics: 'p_ij_over_1' = proportion of vertex pairs such
+#' that p_ij > 1 and 'prop_problematic_vertices' = proportion of vertices with degree > sqrt(2*M)
 #' @export
 setGeneric("summarize_suitability_fast",
            function(object) standardGeneric("summarize_suitability_fast"))
@@ -660,21 +664,55 @@ setMethod("summarize_suitability_fast",
           function(object) {
             degrees <- unlist(object@degrees)
             N <- length(degrees)
+            if (N == 0) {
+              return(list(
+                pij_over_1 = 0,
+                prop_problematic_vertices = 0,
+                summary_pij = summary(numeric(0))
+              ))
+            }
+
             M <- object@graph_size
+            two_M <- 2 * M
+
             degree_distribution <- table(degrees)
-
             k <- as.numeric(names(degree_distribution))
-            p <- as.numeric(degree_distribution) / N
-            prod <- as.vector(outer(k, k, "*"))/(2*M)
-            q <- as.vector(outer(p, p))
-            capped <- pmin(1, prod)
-            df <- data.frame(prod = prod, q = q, capped = capped)
-            prop <- sum(df$q[df$capped == 1])
 
+            # -- proportions of unique distinct degree pairs (undirected) ---
+            l_k <- length(k)
+            n_k <- as.numeric(degree_distribution)
+            count_matrix <- outer(n_k, n_k)
+            diag(count_matrix) <- n_k * (n_k - 1) / 2
+            undirected_matrix <- matrix(0.5, l_k, l_k) + diag(0.5, l_k)
+            undirected_vec <- as.vector(undirected_matrix)
+            count_vec <- as.vector(count_matrix)
+            count_vec <- count_vec*undirected_vec
+            prop_vec <- count_vec / sum(count_vec)
+
+            # --- pij distribution for undirected edges ---
+            pij_matrix <- outer(k, k) / two_M
+            pij_vec <- as.vector(pij_matrix)
+            dt <- data.table(pij = pij_vec,
+                             count = count_vec,
+                             prop = prop_vec)
+
+            dt <- dt[, .(
+              count = as.integer(sum(count)),
+              prop = sum(prop)
+            ), by = .(pij)]
+
+            pij_over_1 = sum(dt[pij >= 1, prop])
+
+            # --- proportion of problematic vertices ---
+            threshold <- sqrt(two_M)
+            problematic_vertices <- degrees[degrees > threshold]
+            prop_problematic_vertices <- length(problematic_vertices) / N
+
+            # -- results including summary of pij distribution
             return(list(
-              pij_over_1 = prop,
-              summary_pij = summary(prod),
-              summary_capped_pij = summary(capped)
+              pij_over_1 = pij_over_1,
+              prop_problematic_vertices = prop_problematic_vertices,
+              summary_pij = summary(rep(dt$pij, dt$count)),
+              pij_distribution = dt
             ))
           })
-

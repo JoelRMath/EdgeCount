@@ -13,11 +13,15 @@ summarize_suitability_fast(object)
 \item{object}{An ECProb object.}
 }
 \value{
-A list of summary statistics for the p_ij distribution.
+A list of summary statistics: 'p_ij_over_1' = proportion of vertex pairs such
+that p_ij > 1 and 'prop_problematic_vertices' = proportion of vertices with degree > sqrt(2*M)
 }
 \description{
 Provides statistics on the pairwise Bernoulli parameters (p_ij)
 to help assess if fast lambda approximation methods are suitable for the graph.
+This method also reports the proportion of vertices that are problematic for fast
+lambda approximation in the sense that their degree is greater than sqrt(2*M), M
+being the graph size.
 }
 \section{Methods (by class)}{
 \itemize{
