@@ -646,10 +646,14 @@ setMethod(
 #'
 #' @description Provides statistics on the pairwise Bernoulli parameters (p_ij)
 #' to help assess if fast lambda approximation methods are suitable for the graph.
+#' This method also reports the proportion of vertices that are problematic for fast
+#' lambda approximation in the sense that their degree is greater than sqrt(2*M), M
+#' being the graph size.
 #'
 #' @param object An ECProb object.
 #'
-#' @return A list of summary statistics for the p_ij distribution.
+#' @return A list of summary statistics: 'p_ij_over_1' = proportion of vertex pairs such
+#' that p_ij > 1 and 'prop_problematic_vertices' = proportion of vertices with degree > sqrt(2*M)
 #' @export
 setGeneric("summarize_suitability_fast",
            function(object) standardGeneric("summarize_suitability_fast"))
@@ -658,23 +662,32 @@ setGeneric("summarize_suitability_fast",
 setMethod("summarize_suitability_fast",
           "ECProb",
           function(object) {
+
+            # proportion of problematic pairs
             degrees <- unlist(object@degrees)
             N <- length(degrees)
             M <- object@graph_size
             degree_distribution <- table(degrees)
-
             k <- as.numeric(names(degree_distribution))
             p <- as.numeric(degree_distribution) / N
-            prod <- as.vector(outer(k, k, "*"))/(2*M)
-            q <- as.vector(outer(p, p))
-            capped <- pmin(1, prod)
-            df <- data.frame(prod = prod, q = q, capped = capped)
-            prop <- sum(df$q[df$capped == 1])
+            prod_matrix <- outer(k, k, "*")/(2*M)
+            p_matrix <- outer(p, p)
+            diag(prod_matrix) <- 0
+            diag(p_matrix) <- 0
+            prod_vec <- as.vector(prod_matrix)
+            p_vec <- as.vector(p_matrix)
+            total_p <- sum(p_vec)
+            prop_bad <- sum(p_vec[prod_vec >= 1])
+            pij_over_1 <- if(total_p == 0) 0 else (prop_bad / total_p)
+
+            # proportion of problematic vertices
+            threshold <- sqrt(2 * M)
+            problematic_vertices <- degrees[degrees > threshold]
+            prop_problematic_vertices <- length(problematic_vertices) / N
 
             return(list(
-              pij_over_1 = prop,
-              summary_pij = summary(prod),
-              summary_capped_pij = summary(capped)
+              pij_over_1 = pij_over_1,
+              prop_problematic_vertices = prop_problematic_vertices,
+              summary_pij = summary(prod_vec[prod_vec > 0])
             ))
           })
-
