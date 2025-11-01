@@ -140,6 +140,19 @@ suitability_stats <- summarize_suitability_fast(ecp)
 print(suitability_stats)
 ```
 
+```{r dense_graph_check}
+# 1. Create a dense graph (a 5-node complete graph)
+dense_edges <- as.data.frame(t(combn(c("A", "B", "C", "D", "E"), 2)))
+names(dense_edges) <- c("p1", "p2")
+
+# 2. Create the ECProb object
+ecp_dense <- ECProb(ECGraph(dense_edges))
+
+# 3. Test its suitability
+suitability_stats_dense <- summarize_suitability_fast(ecp_dense)
+print(suitability_stats_dense)
+```
+
 Here, the `pij_over_1` value is `1` (or 100%). This indicates that all vertex pairs have an expected edge probability greater than or equal to 1, making the "fast" lambda approximation completely unsuitable. For such graphs, the "accurate" or "optimized" lambda methods must be used.
 
 ## Analysis of Interaction Networks (ECProb)

@@ -662,6 +662,8 @@ setGeneric("summarize_suitability_fast",
 setMethod("summarize_suitability_fast",
           "ECProb",
           function(object) {
+
+            # proportion of problematic pairs
             degrees <- unlist(object@degrees)
             N <- length(degrees)
             if (N == 0) {
@@ -677,6 +679,21 @@ setMethod("summarize_suitability_fast",
 
             degree_distribution <- table(degrees)
             k <- as.numeric(names(degree_distribution))
+            p <- as.numeric(degree_distribution) / N
+            prod_matrix <- outer(k, k, "*")/(2*M)
+            p_matrix <- outer(p, p)
+            diag(prod_matrix) <- 0
+            diag(p_matrix) <- 0
+            prod_vec <- as.vector(prod_matrix)
+            p_vec <- as.vector(p_matrix)
+            total_p <- sum(p_vec)
+            prop_bad <- sum(p_vec[prod_vec >= 1])
+            pij_over_1 <- if(total_p == 0) 0 else (prop_bad / total_p)
+
+            # proportion of problematic vertices
+            threshold <- sqrt(2 * M)
+            problematic_vertices <- degrees[degrees > threshold]
+            prop_problematic_vertices <- length(problematic_vertices) / N
 
             # -- proportions of unique distinct degree pairs (undirected) ---
             l_k <- length(k)
@@ -713,6 +730,7 @@ setMethod("summarize_suitability_fast",
               pij_over_1 = pij_over_1,
               prop_problematic_vertices = prop_problematic_vertices,
               summary_pij = summary(rep(dt$pij, dt$count)),
-              pij_distribution = dt
+              pij_distribution = dt,
+              summary_pij = summary(prod_vec[prod_vec > 0])
             ))
           })
