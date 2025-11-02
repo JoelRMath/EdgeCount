@@ -162,6 +162,13 @@ The S4 class `ECProb` inherits the slots of `ECGraph`:
  - `@names`: vertices names, as a chr vector
  - `@adj`: adjacency list, as a named list [[`@names`]] linking each vertex to its neighbors
  - `@degrees`: vertex degrees, as a named list
+ - `@names`: vertices names, as a chr vector
+ - `@adj`: adjacency list, as a named list [[`@names`]] linking each vertex to its neighbors
+ - `@degrees`: vertex degrees, as a named list
+
+`ECProb` has the additional slots `@graph_size`, `@graph_order` and `@average_degree`, as well as statistical methods and functions that will be presented later. In order to properly use these functions, it is important to first check the suitability of the underlying `ECGraph` to some of them.
+
+## Suitability for fast approximations
 
 `ECProb` has the additional slots `@graph_size`, `@graph_order` and `@average_degree`, as well as statistical methods and functions that will be presented later. In order to properly use these functions, it is important to first check the suitability of the underlying `ECGraph` to some of them.
 
