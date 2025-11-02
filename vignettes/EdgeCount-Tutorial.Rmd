@@ -58,9 +58,12 @@ body {
   margin: 0 auto;
   padding: 20px;
 }
+img {
+  border: none;
+}
 ```
 # Introduction
-The EdgeCount package provides a statistical framework for enrichment analysis based on graph connectedness. It is designed for large, sparse graphs, such as protein interaction networks, social networks, or term-element membership graphs (bipartite graphs).
+The `EdgeCount` package provides a statistical framework for enrichment analysis based on graph connectedness. It is designed for large, sparse graphs, such as protein interaction networks, social networks, or term-element membership graphs (bipartite graphs).
 
 The package's methodology combines the Random Graph with Given Expected Degrees (RGGED) model [[1]](#ref1) with analytical expressions for connectedness effect size and p-value [[2]](#ref2). 
 
@@ -79,7 +82,7 @@ The primary functions allow users to:
 
 # Installation
 
-The EdgeCount package is currently available on GitHub. You can install it using the devtools package. If you do not have devtools installed, you can install it from CRAN.
+The `EdgeCount` package is currently available on GitHub. You can install it using the devtools package. If you do not have devtools installed, you can install it from CRAN.
 
 ```{r installation, eval=FALSE}
 # install.packages("devtools")
@@ -90,40 +93,82 @@ devtools::install_github("JoelRMath/EdgeCount")
 
 # Basic Usage
 
-This section provides a quick overview of the main use cases for the `EdgeCount` package.
+This section provides a quick overview of the main use cases for the package.
 
-## Creating a Graph and Checking Suitability
+## Creating a Graph
 
-The core objects for any analysis are `ECGraph` (which holds the graph structure) and `ECProb` (which adds the statistical model parameters).
+The core objects for any analysis are `ECGraph`, which holds the graph structure, and `ECProb`, which adds statistical model parameters and methods.
 
-The first step in any analysis is to create these objects from an edge list and check if the graph is suitable for the "fast" lambda approximation, which is used in many vectorized functions.
+The first step is to create these objects from an edge list which can be directly passed to the constructor or as an igraph object or as a file path. consider the following graph of order 5 (number of vertices) and size 5 (number of edges):
 
-```{r}
+```{r plot_bad_graph, message=FALSE, warning=FALSE, echo=FALSE, out.width="20%", fig.width=8, fig.height = 8, fig.align = "center"}
+
+library(igraph)
+library(ggraph)
+
+# 1. Create the igraph object from the edge list
+edge_df <- data.frame(
+  p1 = c("A", "B", "C", "D", "E"),
+  p2 = c("B", "C", "A", "E", "A"),
+  stringsAsFactors = FALSE
+)
+g <- graph_from_data_frame(edge_df, directed = FALSE)
+
+# 2. Create the plot
+set.seed(1)
+ggraph(g) +
+    geom_edge_link(color = "darkgreen", width = 2) +
+    geom_node_point(shape = 21, color = "black", size = 40, stroke = 1, fill="orange") +
+    geom_node_text(aes(label = name), color = "black", size =20) +
+    theme_void() +
+    coord_cartesian(clip = "off") + 
+    theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
+```
+
+```{r create_ECGraph_ECProb, message=FALSE, warning=FALSE}
 library(EdgeCount)
 library(data.table)
+library(igraph)
 
-# 1. Start with a data frame of edges (e.g., a sparse graph)
+# Data frame of edges 
 edge_df <- data.frame(
   p1 = c("A", "B", "C", "D", "E"),
   p2 = c("B", "C", "A", "E", "A"),
   stringsAsFactors = FALSE
 )
 
-# 2. Create the ECGraph and ECProb objects
-ecg <- ECGraph(edge_df)
-ecp <- ECProb(ecg)
+# ECGraph and ECProb objects from the edge list
+ecg_from_edge_list <- ECGraph(edge_df)
+ecp_from_ecg <- ECProb(ecg_from_edge_list)
 
-# 3. Test the graph's suitability for the "fast" lambda approximation
-#    We use the summarize_suitability_fast() method.
-suitability_stats <- summarize_suitability_fast(ecp)
-print(suitability_stats)
+# Same from a file
+temp_file <- tempfile(fileext = ".tsv")
+write.table(edge_df, file = temp_file, sep = "\t", row.names = FALSE, quote = FALSE)
+ecg_from_file <- ECGraph(temp_file, col1 = "p1", col2 = "p2", header = TRUE, sep = "\t")
+ecp_from_file <- ECProb(ecg_from_file)
+unlink(temp_file)
+
+# Same from an igraph object
+igraph_obj <- igraph::graph_from_data_frame(edge_df, directed = FALSE)
+ecg_from_igraph <- ECGraph(igraph_obj)
+ecp_from_igraph <- ECProb(ecg_from_igraph)
+
+# ECProb structure
+str(ecp_from_igraph)
 ```
 
-The most important value here is `pij_over_1`. This estimates the proportion of vertex pairs for which the "fast" approximation (which assumes `p_ij < 1`) might be inaccurate. A value very close to 0, as seen here, indicates the graph is sparse and the "fast" lambda methods are suitable.
+The S4 class `ECProb` inherits the slots of `ECGraph`:
 
-Conversely, let's look at a "dense" graph, such as a small complete graph where every node is connected to every other node.
+ - `@names`: vertices names, as a chr vector
+ - `@adj`: adjacency list, as a named list [[`@names`]] linking each vertex to its neighbors
+ - `@degrees`: vertex degrees, as a named list
 
-```{r }
+`ECProb` has the additional slots `@graph_size`, `@graph_order` and `@average_degree`, as well as statistical methods and functions that will be presented later. In order to properly use these functions, it is important to first check the suitability of the underlying `ECGraph` to some of them.
+
+## Suitability for fast approximations
+
+
+```{r suitability_non_sparse}
 # 1. Create a not-so-sparse graph
 
 edge_df <- data.frame(
@@ -140,18 +185,6 @@ suitability_stats <- summarize_suitability_fast(ecp)
 print(suitability_stats)
 ```
 
-```{r dense_graph_check}
-# 1. Create a dense graph (a 5-node complete graph)
-dense_edges <- as.data.frame(t(combn(c("A", "B", "C", "D", "E"), 2)))
-names(dense_edges) <- c("p1", "p2")
-
-# 2. Create the ECProb object
-ecp_dense <- ECProb(ECGraph(dense_edges))
-
-# 3. Test its suitability
-suitability_stats_dense <- summarize_suitability_fast(ecp_dense)
-print(suitability_stats_dense)
-```
 
 Here, the `pij_over_1` value is `1` (or 100%). This indicates that all vertex pairs have an expected edge probability greater than or equal to 1, making the "fast" lambda approximation completely unsuitable. For such graphs, the "accurate" or "optimized" lambda methods must be used.
 
