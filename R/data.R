@@ -7,17 +7,21 @@
 #' @format An object of class \code{\link{ECGraph}} with 7244 nodes (elements)
 #'   and 286,341 edges.
 #' @source \url{https://string-db.org/}
+#' Data from STRING is licensed under CC BY 4.0:
+#' \url{https://creativecommons.org/licenses/by/4.0/}
 "sample_ecg"
 
 #' Sample GO Term to Gene Mappings
 #'
 #' A curated subset of Gene Ontology (GO) term-to-gene mappings. The data has
 #' been trimmed and filtered to share a common element universe with the
-#' `sample_ecg` dataset. Only terms with at least 2 elements are included.
+#' `sample_ecg` dataset.
 #'
 #' @format An object of class \code{\link{ECTermScoring}} with 7244 elements
 #'   and 9796 terms.
-#' @source Gene Ontology Consortium and org.Hs.eg.db
+#' @source Gene Ontology Consortium (\url{http://geneontology.org/}) and org.Hs.eg.db.
+#' GO data is licensed under CC BY 4.0:
+#' \url{https://creativecommons.org/licenses/by/4.0/}
 "sample_ects"
 
 #' GO Term Name Lookup Table

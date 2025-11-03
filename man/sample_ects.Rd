@@ -9,7 +9,9 @@ An object of class \code{\link{ECTermScoring}} with 7244 elements
   and 9796 terms.
 }
 \source{
-Gene Ontology Consortium and org.Hs.eg.db
+Gene Ontology Consortium (\url{http://geneontology.org/}) and org.Hs.eg.db.
+GO data is licensed under CC BY 4.0:
+\url{https://creativecommons.org/licenses/by/4.0/}
 }
 \usage{
 sample_ects
@@ -17,6 +19,6 @@ sample_ects
 \description{
 A curated subset of Gene Ontology (GO) term-to-gene mappings. The data has
 been trimmed and filtered to share a common element universe with the
-`sample_ecg` dataset. Only terms with at least 2 elements are included.
+`sample_ecg` dataset.
 }
 \keyword{datasets}

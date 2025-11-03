@@ -52,7 +52,7 @@ library(data.table)
 
 ```{css, echo=FALSE}
 body {
-  font-size: 115%;
+  font-size: 100%;
   line-height: 1.6;
   max-width: 940px;
   margin: 0 auto;
@@ -71,10 +71,10 @@ It also introduces Vertex Set Enrichment Analysis (VSEA), a permutation-based me
 
 The primary functions allow users to:
 
-- Evaluate a graph's suitability (e.g., sparseness) for the EdgeCount statistical model.
+- Evaluate a graph's suitability for some of the EdgeCount statistical models.
 - Test for internal connectedness within one or more sets.
 - Test for connectedness between pairs of sets.
-- Score a collection of terms against a single set or a vector of element sets.
+- Score a collection of terms against a single set or a data table of element sets.
 - Perform Vertex Set Enrichment Analysis (VSEA) on a ranked list of elements.
 - Summarize VSEA results with Normalized Enrichment Scores (NES) and FDR q-values.
 
@@ -82,7 +82,7 @@ The primary functions allow users to:
 
 # Installation
 
-The `EdgeCount` package is currently available on GitHub. You can install it using the devtools package. If you do not have devtools installed, you can install it from CRAN.
+The `EdgeCount` package is currently available on GitHub. You can install it using the `devtools` package. If you do not have `devtools` installed, you can install it from CRAN.
 
 ```{r installation, eval=FALSE}
 # install.packages("devtools")
@@ -93,15 +93,62 @@ devtools::install_github("JoelRMath/EdgeCount")
 
 # Basic Usage
 
-This section provides a quick overview of the main use cases for the package.
+This section provides an overview of the main use cases for the package.
 
 ## Creating a Graph
 
 The core objects for any analysis are `ECGraph`, which holds the graph structure, and `ECProb`, which adds statistical model parameters and methods.
 
-The first step is to create these objects from an edge list which can be directly passed to the constructor or as an igraph object or as a file path. consider the following graph of order 5 (number of vertices) and size 5 (number of edges):
+The first step is to create these objects from an edge list. The `ECGraph()` constructor is flexible and can accept this list as a `data.frame`, a file path, or an `igraph` object.
 
-```{r plot_bad_graph, message=FALSE, warning=FALSE, echo=FALSE, out.width="20%", fig.width=8, fig.height = 8, fig.align = "center"}
+Here is an example for a graph of order 5 (number of vertices) and size 5 (number of edges).
+
+
+```{r create_ECGraph_ECProb, message=FALSE, warning=FALSE}
+library(EdgeCount)
+library(data.table)
+library(igraph)
+
+# Data frame of edges 
+edge_df <- data.frame(
+  p1 = c("A", "B", "C", "D", "E"),
+  p2 = c("B", "C", "A", "E", "A"),
+  stringsAsFactors = FALSE
+)
+
+# ECGraph and ECProb objects from the edge list
+ecg <- ECGraph(edge_df)
+ecp <- ECProb(ecg)
+
+# Same from a file
+temp_file <- tempfile(fileext = ".tsv")
+write.table(edge_df, file = temp_file, sep = "\t", row.names = FALSE, quote = FALSE)
+ecg_from_file <- ECGraph(temp_file, col1 = "p1", col2 = "p2", header = TRUE, sep = "\t")
+ecp_from_file <- ECProb(ecg_from_file)
+unlink(temp_file)
+
+# Same from an igraph object
+igraph_obj <- igraph::graph_from_data_frame(edge_df, directed = FALSE)
+ecg_from_igraph <- ECGraph(igraph_obj)
+ecp_from_igraph <- ECProb(ecg_from_igraph)
+
+# ECProb structure
+str(ecp)
+```
+
+The S4 class `ECProb` inherits the slots of `ECGraph`:
+
+ - `@names`: vertices names, as a chr vector
+ - `@adj`: adjacency list, as a named list linking each vertex to its neighbors
+ - `@degrees`: vertex degrees, as a named list
+ 
+`ECProb` has the additional slots `@graph_size`, `@graph_order` and `@average_degree`, as well as statistical methods and functions that will be presented later. In order to properly use these functions, it is important to first check the suitability of the underlying `ECGraph` for some of them.
+
+## Suitability for fast approximations
+
+Even though it is not based on a large `ECGraph`, the previous example of `ECProb` object meets the criteria for fast approximations.
+
+```{r plot_good_graph, message=FALSE, warning=FALSE, echo=FALSE, out.width="20%", fig.width=8, fig.height = 8, fig.align = "center"}
 
 library(igraph)
 library(ggraph)
@@ -125,79 +172,75 @@ ggraph(g) +
     theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
 ```
 
-```{r create_ECGraph_ECProb, message=FALSE, warning=FALSE}
-library(EdgeCount)
-library(data.table)
-library(igraph)
+This is verified by using method `summarize_suitability_fast` of `ECProb`.
 
-# Data frame of edges 
-edge_df <- data.frame(
-  p1 = c("A", "B", "C", "D", "E"),
-  p2 = c("B", "C", "A", "E", "A"),
-  stringsAsFactors = FALSE
-)
-
-# ECGraph and ECProb objects from the edge list
-ecg_from_edge_list <- ECGraph(edge_df)
-ecp_from_ecg <- ECProb(ecg_from_edge_list)
-
-# Same from a file
-temp_file <- tempfile(fileext = ".tsv")
-write.table(edge_df, file = temp_file, sep = "\t", row.names = FALSE, quote = FALSE)
-ecg_from_file <- ECGraph(temp_file, col1 = "p1", col2 = "p2", header = TRUE, sep = "\t")
-ecp_from_file <- ECProb(ecg_from_file)
-unlink(temp_file)
-
-# Same from an igraph object
-igraph_obj <- igraph::graph_from_data_frame(edge_df, directed = FALSE)
-ecg_from_igraph <- ECGraph(igraph_obj)
-ecp_from_igraph <- ECProb(ecg_from_igraph)
-
-# ECProb structure
-str(ecp_from_igraph)
+```{r suitability_sparse}
+suitability_stats <- summarize_suitability_fast(ecp)
+print(suitability_stats)
 ```
 
-The S4 class `ECProb` inherits the slots of `ECGraph`:
+- `$pij_over_1` is the important criterion: the proportion of edges among all possible pairs $(i,j)$ of vertices that yield a connection probability $p_{ij}$ greater than 1 (hence unsuitable) under an approximate analytical framework of the RGGED. A value close to 0 means that fast approximation methods are appropriate.
+- `$prop_problematic_vertices` is the proportion of vertices with degree greater than $\sqrt{2M}$, where $M$ is the graph size `ecp@graph_size`. Indeed, under the model for fast approximations, $p_{ij} = k_ik_j/(2M)$, where $k$ is a vertex degree; so any vertex with $k_i > \sqrt{2M}$ might yield  $p_{ij} > 1$ for connection to another problematic vertex $j$.
+- `$summary_pij` is a quick summary of the distribution of connection probabilities over all pairs of vertices
+- `$pij_distribution` is the full distribution of $p_{ij}$ values in the RGGED model with fast approximations.
 
- - `@names`: vertices names, as a chr vector
- - `@adj`: adjacency list, as a named list [[`@names`]] linking each vertex to its neighbors
- - `@degrees`: vertex degrees, as a named list
- - `@names`: vertices names, as a chr vector
- - `@adj`: adjacency list, as a named list [[`@names`]] linking each vertex to its neighbors
- - `@degrees`: vertex degrees, as a named list
+Here is now an example of small graph that, even though not a complete graph, does not pass the suitability test.
 
-`ECProb` has the additional slots `@graph_size`, `@graph_order` and `@average_degree`, as well as statistical methods and functions that will be presented later. In order to properly use these functions, it is important to first check the suitability of the underlying `ECGraph` to some of them.
-
-## Suitability for fast approximations
-
-`ECProb` has the additional slots `@graph_size`, `@graph_order` and `@average_degree`, as well as statistical methods and functions that will be presented later. In order to properly use these functions, it is important to first check the suitability of the underlying `ECGraph` to some of them.
-
-## Suitability for fast approximations
-
-
-```{r suitability_non_sparse}
-# 1. Create a not-so-sparse graph
+```{r plot_bad_graph, message=FALSE, warning=FALSE, echo=FALSE, out.width="20%", fig.width=8, fig.height = 8, fig.align = "center"}
 
 edge_df <- data.frame(
   p1 = c("A", "A", "A", "A", "A", "B", "B", "B", "B", "C", "C", "C"),
   p2 = c("B", "C", "D", "E", "F", "C", "G", "H", "I", "J", "K", "L"),
   stringsAsFactors = FALSE
+  )
+g <- graph_from_data_frame(edge_df, directed = FALSE)
+
+set.seed(1)
+ggraph(g) +
+    geom_edge_link(color = "darkgreen", width = 2) +
+    geom_node_point(shape = 21, color = "black", size = 40, stroke = 1, fill="orange") +
+    geom_node_text(aes(label = name), color = "black", size =20) +
+    theme_void() +
+    coord_cartesian(clip = "off") + 
+    theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
+```
+
+```{r suitability_non_sparse}
+edge_df <- data.frame(
+  p1 = c("A", "A", "A", "A", "A", "B", "B", "B", "B", "C", "C", "C"),
+  p2 = c("B", "C", "D", "E", "F", "C", "G", "H", "I", "J", "K", "L"),
+  stringsAsFactors = FALSE
 )
-
-# 2. Create the ECProb object
 ecp <- ECProb(ECGraph(edge_df))
-
-# 3. Test its suitability
 suitability_stats <- summarize_suitability_fast(ecp)
 print(suitability_stats)
 ```
 
 
-Here, the `pij_over_1` value is `1` (or 100%). This indicates that all vertex pairs have an expected edge probability greater than or equal to 1, making the "fast" lambda approximation completely unsuitable. For such graphs, the "accurate" or "optimized" lambda methods must be used.
+The `pij_over_1` value is 4.5%. This indicates that some vertex pairs have an expected edge probability greater than or equal to 1, making the fast approximation methods unsuitable. For such a graph, other methods are available in the package.
 
+In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. However, by overestimating $p_{ij}$ values, the fast approximation methods are **conservative** for analysis:
+
+- they overestimate $p_{ij}$ values
+- they underestimate effect sizes
+- they overestimate p-values
+
+Therefore, using fast approximation methods will not result in obtaining false-positive results.
+
+The package comes with an example of large sparse graph, based on the STRING database 
+
+```{r sample_ecg}
+data("sample_ecg")
+sample_ecp <- ECProb(sample_ecg)
+str(sample_ecp, list.len = 6)
+```
+
+```{r sample_ecg_suitability}
+summarize_suitability_fast(sample_ecp)
+```
 ## Analysis of Interaction Networks (ECProb)
 
-This workflow is for analyzing connectedness within a standard, unipartite graph (like the `ecp` object we just created).
+This workflow is for analyzing connectedness within a standard, unipartite graph.
 
 ### Test for *within-set* connectedness
 

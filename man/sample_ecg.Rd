@@ -10,6 +10,8 @@ An object of class \code{\link{ECGraph}} with 7244 nodes (elements)
 }
 \source{
 \url{https://string-db.org/}
+Data from STRING is licensed under CC BY 4.0:
+\url{https://creativecommons.org/licenses/by/4.0/}
 }
 \usage{
 sample_ecg

@@ -730,6 +730,6 @@ setMethod("summarize_suitability_fast",
               pij_over_1 = pij_over_1,
               prop_problematic_vertices = prop_problematic_vertices,
               summary_pij = summary(rep(dt$pij, dt$count)),
-              pij_distribution = dt
+              pij_distribution = dt[count > 0]
             ))
           })
