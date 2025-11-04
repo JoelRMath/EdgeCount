@@ -219,25 +219,29 @@ print(suitability_stats)
 
 The `pij_over_1` value is 4.5%. This indicates that some vertex pairs have an expected edge probability greater than or equal to 1, making the fast approximation methods unsuitable. For such a graph, other methods are available in the package.
 
-In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. However, by overestimating $p_{ij}$ values, the fast approximation methods are **conservative** for analysis:
+In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. **However**, by overestimating $p_{ij}$ values, the fast approximation methods are **conservative** for analysis:
 
-- they overestimate $p_{ij}$ values
-- they underestimate effect sizes
-- they overestimate p-values
+- They overestimate $p_{ij}$ values.
+- They underestimate effect sizes.
+- They overestimate p-values.
 
 Therefore, using fast approximation methods will not result in obtaining false-positive results.
 
-The package comes with an example of large sparse graph, based on the STRING database 
+The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5).
 
 ```{r sample_ecg}
 data("sample_ecg")
 sample_ecp <- ECProb(sample_ecg)
 str(sample_ecp, list.len = 6)
 ```
+This network is suitable for fast approximations not only because `pij_over_1` = 0, but also because the majority of $p_{ij}$ values are close to $4.10^{-4}$.
 
 ```{r sample_ecg_suitability}
 summarize_suitability_fast(sample_ecp)
 ```
+
+Object `sample_ecp` will be utilized next to provide examples of `ECProb` uses.
+
 ## Analysis of Interaction Networks (ECProb)
 
 This workflow is for analyzing connectedness within a standard, unipartite graph.
@@ -336,3 +340,16 @@ print(head(vsea_results$max_score_summary))
 
 <a id="ref3">(3.)</a> Subramanian, A., et al. (2005). Gene set enrichment analysis: a knowledge-based approach for interpreting genome-wide expression profiles. *PNAS*, 102(43), 15545-50. <a href="https://www.pnas.org/doi/10.1073/pnas.0506580102" target="_blank">[link]</a>
 
+<a id="ref4">(4.)</a> Szklarczyk D, Kirsch R, Koutrouli M, Nastou K, Mehryary F, Hachilif R, Annika GL, Fang T, Doncheva NT, Pyysalo S, Bork P, Jensen LJ, von Mering C. The STRING database in 2023: protein–protein association networks and functional enrichment analyses for any sequenced genome of interest. Nucleic Acids Res. 2023 Jan 6;51(D1):D638-646 <a href="https://pubmed.ncbi.nlm.nih.gov/36370105/" target= "_blank">[link]</a>
+
+<a id="ref5">(5.)</a> Object `sample_ecg` is a subset of the human STRING network (version 12.0) with interaction scores of 900 or higher. Vertex IDs are Entrez Gene IDs [[8]](#ref8). The network has been trimmed to create a smaller, more manageable example for the package's vignettes and tests. Source: <a href="https://string-db.org/" target= "_blank">[string-db.org]</a>. Data from STRING is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target= "_blank">[CC BY 4.0]</a>.
+
+<a id="ref6">(6.)</a> Ashburner et al. (2000). Gene ontology: tool for the unification of biology. *Nat Genet*, 25(1), 25-9. <a href="https://www.nature.com/articles/ng0500_25" target="_blank">[link]</a>
+
+<a id="ref7">(7.)</a> The Gene Ontology Consortium. (2023). The Gene Ontology knowledgebase in 2023. *Genetics*, 224(1). <a href="https://doi.org/10.1093/genetics/iyad031" target="_blank">[link]</a>
+
+<a id="ref8">(8.)</a> Carlson, M. (2019). org.Hs.eg.db: Genome wide annotation for Human. *R package*.
+
+<a id="ref9">(9.)</a> Carlson, M. (2019). GO.db: A set of annotation maps describing the entire Gene Ontology. *R package*.
+
+<a id="ref10">(10.)</a> `sample_ects` is derived from Gene Ontology (GO) term-to-gene mappings [[6, 7, 9]](#ref6). Element IDs are Entrez Gene IDs [[8]](#ref8). Source: <a href="http://geneontology.org/" target= "_blank">[geneontology.org]</a>. GO data is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target= "_blank">[CC BY 4.0]</a>.
