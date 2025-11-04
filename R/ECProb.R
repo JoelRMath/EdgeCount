@@ -542,7 +542,7 @@ setMethod("calculate_in_stats_fast_vectorized",
             final_dt[, p_value := calculate_p_value(object, observed_edges, max_possible_edges, lambda)]
             final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
 
-            return(final_dt[, .(set_id, observed_edges, lambda, p_value, log2_Anscombe_ratio)])
+            return(final_dt[, .(set_id, observed_edges, lambda, p_value, log2_Anscombe_ratio, set_size, max_possible_edges)])
           })
 
 # --------------------------------------------------------------------------- #

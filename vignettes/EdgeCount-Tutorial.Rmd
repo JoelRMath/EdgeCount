@@ -48,6 +48,170 @@ div:target > h6 {
 ```{r setup, include=FALSE}
 library(EdgeCount)
 library(data.table)
+
+plot_set_neighbors <- function(ecp, vertex_set) {
+  
+  if (!requireNamespace("igraph", quietly = TRUE) || !requireNamespace("ggraph", quietly = TRUE)) {
+    message("Packages 'igraph' and 'ggraph' are required to plot the graph.")
+    return(invisible(NULL))
+  }
+  
+  # 1. Identify all nodes involved
+  set_nodes <- intersect(vertex_set, ecp@names)
+  neighbor_nodes <- get_neighbors(ecp, set_nodes)
+  neighbor_nodes_outside <- setdiff(neighbor_nodes, set_nodes)
+  all_nodes_in_plot <- c(set_nodes, neighbor_nodes_outside)
+  
+  if (length(all_nodes_in_plot) == 0) return(invisible(NULL))
+
+  # 2. Create the node metadata (Categories 1 and 2)
+  nodes_df <- data.frame(
+    name = all_nodes_in_plot,
+    stringsAsFactors = FALSE
+  )
+  nodes_df$category <- ifelse(nodes_df$name %in% set_nodes, "Set Member", "Neighbor")
+  
+  # 3. Get all edges for this subgraph
+  adj_subset <- ecp@adj[set_nodes]
+  edges_df <- data.table::rbindlist(lapply(adj_subset, function(n) data.table(to = n)), idcol = "from")
+  
+  # Filter edges to only those connecting nodes in our plot
+  edges_df <- edges_df[to %in% all_nodes_in_plot]
+  
+  # 4. Create the igraph object
+  g <- igraph::graph_from_data_frame(edges_df, directed = FALSE, vertices = nodes_df)
+  
+  # 5. Set edge types for styling
+  # Get the categories of both ends of each edge
+  ends_matrix <- igraph::ends(g, igraph::E(g))
+  category1 <- igraph::V(g)$category[match(ends_matrix[,1], igraph::V(g)$name)]
+  category2 <- igraph::V(g)$category[match(ends_matrix[,2], igraph::V(g)$name)]
+  
+  # Assign type
+  edge_type <- ifelse(category1 == "Set Member" & category2 == "Set Member", "Internal", "External")
+  igraph::E(g)$type <- edge_type
+
+  # 6. Plot with ggraph
+  set.seed(2) # for reproducible layout
+  ggraph::ggraph(g) +
+    # Draw edges
+    ggraph::geom_edge_link(
+      aes(width = type, alpha = type, color = type)
+    ) +
+    # Define edge styles
+    ggraph::scale_edge_width_manual(values = c("External" = 0.5, "Internal" = 1.5)) +
+    ggraph::scale_edge_alpha_manual(values = c("External" = 0.6, "Internal" = 1.0)) +
+    
+    # Draw nodes
+    ggraph::geom_node_point(
+      aes(size = category, fill = category), 
+      shape = 21, 
+      color = "black" # border
+    ) +
+    # Define node styles
+    scale_size_manual(values = c("Set Member" = 4, "Neighbor" = 0.1)) +
+    scale_fill_manual(values = c("Set Member" = "#FFA500", "Neighbor" = "#DDDDDD")) +
+    
+    # Theme
+    theme(legend.position="none") +
+    coord_cartesian(clip = "off") + 
+    theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
+}
+
+plot_urchin_graph <- function(ecp, core_set) {
+  
+  if (!requireNamespace("igraph", quietly = TRUE) || !requireNamespace("ggraph", quietly = TRUE)) {
+    message("Packages 'igraph' and 'ggraph' are required to plot the graph.")
+    return(invisible(NULL))
+  }
+  
+  # --- 1. Identify Nodes and Edges ---
+  core_nodes <- intersect(core_set, ecp@names)
+  if (length(core_nodes) == 0) return(invisible(NULL))
+
+  adj_subset <- ecp@adj[core_nodes]
+  
+  internal_edges_list <- list()
+  external_stubs_list <- list()
+  stub_nodes <- c()
+
+  for (node in core_nodes) {
+    all_neighbors <- adj_subset[[node]]
+    internal_neighbors <- intersect(all_neighbors, core_nodes)
+    external_neighbors <- setdiff(all_neighbors, core_nodes)
+    
+    n_external <- length(external_neighbors)
+    
+    # Create internal edges (only one way to avoid duplication)
+    if (length(internal_neighbors) > 0) {
+      # Only add edges to nodes that are "after" the current one to avoid A-B and B-A
+      internal_neighbors_filtered <- internal_neighbors[internal_neighbors > node]
+      if(length(internal_neighbors_filtered) > 0) {
+        internal_edges_list <- c(internal_edges_list, list(data.table(
+          from = node,
+          to = internal_neighbors_filtered
+        )))
+      }
+    }
+    
+    # Create "stub" nodes and edges for external neighbors
+    if (n_external > 0) {
+      new_stub_nodes <- paste0(node, "_stub_", 1:n_external)
+      stub_nodes <- c(stub_nodes, new_stub_nodes)
+      
+      external_stubs_list <- c(external_stubs_list, list(data.table(
+        from = node,
+        to = new_stub_nodes
+      )))
+    }
+  }
+
+  # --- 2. Create Node Metadata ---
+  nodes_df <- data.frame(
+    name = c(core_nodes, stub_nodes),
+    category = c(rep("Core Set", length(core_nodes)), 
+                 rep("Spike", length(stub_nodes))),
+    stringsAsFactors = FALSE
+  )
+
+  # --- 3. Create Edge Metadata ---
+  internal_edges <- rbindlist(internal_edges_list)
+  external_edges <- rbindlist(external_stubs_list)
+  
+  if (nrow(internal_edges) > 0) internal_edges[, type := "Internal"]
+  if (nrow(external_edges) > 0) external_edges[, type := "External"]
+  
+  all_edges_df <- rbind(internal_edges, external_edges)
+  
+  # --- 4. Create igraph Object ---
+  g <- igraph::graph_from_data_frame(all_edges_df, directed = FALSE, vertices = nodes_df)
+  
+  ggraph(g) +
+    # Draw edges
+    geom_edge_link(
+      aes(width = type, alpha = type, color = type)
+    ) +
+    scale_edge_width_manual(values = c("External" = 4, "Internal" = 6)) +
+    scale_edge_alpha_manual(values = c("External" = 0.7, "Internal" = 1.0)) +
+    scale_edge_color_manual(values = c("External" = "darkgrey", "Internal" = "darkgreen")) +
+    
+    
+    # Draw nodes
+    geom_node_point(
+      aes(size = category, fill = category, color = category), 
+      shape = 21,
+      stroke = 4
+    ) +
+    scale_size_manual(values = c("Core Set" = 26, "Spike" = 0.01)) +
+    scale_fill_manual(values = c("Core Set" = "#FFC000", "Spike" = "white")) +
+    scale_color_manual(values = c("Core Set" = "black", "Spike" = "white")) +
+    coord_cartesian(clip = "off") + 
+    theme_void() +
+    theme(
+      legend.position = "none",
+      plot.margin = unit(c(1, 1, 1, 1), "cm")
+    )
+}
 ```
 
 ```{css, echo=FALSE}
@@ -195,7 +359,7 @@ edge_df <- data.frame(
   )
 g <- graph_from_data_frame(edge_df, directed = FALSE)
 
-set.seed(1)
+set.seed(2)
 ggraph(g) +
     geom_edge_link(color = "darkgreen", width = 2) +
     geom_node_point(shape = 21, color = "black", size = 40, stroke = 1, fill="orange") +
@@ -217,54 +381,68 @@ print(suitability_stats)
 ```
 
 
-The `pij_over_1` value is 4.5%. This indicates that some vertex pairs have an expected edge probability greater than or equal to 1, making the fast approximation methods unsuitable. For such a graph, other methods are available in the package.
+The `pij_over_1` value is 4.5%. This indicates that some vertex pairs have an approximate edge probability greater than or equal to 1, making the fast approximation methods unsuitable. For such a graph, other methods are available in the package.
 
-In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. However, by overestimating $p_{ij}$ values, the fast approximation methods are **conservative** for analysis:
+In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. 
 
-- they overestimate $p_{ij}$ values
-- they underestimate effect sizes
-- they overestimate p-values
+**However, the fast approximation methods are conservative**:
 
-Therefore, using fast approximation methods will not result in obtaining false-positive results.
+- They overestimate $p_{ij}$ values.
+- They underestimate effect sizes.
+- They overestimate p-values.
 
-The package comes with an example of large sparse graph, based on the STRING database 
+**That is, fast approximation methods cannnot yield false-positive results**.
+
+The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5). The network is limited to protein interactions having a confidence score greater than or equal to 900. Proteins IDs have been replaced with their mapped Gene Entrez IDs. 
 
 ```{r sample_ecg}
 data("sample_ecg")
+data("sample_ects")
 sample_ecp <- ECProb(sample_ecg)
 str(sample_ecp, list.len = 6)
 ```
 
+This network is quite large and sparse.
+
 ```{r sample_ecg_suitability}
 summarize_suitability_fast(sample_ecp)
 ```
+
+It is suitable for fast approximations not only because `pij_over_1` = 0, but also because the majority of $p_{ij}$ values are close to $4.10^{-4}$. Object `sample_ecp` will be utilized next to provide examples of `ECProb` uses.
+
 ## Analysis of Interaction Networks (ECProb)
 
-This workflow is for analyzing connectedness within a standard, unipartite graph.
+This workflow is for analyzing connectedness within an undirected, unipartite graph.
 
 ### Test for *within-set* connectedness
 
-This analysis answers the question: "Are the elements within my set more connected to each other than expected by chance?"
+This test answers the question: "Are the vertices of a given set $S$ more connected to each other than expected by *chance*?" The concept of *chance* is here based on the RGGED: the distribution of the number of edges within set $S$ over all possible realizations of the RGGED, which in average preserve degrees of all vertices. Using such a null model that accounts for individual vertex degrees is statistically important.
 
-```{r ecprob_within_example}
-# We will re-use the sparse 'ecp' object from the previous step.
+```{r try_within_examples, echo=FALSE}
+# line <- 48
+line <- 48
+df <- read.table("../data-raw/res/within_examples_selection.tsv", 
+                 header = TRUE,
+                 sep = "\t",
+                 quote = "",
+                 stringsAsFactors = FALSE)
+set1_id <- df$set_id_at_min[line]
+set2_id <- df$set_id_at_max[line]
+```
 
-# 1. Define your set of interest
-my_set <- c("A", "B", "C")
+```{r ecprob_within_example_1_urchin, message=FALSE, warning=FALSE, echo=FALSE, out.width="30%", fig.width=12, fig.height = 8, fig.align = "center"}
+set1_id <- "GO:0032395"
+set1_name <- "MHC class II receptor activity"
+set1 <- get_neighbors(sample_ects@ecprob, set1_id)
+plot_urchin_graph(sample_ecp, set1)
+```
 
-# 2. Calculate statistics
-#    - First, get the observed edge count
-obs_ec <- get_edge_count_in(ecp, my_set)
-print(paste("Observed edges:", obs_ec))
 
-#    - Then, get the full statistics
-stats_in <- edge_count_statistics(
-  ecp,
-  set1 = my_set,
-  observed_edge_count = obs_ec,
-  lambda_method = "fast"
-)
-print(stats_in)
+```{r ecprob_within_example_2_urchin, message=FALSE, warning=FALSE, echo=FALSE, out.width="30%", fig.width=12, fig.height = 8, fig.align = "center"}
+set2_id <- "GO:0006729"
+set2_name <- "tetrahydrobiopterin biosynthetic process"
+set2 <- get_neighbors(sample_ects@ecprob, set2_id)
+plot_urchin_graph(sample_ecp, set2)
 ```
 
 ### Test for *between-set* connectedness
@@ -336,3 +514,16 @@ print(head(vsea_results$max_score_summary))
 
 <a id="ref3">(3.)</a> Subramanian, A., et al. (2005). Gene set enrichment analysis: a knowledge-based approach for interpreting genome-wide expression profiles. *PNAS*, 102(43), 15545-50. <a href="https://www.pnas.org/doi/10.1073/pnas.0506580102" target="_blank">[link]</a>
 
+<a id="ref4">(4.)</a> Szklarczyk D, Kirsch R, Koutrouli M, Nastou K, Mehryary F, Hachilif R, Annika GL, Fang T, Doncheva NT, Pyysalo S, Bork P, Jensen LJ, von Mering C. The STRING database in 2023: protein–protein association networks and functional enrichment analyses for any sequenced genome of interest. Nucleic Acids Res. 2023 Jan 6;51(D1):D638-646 <a href="https://pubmed.ncbi.nlm.nih.gov/36370105/" target= "_blank">[link]</a>
+
+<a id="ref5">(5.)</a> Object `sample_ecg` is a subset of the human STRING network (version 12.0) with interaction scores of 900 or higher. Vertex IDs are Entrez Gene IDs [[8]](#ref8). The network has been trimmed to create a smaller, more manageable example for the package's vignettes and tests. Source: <a href="https://string-db.org/" target= "_blank">[string-db.org]</a>. Data from STRING is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target= "_blank">[CC BY 4.0]</a>.
+
+<a id="ref6">(6.)</a> Ashburner et al. (2000). Gene ontology: tool for the unification of biology. *Nat Genet*, 25(1), 25-9. <a href="https://www.nature.com/articles/ng0500_25" target="_blank">[link]</a>
+
+<a id="ref7">(7.)</a> The Gene Ontology Consortium. (2023). The Gene Ontology knowledgebase in 2023. *Genetics*, 224(1). <a href="https://doi.org/10.1093/genetics/iyad031" target="_blank">[link]</a>
+
+<a id="ref8">(8.)</a> Carlson, M. (2019). org.Hs.eg.db: Genome wide annotation for Human. *R package*.
+
+<a id="ref9">(9.)</a> Carlson, M. (2019). GO.db: A set of annotation maps describing the entire Gene Ontology. *R package*.
+
+<a id="ref10">(10.)</a> `sample_ects` is derived from Gene Ontology (GO) term-to-gene mappings [[6, 7, 9]](#ref6). Element IDs are Entrez Gene IDs [[8]](#ref8). Source: <a href="http://geneontology.org/" target= "_blank">[geneontology.org]</a>. GO data is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target= "_blank">[CC BY 4.0]</a>.
