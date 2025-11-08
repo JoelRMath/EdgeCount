@@ -118,7 +118,7 @@ plot_set_neighbors <- function(ecp, vertex_set) {
     theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
 }
 
-plot_urchin_graph <- function(ecp, core_set) {
+plot_urchin_graph <- function(ecp, core_set, symbol_lookup = NULL) {
   
   if (!requireNamespace("igraph", quietly = TRUE) || !requireNamespace("ggraph", quietly = TRUE)) {
     message("Packages 'igraph' and 'ggraph' are required to plot the graph.")
@@ -173,6 +173,18 @@ plot_urchin_graph <- function(ecp, core_set) {
                  rep("Spike", length(stub_nodes))),
     stringsAsFactors = FALSE
   )
+  
+  nodes_df$label <- NA_character_ 
+  
+  if (!is.null(symbol_lookup)) {
+    # Get the indices for the core nodes
+    core_indices <- which(nodes_df$category == "Core Set")
+    core_node_ids <- nodes_df$name[core_indices]
+    
+    symbols <- symbol_lookup[core_node_ids]
+    # Fallback to the original ID if a symbol is not found (NA)
+    nodes_df$label[core_indices] <- ifelse(is.na(symbols), core_node_ids, symbols)
+  }
 
   # --- 3. Create Edge Metadata ---
   internal_edges <- rbindlist(internal_edges_list)
@@ -193,7 +205,7 @@ plot_urchin_graph <- function(ecp, core_set) {
     ) +
     scale_edge_width_manual(values = c("External" = 4, "Internal" = 6)) +
     scale_edge_alpha_manual(values = c("External" = 0.7, "Internal" = 1.0)) +
-    scale_edge_color_manual(values = c("External" = "darkgrey", "Internal" = "darkgreen")) +
+    scale_edge_color_manual(values = c("External" = "lightblue", "Internal" = "blue")) +
     
     
     # Draw nodes
@@ -203,8 +215,15 @@ plot_urchin_graph <- function(ecp, core_set) {
       stroke = 4
     ) +
     scale_size_manual(values = c("Core Set" = 26, "Spike" = 0.01)) +
-    scale_fill_manual(values = c("Core Set" = "#FFC000", "Spike" = "white")) +
+    scale_fill_manual(values = c("Core Set" = "orange", "Spike" = "white")) +
     scale_color_manual(values = c("Core Set" = "black", "Spike" = "white")) +
+    
+    geom_node_text(aes(label = label), # 'label' column now has NAs for spikes
+                   repel = TRUE, 
+                   color = "black",
+                   bg.color = NA,
+                   size = 15) +
+    
     coord_cartesian(clip = "off") + 
     theme_void() +
     theme(
@@ -328,7 +347,7 @@ g <- graph_from_data_frame(edge_df, directed = FALSE)
 # 2. Create the plot
 set.seed(1)
 ggraph(g) +
-    geom_edge_link(color = "darkgreen", width = 2) +
+    geom_edge_link(color = "blue", width = 3) +
     geom_node_point(shape = 21, color = "black", size = 40, stroke = 1, fill="orange") +
     geom_node_text(aes(label = name), color = "black", size =20) +
     theme_void() +
@@ -340,7 +359,7 @@ This is verified by using method `summarize_suitability_fast` of `ECProb`.
 
 ```{r suitability_sparse}
 suitability_stats <- summarize_suitability_fast(ecp)
-print(suitability_stats)
+suitability_stats
 ```
 
 - `$pij_over_1` is the important criterion: the proportion of edges among all possible pairs $(i,j)$ of vertices that yield a connection probability $p_{ij}$ greater than 1 (hence unsuitable) under an approximate analytical framework of the RGGED. A value close to 0 means that fast approximation methods are appropriate.
@@ -361,7 +380,7 @@ g <- graph_from_data_frame(edge_df, directed = FALSE)
 
 set.seed(2)
 ggraph(g) +
-    geom_edge_link(color = "darkgreen", width = 2) +
+    geom_edge_link(color = "blue", width = 3) +
     geom_node_point(shape = 21, color = "black", size = 40, stroke = 1, fill="orange") +
     geom_node_text(aes(label = name), color = "black", size =20) +
     theme_void() +
@@ -377,7 +396,7 @@ edge_df <- data.frame(
 )
 ecp <- ECProb(ECGraph(edge_df))
 suitability_stats <- summarize_suitability_fast(ecp)
-print(suitability_stats)
+suitability_stats
 ```
 
 
@@ -389,11 +408,13 @@ In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are 
 
 - They overestimate $p_{ij}$ values.
 - They underestimate effect sizes.
-- They overestimate p-values.
+- They overestimate edge-count p-values.
 
 **That is, fast approximation methods cannnot yield false-positive results**.
 
 The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5). The network is limited to protein interactions having a confidence score greater than or equal to 900. Proteins IDs have been replaced with their mapped Gene Entrez IDs. 
+
+The package comes with object `sample_ecg`, an example of trimmed real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5).
 
 ```{r sample_ecg}
 data("sample_ecg")
@@ -402,13 +423,13 @@ sample_ecp <- ECProb(sample_ecg)
 str(sample_ecp, list.len = 6)
 ```
 
-This network is quite large and sparse.
+This network is relatively large and it is sparse.
 
 ```{r sample_ecg_suitability}
 summarize_suitability_fast(sample_ecp)
 ```
 
-It is suitable for fast approximations not only because `pij_over_1` = 0, but also because the majority of $p_{ij}$ values are close to $4.10^{-4}$. Object `sample_ecp` will be utilized next to provide examples of `ECProb` uses.
+Indeed, it is suitable for fast approximations not only because `pij_over_1` = 0, but also because the majority of $p_{ij}$ values are close to $4.10^{-4}$. Object `sample_ecp` will be utilized next to provide examples of `ECProb` uses.
 
 ## Analysis of Interaction Networks (ECProb)
 
@@ -418,7 +439,7 @@ This workflow is for analyzing connectedness within an undirected, unipartite gr
 
 This test answers the question: "Are the vertices of a given set $S$ more connected to each other than expected by *chance*?" The concept of *chance* is here based on the RGGED: the distribution of the number of edges within set $S$ over all possible realizations of the RGGED, which in average preserve degrees of all vertices. Using such a null model that accounts for individual vertex degrees is statistically important.
 
-```{r try_within_examples, echo=FALSE}
+```{r try_within_examples, echo=FALSE, eval=FALSE}
 # line <- 48
 line <- 48
 df <- read.table("../data-raw/res/within_examples_selection.tsv", 
@@ -431,10 +452,11 @@ set2_id <- df$set_id_at_max[line]
 ```
 
 ```{r ecprob_within_example_1_urchin, message=FALSE, warning=FALSE, echo=FALSE, out.width="30%", fig.width=12, fig.height = 8, fig.align = "center"}
+data("sample_gene_symbol_lookup")
 set1_id <- "GO:0032395"
 set1_name <- "MHC class II receptor activity"
 set1 <- get_neighbors(sample_ects@ecprob, set1_id)
-plot_urchin_graph(sample_ecp, set1)
+plot_urchin_graph(sample_ecp, set1, sample_gene_symbol_lookup)
 ```
 
 
@@ -442,7 +464,7 @@ plot_urchin_graph(sample_ecp, set1)
 set2_id <- "GO:0006729"
 set2_name <- "tetrahydrobiopterin biosynthetic process"
 set2 <- get_neighbors(sample_ects@ecprob, set2_id)
-plot_urchin_graph(sample_ecp, set2)
+plot_urchin_graph(sample_ecp, set2, sample_gene_symbol_lookup)
 ```
 
 ### Test for *between-set* connectedness
