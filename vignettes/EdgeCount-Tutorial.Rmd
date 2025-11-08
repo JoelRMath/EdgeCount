@@ -387,6 +387,8 @@ In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are 
 
 **However, the fast approximation methods are conservative**:
 
+In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. **However**, by overestimating $p_{ij}$ values, the fast approximation methods are **conservative** for analysis:
+
 - They overestimate $p_{ij}$ values.
 - They underestimate effect sizes.
 - They overestimate p-values.
@@ -395,12 +397,15 @@ In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are 
 
 The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5). The network is limited to protein interactions having a confidence score greater than or equal to 900. Proteins IDs have been replaced with their mapped Gene Entrez IDs. 
 
+The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5).
+
 ```{r sample_ecg}
 data("sample_ecg")
 data("sample_ects")
 sample_ecp <- ECProb(sample_ecg)
 str(sample_ecp, list.len = 6)
 ```
+This network is suitable for fast approximations not only because `pij_over_1` = 0, but also because the majority of $p_{ij}$ values are close to $4.10^{-4}$.
 
 This network is quite large and sparse.
 
@@ -409,6 +414,8 @@ summarize_suitability_fast(sample_ecp)
 ```
 
 It is suitable for fast approximations not only because `pij_over_1` = 0, but also because the majority of $p_{ij}$ values are close to $4.10^{-4}$. Object `sample_ecp` will be utilized next to provide examples of `ECProb` uses.
+
+Object `sample_ecp` will be utilized next to provide examples of `ECProb` uses.
 
 ## Analysis of Interaction Networks (ECProb)
 
