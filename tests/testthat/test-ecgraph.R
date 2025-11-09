@@ -103,6 +103,6 @@ test_that("ECG trimming", {
     time_start <- Sys.time()
     ecg <- trim_ecgraph(ecg, 0.1)
     time_end <- Sys.time() - time_start
-    print(time_end)
+    # print(time_end)
   }
 })

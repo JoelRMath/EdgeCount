@@ -523,7 +523,7 @@ setMethod("calculate_in_stats_fast_vectorized",
             # --- Step 3: Join all results and perform final calculations ---
             final_dt <- copy(sets_dt)
 
-            final_dt[observed_edges_dt, on = "set_id", observed_edges := i.observed_edges]
+            final_dt[observed_edges_dt, on = "set_id", observed_edge_count := i.observed_edges]
             final_dt[term_summary, on = "set_id", `:=`(
               sum_of_degrees = i.sum_of_degrees,
               sum_of_sq_degrees = i.sum_of_sq_degrees,
@@ -531,18 +531,25 @@ setMethod("calculate_in_stats_fast_vectorized",
             )]
 
             # Clean NAs from joins for all columns
-            cols_to_clean <- c("observed_edges", "sum_of_degrees", "sum_of_sq_degrees", "set_size")
+            cols_to_clean <- c("observed_edge_count", "sum_of_degrees", "sum_of_sq_degrees", "set_size")
             for (col in cols_to_clean) {
-              final_dt[is.na(get(col)), (col) := 0]
+              # final_dt[is.na(get(col)), (col) := 0]
+              if (col %in% names(final_dt)) {
+                if (is.integer(final_dt[[col]])) {
+                  final_dt[is.na(get(col)), (col) := 0L]
+                } else {
+                  final_dt[is.na(get(col)), (col) := 0.0]
+                }
+              }
             }
 
             # Calculate final statistics
             final_dt[, lambda := (sum_of_degrees^2 - sum_of_sq_degrees) / (4 * object@graph_size)]
             final_dt[, max_possible_edges := set_size * (set_size - 1) / 2]
-            final_dt[, p_value := calculate_p_value(object, observed_edges, max_possible_edges, lambda)]
-            final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
+            final_dt[, p_value := calculate_p_value(object, observed_edge_count, max_possible_edges, lambda)]
+            final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edge_count + 3/8) - log2(lambda + 3/8))]
 
-            return(final_dt[, .(set_id, observed_edges, lambda, p_value, log2_Anscombe_ratio, set_size, max_possible_edges)])
+            return(final_dt[, .(set_id, observed_edge_count, lambda, p_value, log2_Anscombe_ratio, set_size, max_possible_edges)])
           })
 
 # --------------------------------------------------------------------------- #
@@ -570,6 +577,7 @@ setMethod(
   function(object, set1, set2 = NULL, observed_edge_count, lambda_method = "optimized") {
 
     valid_set1 <- unique(set1[set1 %in% object@names])
+    max_possible_edges <- 0
 
     if (is.null(set2)) {
       lambda <- switch(lambda_method,
@@ -595,16 +603,11 @@ setMethod(
       log2_Anscombe_ratio <- 0.5 * (log2(observed_edge_count + 3/8) - log2(lambda + 3/8))
     }
 
-    log2_relative_change <- NA_real_
-    if (!is.na(lambda) && lambda > 0 && observed_edge_count > 0){
-      log2_relative_change <- log2(observed_edge_count) - log2(lambda)
-    }
-
     return(list(p_value = p_value,
                 observed_edge_count = observed_edge_count,
                 log2_Anscombe_ratio = log2_Anscombe_ratio,
-                log2_relative_change = log2_relative_change,
-                lambda = lambda))
+                lambda = lambda,
+                max_possible_edges = max_possible_edges))
   })
 
 #' @title Calculate P-value for an Observed Edge Count

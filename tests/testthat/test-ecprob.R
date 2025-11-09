@@ -403,10 +403,12 @@ test_that("calculate_in_stats_fast_vectorized", {
 
       results_list[[i]] <- list(
         set_id = current_set_id,
-        observed_edges = as.integer(observed_ec),
+        observed_edge_count = as.integer(observed_ec),
         lambda = stats$lambda,
         p_value = stats$p_value,
-        log2_Anscombe_ratio = stats$log2_Anscombe_ratio
+        log2_Anscombe_ratio = stats$log2_Anscombe_ratio,
+        set_size = length(valid_elements),
+        max_possible_edges = stats$max_possible_edges
       )
     }
 

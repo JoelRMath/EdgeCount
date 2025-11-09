@@ -49,71 +49,12 @@ div:target > h6 {
 library(EdgeCount)
 library(data.table)
 
-plot_set_neighbors <- function(ecp, vertex_set) {
-  
-  if (!requireNamespace("igraph", quietly = TRUE) || !requireNamespace("ggraph", quietly = TRUE)) {
-    message("Packages 'igraph' and 'ggraph' are required to plot the graph.")
-    return(invisible(NULL))
-  }
-  
-  # 1. Identify all nodes involved
-  set_nodes <- intersect(vertex_set, ecp@names)
-  neighbor_nodes <- get_neighbors(ecp, set_nodes)
-  neighbor_nodes_outside <- setdiff(neighbor_nodes, set_nodes)
-  all_nodes_in_plot <- c(set_nodes, neighbor_nodes_outside)
-  
-  if (length(all_nodes_in_plot) == 0) return(invisible(NULL))
-
-  # 2. Create the node metadata (Categories 1 and 2)
-  nodes_df <- data.frame(
-    name = all_nodes_in_plot,
-    stringsAsFactors = FALSE
-  )
-  nodes_df$category <- ifelse(nodes_df$name %in% set_nodes, "Set Member", "Neighbor")
-  
-  # 3. Get all edges for this subgraph
-  adj_subset <- ecp@adj[set_nodes]
-  edges_df <- data.table::rbindlist(lapply(adj_subset, function(n) data.table(to = n)), idcol = "from")
-  
-  # Filter edges to only those connecting nodes in our plot
-  edges_df <- edges_df[to %in% all_nodes_in_plot]
-  
-  # 4. Create the igraph object
-  g <- igraph::graph_from_data_frame(edges_df, directed = FALSE, vertices = nodes_df)
-  
-  # 5. Set edge types for styling
-  # Get the categories of both ends of each edge
-  ends_matrix <- igraph::ends(g, igraph::E(g))
-  category1 <- igraph::V(g)$category[match(ends_matrix[,1], igraph::V(g)$name)]
-  category2 <- igraph::V(g)$category[match(ends_matrix[,2], igraph::V(g)$name)]
-  
-  # Assign type
-  edge_type <- ifelse(category1 == "Set Member" & category2 == "Set Member", "Internal", "External")
-  igraph::E(g)$type <- edge_type
-
-  # 6. Plot with ggraph
-  set.seed(2) # for reproducible layout
-  ggraph::ggraph(g) +
-    # Draw edges
-    ggraph::geom_edge_link(
-      aes(width = type, alpha = type, color = type)
-    ) +
-    # Define edge styles
-    ggraph::scale_edge_width_manual(values = c("External" = 0.5, "Internal" = 1.5)) +
-    ggraph::scale_edge_alpha_manual(values = c("External" = 0.6, "Internal" = 1.0)) +
-    
-    # Draw nodes
-    ggraph::geom_node_point(
-      aes(size = category, fill = category), 
-      shape = 21, 
-      color = "black" # border
-    ) +
-    # Define node styles
-    scale_size_manual(values = c("Set Member" = 4, "Neighbor" = 0.1)) +
-    scale_fill_manual(values = c("Set Member" = "#FFA500", "Neighbor" = "#DDDDDD")) +
-    
-    # Theme
-    theme(legend.position="none") +
+plot_graph <- function(g){
+  ggraph(g) +
+    geom_edge_link(color = "blue", width = 3) +
+    geom_node_point(shape = 21, color = "black", size = 40, stroke = 1, fill="orange") +
+    geom_node_text(aes(label = name), color = "black", size =20) +
+    theme_void() +
     coord_cartesian(clip = "off") + 
     theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
 }
@@ -346,13 +287,7 @@ g <- graph_from_data_frame(edge_df, directed = FALSE)
 
 # 2. Create the plot
 set.seed(1)
-ggraph(g) +
-    geom_edge_link(color = "blue", width = 3) +
-    geom_node_point(shape = 21, color = "black", size = 40, stroke = 1, fill="orange") +
-    geom_node_text(aes(label = name), color = "black", size =20) +
-    theme_void() +
-    coord_cartesian(clip = "off") + 
-    theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
+plot_graph(g)
 ```
 
 This is verified by using method `summarize_suitability_fast` of `ECProb`.
@@ -362,9 +297,9 @@ suitability_stats <- summarize_suitability_fast(ecp)
 suitability_stats
 ```
 
-- `$pij_over_1` is the important criterion: the proportion of edges among all possible pairs $(i,j)$ of vertices that yield a connection probability $p_{ij}$ greater than 1 (hence unsuitable) under an approximate analytical framework of the RGGED. A value close to 0 means that fast approximation methods are appropriate.
+- `$pij_over_1` is the important criterion: the proportion of edges (among all possible pairs $(i,j)$ of vertices) that yield a connection probability $p_{ij}$ greater than 1 (hence unsuitable) under an approximate analytical framework of the RGGED. A value close to 0 means that fast approximation methods are appropriate.
 - `$prop_problematic_vertices` is the proportion of vertices with degree greater than $\sqrt{2M}$, where $M$ is the graph size `ecp@graph_size`. Indeed, under the model for fast approximations, $p_{ij} = k_ik_j/(2M)$, where $k$ is a vertex degree; so any vertex with $k_i > \sqrt{2M}$ might yield  $p_{ij} > 1$ for connection to another problematic vertex $j$.
-- `$summary_pij` is a quick summary of the distribution of connection probabilities over all pairs of vertices
+- `$summary_pij` is a short summary of the distribution of connection probabilities over all pairs of vertices
 - `$pij_distribution` is the full distribution of $p_{ij}$ values in the RGGED model with fast approximations.
 
 Here is now an example of small graph that, even though not a complete graph, does not pass the suitability test.
@@ -379,13 +314,7 @@ edge_df <- data.frame(
 g <- graph_from_data_frame(edge_df, directed = FALSE)
 
 set.seed(2)
-ggraph(g) +
-    geom_edge_link(color = "blue", width = 3) +
-    geom_node_point(shape = 21, color = "black", size = 40, stroke = 1, fill="orange") +
-    geom_node_text(aes(label = name), color = "black", size =20) +
-    theme_void() +
-    coord_cartesian(clip = "off") + 
-    theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
+plot_graph(g)
 ```
 
 ```{r suitability_non_sparse}
@@ -403,7 +332,6 @@ suitability_stats
 The `pij_over_1` value is 4.5%. This indicates that some vertex pairs have an approximate edge probability greater than or equal to 1, making the fast approximation methods unsuitable. For such a graph, other methods are available in the package.
 
 In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. 
-<<<<<<< HEAD
 
 **However, the fast approximation methods are conservative**:
 
@@ -411,26 +339,10 @@ In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are 
 - They underestimate effect sizes.
 - They overestimate edge-count p-values.
 
-=======
-
-**However, the fast approximation methods are conservative**:
-
-In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. **However**, by overestimating $p_{ij}$ values, the fast approximation methods are **conservative** for analysis:
-
-- They overestimate $p_{ij}$ values.
-- They underestimate effect sizes.
-- They overestimate p-values.
-
->>>>>>> 042b4cf47b85c27f9cdb2d75d5b45bfdde055e98
-**That is, fast approximation methods cannnot yield false-positive results**.
+**That is, fast approximation methods cannnot yield false-positive results**. In other words, using the fast approximation method as default methods is a conservative approach for analysis.
 
 The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5). The network is limited to protein interactions having a confidence score greater than or equal to 900. Proteins IDs have been replaced with their mapped Gene Entrez IDs. 
 
-<<<<<<< HEAD
-The package comes with object `sample_ecg`, an example of trimmed real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5).
-=======
-The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5).
->>>>>>> 042b4cf47b85c27f9cdb2d75d5b45bfdde055e98
 
 ```{r sample_ecg}
 data("sample_ecg")
@@ -445,29 +357,86 @@ This network is relatively large and it is sparse.
 summarize_suitability_fast(sample_ecp)
 ```
 
-Indeed, it is suitable for fast approximations not only because `pij_over_1` = 0, but also because the majority of $p_{ij}$ values are close to $4.10^{-4}$. Object `sample_ecp` will be utilized next to provide examples of `ECProb` uses.
+Indeed, it is suitable for fast approximations not only because `pij_over_1` = 0, but also because the majority of $p_{ij}$ values are close to $4.10^{-4}$. 
 
-Object `sample_ecp` will be utilized next to provide examples of `ECProb` uses.
+Object `sample_ecp` is utilized next to provide examples of `ECProb` uses.
 
 ## Analysis of Interaction Networks (ECProb)
 
-This workflow is for analyzing connectedness within an undirected, unipartite graph.
+Example of connectedness analyses within an undirected, unipartite graph are now presented.
 
 ### Test for *within-set* connectedness
 
 This test answers the question: "Are the vertices of a given set $S$ more connected to each other than expected by *chance*?" The concept of *chance* is here based on the RGGED: the distribution of the number of edges within set $S$ over all possible realizations of the RGGED, which in average preserve degrees of all vertices. Using such a null model that accounts for individual vertex degrees is statistically important.
 
-```{r try_within_examples, echo=FALSE, eval=FALSE}
-# line <- 48
-line <- 48
-df <- read.table("../data-raw/res/within_examples_selection.tsv", 
-                 header = TRUE,
-                 sep = "\t",
-                 quote = "",
-                 stringsAsFactors = FALSE)
-set1_id <- df$set_id_at_min[line]
-set2_id <- df$set_id_at_max[line]
+The package comes with a sample bipartite network `sample_ects` that mapps a trimmed version of GO categories to their human gene elements [[6]](#ref6), [[7]](#ref7), [[9]](#ref9). Object `sample_ects@ecprob` is utilized below to define with a term a set of elements/vertices which is then tested for its connectedness in interaction network `sample_ecp`.
+
+```{r setA_in, message=FALSE, warning=FALSE}
+# bipartite network (term-element relationships)
+data("sample_ects")
+# term descriptions
+data("sample_term_lookup")
+setA_id <- "GO:0032395"
+setA_name <- sample_term_lookup[setA_id]
+setA_name
+# elements mapped to term (bipartite network sample_ects@ecprob)
+setA <- get_neighbors(sample_ects@ecprob, setA_id) 
+length(setA)
+# observed edge count in the graph between elements (interaction network sample_ecp)
+data("sample_ecp")
+observed_ec <- get_edge_count_in(sample_ecp, setA) 
+# calculation of statistics
+stats <- edge_count_statistics(sample_ecp, 
+                               set1 = setA, 
+                               set2 = NULL, 
+                               observed_edge_count = observed_ec,
+                               lambda_method = "fast")
+stats
 ```
+
+Method `edge_count_statistics` returns a lis:
+
+- `$observed_edge_count` $x$ is the observed number of edges, here the edge count within `setA`
+- `max_possible_edges` $m$ is the maximum number of edges one could observe in the RGGED, here the number of pairs withing `setA`, i.e. $(7\times6)/2 = 21$
+- `$lambda`, $\lambda$ is the expected number of observed edges within `setA` in the RGGED, that is, the average number of edges over all realizations of the RGGED
+- `$p-value` $p_S$ is $\Pr\left( X \geq x\right)$, where $X$ is the random variable 'number of edges within `setA`' in the RGGED
+- `log2_Anscombe_ration` $lAr$ is the observed *log effect size*
+
+Calling $p_{ij}$ the probability of connecting two vertices $i$ and $j$ of a set $S$ in the RGGED, $k$ the degree of a vertex, and $M$ the graph size we have in general
+
+$$p_{ij} = \min\left(1, \frac{k_ik_j}{2M}\right)$$
+$$m = \frac{1}{2}\left| S \right|\left( \left| S\right|-1\right)$$
+$$\lambda = \sum_{i < j, \in S} p_{ij}$$
+$$p_S = \sum_{u=x}^m \Pr\left(X = u\right)$$
+$$\Pr\left(X = u\right) = \frac{1}{\alpha}\frac{\lambda^u}{u!}$$
+$$\alpha = \sum_{v=0}^{m} \frac{\lambda^v}{v!}$$
+$$lAr = \frac{1}{2} \log_2 \frac{x +3/8}{\lambda + 3/8}$$
+Using $lAr$ as effect size is important because $X$ will often have a truncated Poisson distribution of parameter $\lambda$ small enough to yield an asymmetric distribution.
+
+With `lambda_method = "fast"` calculations are simplified
+
+$$p_{ij} = \frac{k_ik_j}{2M} \quad \text{and} \quad \lambda = \frac{1}{4M} \left( \left(\sum_{i\in S} k_i\right)^2 - \sum_{i\in S} k_i^2\right)$$
+Namely, time complexity is now $O\left( \left| S \right|\right)$ instead of $O\left( \left| S \right|^2\right)$.
+
+To illustrate the importance of accounting for the degree of each vertex consider now the following `setB`.
+
+```{r setB_in, message=FALSE, warning=FALSE}
+setB_id <- "GO:0006729"
+setB_name <- sample_term_lookup[setB_id]
+setB_name
+setB <- get_neighbors(sample_ects@ecprob, setB_id) 
+length(setB)
+observed_ec <- get_edge_count_in(sample_ecp, setB) 
+stats <- edge_count_statistics(sample_ecp, 
+                               set1 = setB, 
+                               set2 = NULL, 
+                               observed_edge_count = observed_ec,
+                               lambda_method = "fast")
+stats
+```
+
+While `setA` and `setB` have the same size, and thus the same `max_possible_edges` and the same `observed_edge-count`, `setB` has weaker connectedness than `setA`, as attested by a larger `p-value` and a smaller `log2_Anscombe_ratio`. This is due to `setB` having a larger `lambda` than `setA` because its vertices have larger degrees. This is illustrated below by plotting the subgraphs induced by the two sets while complementing visualization of their degrees in the entire network in the form of grey stubs.
+
 
 ```{r ecprob_within_example_1_urchin, message=FALSE, warning=FALSE, echo=FALSE, out.width="30%", fig.width=12, fig.height = 8, fig.align = "center"}
 data("sample_gene_symbol_lookup")
@@ -564,6 +533,4 @@ print(head(vsea_results$max_score_summary))
 
 <a id="ref8">(8.)</a> Carlson, M. (2019). org.Hs.eg.db: Genome wide annotation for Human. *R package*.
 
-<a id="ref9">(9.)</a> Carlson, M. (2019). GO.db: A set of annotation maps describing the entire Gene Ontology. *R package*.
-
-<a id="ref10">(10.)</a> `sample_ects` is derived from Gene Ontology (GO) term-to-gene mappings [[6, 7, 9]](#ref6). Element IDs are Entrez Gene IDs [[8]](#ref8). Source: <a href="http://geneontology.org/" target= "_blank">[geneontology.org]</a>. GO data is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target= "_blank">[CC BY 4.0]</a>.
+<a id="ref10">(9.)</a> `sample_ects` is derived from Gene Ontology (GO) term-to-gene mappings [[6, 7, 9]](#ref6). Element IDs are Entrez Gene IDs [[8]](#ref8). Source: <a href="http://geneontology.org/" target= "_blank">[geneontology.org]</a>. GO data is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target= "_blank">[CC BY 4.0]</a>.
