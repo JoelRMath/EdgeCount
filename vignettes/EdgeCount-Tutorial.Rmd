@@ -403,6 +403,7 @@ suitability_stats
 The `pij_over_1` value is 4.5%. This indicates that some vertex pairs have an approximate edge probability greater than or equal to 1, making the fast approximation methods unsuitable. For such a graph, other methods are available in the package.
 
 In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. 
+<<<<<<< HEAD
 
 **However, the fast approximation methods are conservative**:
 
@@ -410,11 +411,26 @@ In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are 
 - They underestimate effect sizes.
 - They overestimate edge-count p-values.
 
+=======
+
+**However, the fast approximation methods are conservative**:
+
+In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. **However**, by overestimating $p_{ij}$ values, the fast approximation methods are **conservative** for analysis:
+
+- They overestimate $p_{ij}$ values.
+- They underestimate effect sizes.
+- They overestimate p-values.
+
+>>>>>>> 042b4cf47b85c27f9cdb2d75d5b45bfdde055e98
 **That is, fast approximation methods cannnot yield false-positive results**.
 
 The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5). The network is limited to protein interactions having a confidence score greater than or equal to 900. Proteins IDs have been replaced with their mapped Gene Entrez IDs. 
 
+<<<<<<< HEAD
 The package comes with object `sample_ecg`, an example of trimmed real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5).
+=======
+The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5).
+>>>>>>> 042b4cf47b85c27f9cdb2d75d5b45bfdde055e98
 
 ```{r sample_ecg}
 data("sample_ecg")
@@ -430,6 +446,8 @@ summarize_suitability_fast(sample_ecp)
 ```
 
 Indeed, it is suitable for fast approximations not only because `pij_over_1` = 0, but also because the majority of $p_{ij}$ values are close to $4.10^{-4}$. Object `sample_ecp` will be utilized next to provide examples of `ECProb` uses.
+
+Object `sample_ecp` will be utilized next to provide examples of `ECProb` uses.
 
 ## Analysis of Interaction Networks (ECProb)
 
