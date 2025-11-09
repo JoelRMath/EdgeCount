@@ -403,7 +403,6 @@ suitability_stats
 The `pij_over_1` value is 4.5%. This indicates that some vertex pairs have an approximate edge probability greater than or equal to 1, making the fast approximation methods unsuitable. For such a graph, other methods are available in the package.
 
 In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. 
-<<<<<<< HEAD
 
 **However, the fast approximation methods are conservative**:
 
@@ -411,26 +410,10 @@ In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are 
 - They underestimate effect sizes.
 - They overestimate edge-count p-values.
 
-=======
-
-**However, the fast approximation methods are conservative**:
-
-In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. **However**, by overestimating $p_{ij}$ values, the fast approximation methods are **conservative** for analysis:
-
-- They overestimate $p_{ij}$ values.
-- They underestimate effect sizes.
-- They overestimate p-values.
-
->>>>>>> 042b4cf47b85c27f9cdb2d75d5b45bfdde055e98
 **That is, fast approximation methods cannnot yield false-positive results**.
 
 The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5). The network is limited to protein interactions having a confidence score greater than or equal to 900. Proteins IDs have been replaced with their mapped Gene Entrez IDs. 
 
-<<<<<<< HEAD
-The package comes with object `sample_ecg`, an example of trimmed real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5).
-=======
-The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5).
->>>>>>> 042b4cf47b85c27f9cdb2d75d5b45bfdde055e98
 
 ```{r sample_ecg}
 data("sample_ecg")
@@ -457,16 +440,19 @@ This workflow is for analyzing connectedness within an undirected, unipartite gr
 
 This test answers the question: "Are the vertices of a given set $S$ more connected to each other than expected by *chance*?" The concept of *chance* is here based on the RGGED: the distribution of the number of edges within set $S$ over all possible realizations of the RGGED, which in average preserve degrees of all vertices. Using such a null model that accounts for individual vertex degrees is statistically important.
 
-```{r try_within_examples, echo=FALSE, eval=FALSE}
-# line <- 48
-line <- 48
-df <- read.table("../data-raw/res/within_examples_selection.tsv", 
-                 header = TRUE,
-                 sep = "\t",
-                 quote = "",
-                 stringsAsFactors = FALSE)
-set1_id <- df$set_id_at_min[line]
-set2_id <- df$set_id_at_max[line]
+```{r message=FALSE, warning=FALSE}
+data("sample_term_lookup")
+set1_id <- "GO:0032395"
+set1_name <- sample_term_lookup[set1_id]
+set1_name
+set1 <- get_neighbors(sample_ects@ecprob, set1_id)
+observed_ec <- get_edge_count_in(sample_ecp, set1)
+stats <- edge_count_statistics(sample_ecp, 
+                               set1 = set1, 
+                               set2 = NULL, 
+                               observed_edge_count = observed_ec,
+                               lambda_method = "fast")
+stats
 ```
 
 ```{r ecprob_within_example_1_urchin, message=FALSE, warning=FALSE, echo=FALSE, out.width="30%", fig.width=12, fig.height = 8, fig.align = "center"}
