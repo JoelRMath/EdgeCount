@@ -1,4 +1,4 @@
-set_id	term_name	observed_edges	lambda	p_value	log2_Anscombe_ratio	set_size	max_possible_edges
+set_id	term_name	observed_edge_count	lambda	p_value	log2_Anscombe_ratio	set_size	max_possible_edges
 GO:0000002	mitochondrial genome maintenance	0	0.0274234693877551	1	-0.0509119250730923	8	28
 GO:0000012	single strand break repair	8	0.033265306122449	3.61054136604873e-17	2.17925515550105	8	28
 GO:0000017	alpha-glucoside transport	0	0.000153061224489796	1	-0.000294367488453351	2	1

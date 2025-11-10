@@ -32,8 +32,8 @@ calculate_in_stats_slow_old <- function(object, set_membership_dt){
         lambda = 0.0,
         p_value = 1.0,
         log2_Anscombe_ratio = 0.0,
-        set_size = 0,
-        max_possible_edges = 0
+        set_size = as.integer(set_size),
+        max_possible_edges = max_possible_edges
       )
     } else {
       # For larger sets, calculate the stats and construct a 5-item list.
@@ -59,7 +59,7 @@ calculate_in_stats_slow_old <- function(object, set_membership_dt){
   # Select and reorder columns to match the fast version's output
   final_dt <- results_dt[, .(
     set_id,
-    observed_edges = observed_edge_count,
+    observed_edge_count = observed_edge_count,
     lambda,
     p_value,
     log2_Anscombe_ratio,
@@ -120,7 +120,7 @@ setkey(lookup_dt, set_id)
 annotated_results <- lookup_dt[results_fast, on = "set_id"]
 
 # 3. Reorder for a clean output
-setcolorder(annotated_results, c("set_id", "term_name", "observed_edges", "lambda", "p_value", "log2_Anscombe_ratio", "set_size", "max_possible_edges"))
+setcolorder(annotated_results, c("set_id", "term_name", "observed_edge_count", "lambda", "p_value", "log2_Anscombe_ratio", "set_size", "max_possible_edges"))
 
 # 4. Create the directory if it doesn't exist
 output_dir <- "data-raw/res"
