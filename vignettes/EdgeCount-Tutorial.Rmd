@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output:
   rmarkdown::html_vignette:
     toc: true
-    toc_depth: 3
+    toc_depth: 4
     number_sections: true
 vignette: >
   %\VignetteIndexEntry{EdgeCount Package Tutorial}
@@ -45,9 +45,10 @@ div:target > h6 {
 }
 ```
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
 library(EdgeCount)
 library(data.table)
+library(patchwork)
 
 plot_graph <- function(g){
   ggraph(g) +
@@ -215,7 +216,7 @@ devtools::install_github("JoelRMath/EdgeCount")
 
 <br>
 
-# Basic Usage
+# Usage
 
 This section provides an overview of the main use cases for the package.
 
@@ -339,7 +340,7 @@ In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are 
 - They underestimate effect sizes.
 - They overestimate edge-count p-values.
 
-**That is, fast approximation methods cannnot yield false-positive results**. In other words, using the fast approximation method as default methods is a conservative approach for analysis.
+**That is, fast approximation methods cannnot yield false-positive results**. In other words, using the fast approximation methods by default is a conservative approach for analysis.
 
 The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5). The network is limited to protein interactions having a confidence score greater than or equal to 900. Proteins IDs have been replaced with their mapped Gene Entrez IDs. 
 
@@ -365,9 +366,11 @@ Object `sample_ecp` is utilized next to provide examples of `ECProb` uses.
 
 Example of connectedness analyses within an undirected, unipartite graph are now presented.
 
-### Test for *within-set* connectedness
+### Tests for *within-set* connectedness
 
 This test answers the question: "Are the vertices of a given set $S$ more connected to each other than expected by *chance*?" The concept of *chance* is here based on the RGGED: the distribution of the number of edges within set $S$ over all possible realizations of the RGGED, which in average preserve degrees of all vertices. Using such a null model that accounts for individual vertex degrees is statistically important.
+
+#### Basic method 
 
 The package comes with a sample bipartite network `sample_ects` that mapps a trimmed version of GO categories to their human gene elements [[6]](#ref6), [[7]](#ref7), [[9]](#ref9). Object `sample_ects@ecprob` is utilized below to define with a term a set of elements/vertices which is then tested for its connectedness in interaction network `sample_ecp`.
 
@@ -386,12 +389,12 @@ length(setA)
 data("sample_ecp")
 observed_ec <- get_edge_count_in(sample_ecp, setA) 
 # calculation of statistics
-stats <- edge_count_statistics(sample_ecp, 
+statsA <- edge_count_statistics(sample_ecp, 
                                set1 = setA, 
                                set2 = NULL, 
                                observed_edge_count = observed_ec,
                                lambda_method = "fast")
-stats
+statsA
 ```
 
 Method `edge_count_statistics` returns a lis:
@@ -427,31 +430,72 @@ setB_name
 setB <- get_neighbors(sample_ects@ecprob, setB_id) 
 length(setB)
 observed_ec <- get_edge_count_in(sample_ecp, setB) 
-stats <- edge_count_statistics(sample_ecp, 
+statsB <- edge_count_statistics(sample_ecp, 
                                set1 = setB, 
                                set2 = NULL, 
                                observed_edge_count = observed_ec,
                                lambda_method = "fast")
-stats
+statsB
 ```
 
-While `setA` and `setB` have the same size, and thus the same `max_possible_edges` and the same `observed_edge-count`, `setB` has weaker connectedness than `setA`, as attested by a larger `p-value` and a smaller `log2_Anscombe_ratio`. This is due to `setB` having a larger `lambda` than `setA` because its vertices have larger degrees. This is illustrated below by plotting the subgraphs induced by the two sets while complementing visualization of their degrees in the entire network in the form of grey stubs.
+While `setA` and `setB` have the same size, and thus the same `max_possible_edges` and the same `observed_edge-count`, `setB` has weaker connectedness than `setA`, as attested by a larger `p-value` and a smaller `log2_Anscombe_ratio`. This is due to `setB` having a larger `lambda` than `setA` because its vertices have larger degrees. This is illustrated below by plotting the subgraphs induced by the two sets while complementing visualization of their degrees in the entire network in the form of stubs.
 
 
-```{r ecprob_within_example_1_urchin, message=FALSE, warning=FALSE, echo=FALSE, out.width="30%", fig.width=12, fig.height = 8, fig.align = "center"}
-data("sample_gene_symbol_lookup")
-set1_id <- "GO:0032395"
-set1_name <- "MHC class II receptor activity"
-set1 <- get_neighbors(sample_ects@ecprob, set1_id)
-plot_urchin_graph(sample_ecp, set1, sample_gene_symbol_lookup)
+```{r plot_urchin_comparison, message=FALSE, warning=FALSE, echo=FALSE, fig.width=25, fig.height=12, out.width="80%", fig.align = "center"}
+library(patchwork)
+
+tsz <- 35
+
+# 1. Create Plot A and save it to a variable
+p_A <- plot_urchin_graph(sample_ecp, setA, sample_gene_symbol_lookup) + 
+  ggtitle(paste0("Set A: ", setA_id, "\n", setA_name, "\n",
+                 "set_size = ", length(setA), 
+                 ", observed_ec = ", statsA$observed_edge_count, "\n",
+                 "p_value = ", signif(statsA$p_value, digits = 3), "\n",
+                 "log2_Anscombe_ratio = ", signif(statsA$log2_Anscombe_ratio, digits = 3))) + 
+  theme(plot.title = element_text(size = tsz))
+
+# 2. Create Plot B and save it to a variable
+p_B <- plot_urchin_graph(sample_ecp, setB, sample_gene_symbol_lookup) + 
+  ggtitle(paste0("Set B: ", setB_id, "\n", setB_name, "\n",
+                 "set_size = ", length(setB), 
+                 ", observed_ec = ", statsB$observed_edge_count, "\n",
+                 "p_value = ", signif(statsB$p_value, digits = 3), "\n",
+                 "log2_Anscombe_ratio = ", signif(statsB$log2_Anscombe_ratio, digits = 3)))  + 
+  theme(plot.title = element_text(size = tsz))
+
+# 3. Combine them side-by-side using patchwork
+p_A + p_B
 ```
 
+#### Vectorized method
 
-```{r ecprob_within_example_2_urchin, message=FALSE, warning=FALSE, echo=FALSE, out.width="30%", fig.width=12, fig.height = 8, fig.align = "center"}
-set2_id <- "GO:0006729"
-set2_name <- "tetrahydrobiopterin biosynthetic process"
-set2 <- get_neighbors(sample_ects@ecprob, set2_id)
-plot_urchin_graph(sample_ecp, set2, sample_gene_symbol_lookup)
+```{r in_vectorized}
+# interaction network and associated ECProb
+data("sample_ecg")
+ecprob <- ECProb(sample_ecg)
+# bipartite graph: term-element relationships
+data("sample_ects")
+set_membership_dt <- as.data.table(to_dataframe(sample_ects))
+setnames(set_membership_dt, c("term", "element"), c("set_id", "element"))
+sets_to_test <- data.table(set_id = unique(set_membership_dt$set_id))
+length(sets_to_test$set_id)
+length(set_membership_dt$element)
+# within conncectedness statistics for all sets
+system.time(results <- calculate_in_stats_fast_vectorized(ecprob, sets_to_test, set_membership_dt))
+# adding annotation (term names, not just ids)
+data("sample_term_lookup")
+lookup_dt <- data.table(
+  set_id = names(sample_term_lookup),
+  term_name = sample_term_lookup
+)
+setkey(results, set_id)
+setkey(lookup_dt, set_id)
+annotated_results <- lookup_dt[results, on = "set_id"]
+setorder(annotated_results, -log2_Anscombe_ratio)
+
+print(annotated_results)
+
 ```
 
 ### Test for *between-set* connectedness
