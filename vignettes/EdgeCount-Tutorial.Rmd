@@ -446,6 +446,11 @@ library(patchwork)
 
 tsz <- 35
 
+```{r plot_urchin_comparison, message=FALSE, warning=FALSE, echo=FALSE, fig.width=25, fig.height=12, out.width="80%", fig.align = "center"}
+library(patchwork)
+
+tsz <- 35
+
 # 1. Create Plot A and save it to a variable
 p_A <- plot_urchin_graph(sample_ecp, setA, sample_gene_symbol_lookup) + 
   ggtitle(paste0("Set A: ", setA_id, "\n", setA_name, "\n",
@@ -497,6 +502,10 @@ setorder(annotated_results, -log2_Anscombe_ratio)
 print(annotated_results)
 
 ```
+
+#### Vectorized method
+
+
 
 ### Test for *between-set* connectedness
 
