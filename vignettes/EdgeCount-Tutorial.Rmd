@@ -370,11 +370,9 @@ Example of connectedness analyses within an undirected, unipartite graph are now
 
 This test answers the question: "Are the vertices of a given set $S$ more connected to each other than expected by *chance*?" The concept of *chance* is here based on the RGGED: the distribution of the number of edges within set $S$ over all possible realizations of the RGGED, which in average preserve degrees of all vertices. Using such a null model that accounts for individual vertex degrees is statistically important.
 
-
 #### Basic method 
 
-
-The package comes with a sample bipartite network `sample_ects` that mapps a trimmed version of GO categories to their human gene elements [[6]](#ref6), [[7]](#ref7), [[9]](#ref9). Object `sample_ects@ecprob` is utilized below to define with a term a set of elements/vertices which is then tested for its connectedness in interaction network `sample_ecp`.
+The package comes with a sample bipartite network `sample_ects` that maps a trimmed version of GO categories to their human gene elements [[6]](#ref6), [[7]](#ref7), [[9]](#ref9). Object `sample_ects@ecprob` is utilized below to define with a term a set of elements/vertices which is then tested for its connectedness in interaction network `sample_ecp`.
 
 ```{r setA_in, message=FALSE, warning=FALSE}
 # bipartite network (term-element relationships)
@@ -387,8 +385,9 @@ setA_name
 # elements mapped to term (bipartite network sample_ects@ecprob)
 setA <- get_neighbors(sample_ects@ecprob, setA_id) 
 length(setA)
-# observed edge count in the graph between elements (interaction network sample_ecp)
-data("sample_ecp")
+# observed edge count in the graph between elements (interaction network sample_ecg)
+data("sample_ecg")
+sample_ecp <- ECProb(sample_ecg)
 observed_ec <- get_edge_count_in(sample_ecp, setA) 
 # calculation of statistics
 statsA <- edge_count_statistics(sample_ecp, 
@@ -399,13 +398,13 @@ statsA <- edge_count_statistics(sample_ecp,
 statsA
 ```
 
-Method `edge_count_statistics` returns a lis:
+Method `edge_count_statistics` returns a list:
 
 - `$observed_edge_count` $x$ is the observed number of edges, here the edge count within `setA`
 - `max_possible_edges` $m$ is the maximum number of edges one could observe in the RGGED, here the number of pairs withing `setA`, i.e. $(7\times6)/2 = 21$
 - `$lambda`, $\lambda$ is the expected number of observed edges within `setA` in the RGGED, that is, the average number of edges over all realizations of the RGGED
 - `$p-value` $p_S$ is $\Pr\left( X \geq x\right)$, where $X$ is the random variable 'number of edges within `setA`' in the RGGED
-- `log2_Anscombe_ration` $lAr$ is the observed *log effect size*
+- `log2_Anscombe_ratio` $lAr$ is the observed *log effect size*
 
 Calling $p_{ij}$ the probability of connecting two vertices $i$ and $j$ of a set $S$ in the RGGED, $k$ the degree of a vertex, and $M$ the graph size we have in general
 
@@ -426,12 +425,21 @@ Namely, time complexity is now $O\left( \left| S \right|\right)$ instead of $O\l
 To illustrate the importance of accounting for the degree of each vertex consider now the following `setB`.
 
 ```{r setB_in, message=FALSE, warning=FALSE}
+# bipartite network (term-element relationships)
+data("sample_ects")
 setB_id <- "GO:0006729"
+# term descriptions
+data("sample_term_lookup")
 setB_name <- sample_term_lookup[setB_id]
 setB_name
+# elements mapped to term (bipartite network sample_ects@ecprob)
 setB <- get_neighbors(sample_ects@ecprob, setB_id) 
 length(setB)
+# observed edge count in the graph between elements (interaction network sample_ecg)
+data("sample_ecg")
+sample_ecp <- ECProb(sample_ecg)
 observed_ec <- get_edge_count_in(sample_ecp, setB) 
+# calculation of statistics
 statsB <- edge_count_statistics(sample_ecp, 
                                set1 = setB, 
                                set2 = NULL, 
@@ -440,7 +448,7 @@ statsB <- edge_count_statistics(sample_ecp,
 statsB
 ```
 
-While `setA` and `setB` have the same size, and thus the same `max_possible_edges` and the same `observed_edge-count`, `setB` has weaker connectedness than `setA`, as attested by a larger `p-value` and a smaller `log2_Anscombe_ratio`. This is due to `setB` having a larger `lambda` than `setA` because its vertices have larger degrees. This is illustrated below by plotting the subgraphs induced by the two sets while complementing visualization of their degrees in the entire network in the form of stubs.
+While `setA` and `setB` have the same size, and thus the same `max_possible_edges`, and the same `observed_edge-count`, `setB` has lesser connectedness than `setA`, as attested by a larger `p-value` and a smaller `log2_Anscombe_ratio`. This is due to `setB` having a larger `lambda` than `setA` because its vertices have larger degrees. This is illustrated below by plotting the subgraphs induced by the two sets while complementing visualization of their degrees in the entire network in the form of stubs.
 
 
 ```{r plot_urchin_comparison, message=FALSE, warning=FALSE, echo=FALSE, fig.width=25, fig.height=12, out.width="80%", fig.align = "center"}
@@ -466,11 +474,22 @@ p_B <- plot_urchin_graph(sample_ecp, setB, sample_gene_symbol_lookup) +
                  "log2_Anscombe_ratio = ", signif(statsB$log2_Anscombe_ratio, digits = 3)))  + 
   theme(plot.title = element_text(size = tsz))
 
-# 3. Combine them side-by-side using patchwork
+# 3
 p_A + p_B
 ```
 
 #### Vectorized method
+
+The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of sets as argument. **Note that this method is specific to the fast lambda approximation**.
+
+Method `calculate_in_stats_fast_vectorized(ecprob, sets_dt, set_membership_dt)` has the following arguments
+
+- `ecprob`: an instance of `ECProb` (interaction network)
+- `sets_dt`: a data table with a single column ("set_id") containing IDs of sets to test
+- `set_membership_dt': a data table with "set_id" and "element" columns (bipartite network)
+
+Below is the application of this method to the entire collection of sets  contained in `sample_ects` (GO categories [[6]](#ref6),[[7]](#ref7), [[8]](#ref8), [[9]](#ref9)) and the interaction network `sample_ecg` (extracted from STRING [[4]](#ref4),[[5]](#ref5)).
+
 
 ```{r in_vectorized}
 # interaction network and associated ECProb
@@ -500,10 +519,55 @@ print(annotated_results)
 
 ```
 
+The method has been optimized for speed and its returned value is a comprehensive data table containing edge-count statistics for each input set. Distributions of some of those statistics obtained with the above example are shown below.
+
+```{r plot_distributions, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=8, fig.align="center", out.width="90%"}
+# Load plotting libraries
+library(ggplot2)
+library(patchwork)
+
+# 1. Plot for Observed Edge Count (log10 scale)
+# We add +1 for the log-transform to handle the many 0s.
+p1 <- ggplot(annotated_results, aes(x = log10(observed_edge_count + 1))) +
+  geom_histogram(bins = 30, fill = "#0c4a6e", color = "white", alpha = 0.8) +
+  ggtitle("Observed Edge Count") +
+  xlab("log10(observed_edge_count + 1)") +
+  theme_minimal(base_size = 14)
+
+# 2. Plot for Lambda (Expected Count) (log10 scale)
+# We filter for lambda > 0 for the log-transform.
+p2 <- ggplot(annotated_results[lambda >0 ], aes(x = log10(lambda))) +
+  geom_histogram(bins = 30, fill = "#047857", color = "white", alpha = 0.8) +
+  ggtitle("Expected Edge Count") +
+  xlab("log10(lambda > 0)") +
+  theme_minimal(base_size = 14)
+
+# 3. Plot for P-Values
+# This histogram is key. A good result will have a spike at 0 (significant terms).
+p3 <- ggplot(annotated_results, aes(x = p_value)) +
+  geom_histogram(bins = 20, boundary = 0, fill = "#c2410c", color = "white", alpha = 0.8) +
+  ggtitle("P-Value") +
+  xlab("p_value") +
+  theme_minimal(base_size = 14)
+
+# 4. Plot for Log2 Anscombe Ratio (Effect Size)
+p4 <- ggplot(annotated_results, aes(x = log2_Anscombe_ratio)) +
+  geom_histogram(bins = 40, fill = "#9a3412", color = "white", alpha = 0.8) +
+  ggtitle("Effect Size") +
+  xlab("log2_Anscombe_ratio") +
+  theme_minimal(base_size = 14)
+
+# Combine all four plots into a 2x2 grid
+(p1 + p2) / (p3 + p4)
+```
 
 ### Test for *between-set* connectedness
 
-This analysis answers the question: "Are my two sets more connected to each other than expected by chance?"
+This test answers the question: "Are two given vertex sets $S_1$ and $S_2$ more connected to each other than expected by *chance*?" The concept of *chance* is again based on the RGGED: the distribution of the number of edges between $S_1$ and $S-2$ over all possible realizations of the RGGED, which is a null model accounting for individual vertex degrees.
+
+#### Basic method
+
+
 
 ```{r ecprob_between_example}
 # (Continuing from the example above)

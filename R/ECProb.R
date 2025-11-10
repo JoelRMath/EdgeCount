@@ -464,7 +464,7 @@ setMethod("calculate_between_stats_fast_vectorized",
 #' @param sets_dt A data table with a single column ("set_id")
 #' @param set_membership_dt A data table with "set_id" and "element" columns.
 #'
-#' @return A final `data.table` with stats (`observed_edges`, `lambda`, etc.).
+#' @return A data table with edge-count stattistics (`observed_edge_count`, `lambda`, etc.).
 #' @export
 #' @examples
 #' # Create sample data
