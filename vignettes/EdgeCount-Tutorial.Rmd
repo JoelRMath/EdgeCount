@@ -370,7 +370,9 @@ Example of connectedness analyses within an undirected, unipartite graph are now
 
 This test answers the question: "Are the vertices of a given set $S$ more connected to each other than expected by *chance*?" The concept of *chance* is here based on the RGGED: the distribution of the number of edges within set $S$ over all possible realizations of the RGGED, which in average preserve degrees of all vertices. Using such a null model that accounts for individual vertex degrees is statistically important.
 
+
 #### Basic method 
+
 
 The package comes with a sample bipartite network `sample_ects` that mapps a trimmed version of GO categories to their human gene elements [[6]](#ref6), [[7]](#ref7), [[9]](#ref9). Object `sample_ects@ecprob` is utilized below to define with a term a set of elements/vertices which is then tested for its connectedness in interaction network `sample_ecp`.
 
@@ -497,6 +499,7 @@ setorder(annotated_results, -log2_Anscombe_ratio)
 print(annotated_results)
 
 ```
+
 
 ### Test for *between-set* connectedness
 
