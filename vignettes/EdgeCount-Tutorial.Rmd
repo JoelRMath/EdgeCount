@@ -404,7 +404,9 @@ Method `edge_count_statistics` returns a list:
 - `max_possible_edges` $m$ is the maximum number of edges one could observe in the RGGED, here the number of pairs withing `setA`, i.e. $(7\times6)/2 = 21$
 - `$lambda`, $\lambda$ is the expected number of observed edges within `setA` in the RGGED, that is, the average number of edges over all realizations of the RGGED
 - `$p-value` $p_S$ is $\Pr\left( X \geq x\right)$, where $X$ is the random variable 'number of edges within `setA`' in the RGGED
-- `log2_Anscombe_ratio` $lAr$ is the observed *log effect size*
+- `$log2_Anscombe_ratio` $lAr$ is the observed *log effect size*
+- `$size1` is the size of the input set after it has been reduced to vertices represented in the `ECProb` object
+- `$size2` is used only for between-sets connectedness. Here it is zero because argument `set2` is null
 
 Calling $p_{ij}$ the probability of connecting two vertices $i$ and $j$ of a set $S$ in the RGGED, $k$ the degree of a vertex, and $M$ the graph size we have in general
 
@@ -415,7 +417,7 @@ $$p_S = \sum_{u=x}^m \Pr\left(X = u\right)$$
 $$\Pr\left(X = u\right) = \frac{1}{\alpha}\frac{\lambda^u}{u!}$$
 $$\alpha = \sum_{v=0}^{m} \frac{\lambda^v}{v!}$$
 $$lAr = \frac{1}{2} \log_2 \frac{x +3/8}{\lambda + 3/8}$$
-Using $lAr$ as effect size is important because $X$ will often have a truncated Poisson distribution of parameter $\lambda$ small enough to yield an asymmetric distribution.
+Using $lAr$ as effect size is important because $X$ can have a truncated Poisson distribution of parameter $\lambda$ small enough to yield an asymmetric distribution.
 
 With `lambda_method = "fast"` calculations are simplified
 
@@ -519,7 +521,7 @@ print(annotated_results)
 
 ```
 
-The method has been optimized for speed and its returned value is a comprehensive data table containing edge-count statistics for each input set. Distributions of some of those statistics obtained with the above example are shown below.
+Note that `set_size` corresponds to that of the input set reduced to vertices present in the `ECProb` object. Method `calculate_in_stats_fast_vectorized` has been optimized for speed and its returned value is a data table containing edge-count statistics. Distributions of some of those statistics obtained with the above example are shown below.
 
 ```{r plot_distributions, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=8, fig.align="center", out.width="90%"}
 # Load plotting libraries
@@ -563,11 +565,11 @@ p4 <- ggplot(annotated_results, aes(x = log2_Anscombe_ratio)) +
 
 ### Test for *between-set* connectedness
 
-This test answers the question: "Are two given vertex sets $S_1$ and $S_2$ more connected to each other than expected by *chance*?" The concept of *chance* is again based on the RGGED: the distribution of the number of edges between $S_1$ and $S-2$ over all possible realizations of the RGGED, which is a null model accounting for individual vertex degrees.
+This test answers the question: "Are two given vertex sets $S_1$ and $S_2$ more connected to each other than expected by *chance*?" The concept of *chance* is again based on the RGGED: the distribution of the number of edges between $S_1$ and $S_2$ over all possible realizations of the RGGED, a null model accounting for individual vertex degrees. This 'between-sets' connectedness is different from the 'within-connectedness' of individual sets. Therefore, the methods first reduce pairs of sets to their disjoint parts.
 
 #### Basic method
 
-
+The basic method is again `edge_count_statistics`. Its argument `observed_edge_count` is now obtained with method `get_edge_count_between`, which takes the two sets $S_1$ and $S_2$ as arguments.  
 
 ```{r ecprob_between_example}
 # (Continuing from the example above)

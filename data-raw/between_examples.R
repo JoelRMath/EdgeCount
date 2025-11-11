@@ -33,7 +33,9 @@ calculate_between_stats_slow <- function(object, pairs_dt, set_membership_dt) {
     elements1 <- term_to_elements_list[[set1_id]]
     elements2 <- term_to_elements_list[[set2_id]]
     elements1_d <- setdiff(elements1, elements2)
+    size1 <- length(elements1_d)
     elements2_d <- setdiff(elements2, elements1)
+    size2 <- length(elements2_d)
     sum_deg1 <- sum(all_element_degrees[elements1_d], na.rm = TRUE)
     sum_deg2 <- sum(all_element_degrees[elements2_d], na.rm = TRUE)
     observed <- get_edge_count_between(object, elements1, elements2)
@@ -46,7 +48,9 @@ calculate_between_stats_slow <- function(object, pairs_dt, set_membership_dt) {
       observed_edges = as.integer(observed),
       lambda = lambda,
       p_value = p_val,
-      log2_Anscombe_ratio = anscombe
+      log2_Anscombe_ratio = anscombe,
+      size1 = size1,
+      size2 = size2
     )
   }
   results_dt <- rbindlist(results_list)
@@ -57,40 +61,86 @@ calculate_between_stats_slow <- function(object, pairs_dt, set_membership_dt) {
 # BENCHMARK
 # ----------
 
-data(sample_ecg)
-data(sample_ects)
+run_benchmark <- function(){
 
-ecp <- ECProb(sample_ecg)
-candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects)
-set_membership <- as.data.table(to_dataframe(sample_ects))
-setnames(set_membership, c("term", "element"), c("set_id", "element"))
+  data(sample_ecg)
+  data(sample_ects)
 
-print(length(candidate_pairs[,set1]))
-test_pairs <- head(candidate_pairs, 10000)
+  ecp <- ECProb(sample_ecg)
+  candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects)
+  set_membership <- as.data.table(to_dataframe(sample_ects))
+  setnames(set_membership, c("term", "element"), c("set_id", "element"))
 
-message("Running 'slow but safe' version...")
-start_time_slow <- Sys.time()
-results_slow <- calculate_between_stats_slow(ecp, test_pairs, set_membership)
-end_time_slow <- Sys.time()
-time_diff_slow <- as.numeric(end_time_slow - start_time_slow, units = "secs")
-print(paste("Slow method time:", round(time_diff_slow, 4), "seconds"))
+  print(length(candidate_pairs[,set1]))
+  test_pairs <- head(candidate_pairs, 10000)
 
-message("Running fast vectorized S4 method...")
-start_time_fast <- Sys.time()
-results_fast <- calculate_between_stats_fast_vectorized(ecp, test_pairs, set_membership)
-end_time_fast <- Sys.time()
-time_diff_fast <- as.numeric(end_time_fast - start_time_fast, units = "secs")
-print(paste("Fast method time:", round(time_diff_fast, 4), "seconds"))
+  message("Running 'slow but safe' version...")
+  start_time_slow <- Sys.time()
+  results_slow <- calculate_between_stats_slow(ecp, test_pairs, set_membership)
+  end_time_slow <- Sys.time()
+  time_diff_slow <- as.numeric(end_time_slow - start_time_slow, units = "secs")
+  print(paste("Slow method time:", round(time_diff_slow, 4), "seconds"))
 
-message("\n--- Comparing outputs for identity ---")
-setorder(results_slow, set1, set2)
-setorder(results_fast, set1, set2)
+  message("Running fast vectorized S4 method...")
+  start_time_fast <- Sys.time()
+  results_fast <- calculate_between_stats_fast_vectorized(ecp, test_pairs, set_membership)
+  end_time_fast <- Sys.time()
+  time_diff_fast <- as.numeric(end_time_fast - start_time_fast, units = "secs")
+  print(paste("Fast method time:", round(time_diff_fast, 4), "seconds"))
 
-comparison_result <- all.equal(results_slow, results_fast)
+  message("\n--- Comparing outputs for identity ---")
+  setorder(results_slow, set1, set2)
+  setcolorder(results_slow, sort(names(results_slow)))
+  setorder(results_fast, set1, set2)
+  setcolorder(results_fast, sort(names(results_fast)))
 
-if (isTRUE(comparison_result)) {
-  message("SUCCESS: The outputs of the slow and fast methods are identical.")
-} else {
-  message("FAILURE: The outputs are different. Details below:")
-  print(comparison_result)
+  comparison_result <- all.equal(results_slow, results_fast)
+
+  if (isTRUE(comparison_result)) {
+    message("SUCCESS: The outputs of the slow and fast methods are identical.")
+  } else {
+    message("FAILURE: The outputs are different. Details below:")
+    print(comparison_result)
+  }
 }
+
+save_pairs <- function(){
+
+  data(sample_ecg)
+  data(sample_ects)
+
+  ecp <- ECProb(sample_ecg)
+  candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects)
+  set_membership <- as.data.table(to_dataframe(sample_ects))
+  setnames(set_membership, c("term", "element"), c("set_id", "element"))
+
+  print(length(candidate_pairs[,set1]))
+  test_pairs <- candidate_pairs
+
+  message("Running fast vectorized S4 method...")
+  print(system.time(
+    results <- calculate_between_stats_fast_vectorized(ecp, test_pairs, set_membership)
+  ))
+  setorder(results, -log2_Anscombe_ratio)
+  results_red <- results[1:10000]
+
+  data("sample_term_lookup")
+  lookup_dt <- data.table(
+    set_id = names(sample_term_lookup),
+    term_name = sample_term_lookup
+  )
+
+  annotated_results <- copy(results_red)
+  annotated_results[lookup_dt, on = .(set1 = set_id), term_name_1 := i.term_name]
+  annotated_results[lookup_dt, on = .(set2 = set_id), term_name_2 := i.term_name]
+
+  print(annotated_results)
+  fwrite(annotated_results, "data-raw/res/between_top10000.tsv", sep = "\t", quote = FALSE)
+  print(annotated_results)
+}
+
+# --- MAIN ---
+
+# run_benchmark()
+
+save_pairs()

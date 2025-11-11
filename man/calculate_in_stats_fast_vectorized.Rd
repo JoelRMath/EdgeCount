@@ -17,7 +17,7 @@ calculate_in_stats_fast_vectorized(object, sets_dt, set_membership_dt)
 \item{set_membership_dt}{A data table with "set_id" and "element" columns.}
 }
 \value{
-A final `data.table` with stats (`observed_edges`, `lambda`, etc.).
+A data table with edge-count stattistics (`observed_edge_count`, `lambda`, etc.).
 }
 \description{
 Calculates fast within-set statistics for a collection of sets

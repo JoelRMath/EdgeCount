@@ -452,7 +452,7 @@ setMethod("calculate_between_stats_fast_vectorized",
             final_dt[, p_value := calculate_p_value(object, observed_edges, max_possible_edges, lambda)]
             final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
 
-            return(final_dt[, .(set1, set2, observed_edges, lambda, p_value, log2_Anscombe_ratio)])
+            return(final_dt[, .(set1, size1, set2, size2, observed_edges, lambda, p_value, log2_Anscombe_ratio)])
           })
 
 #' @title Vectorized calculation of fast within-set statistics
@@ -578,6 +578,8 @@ setMethod(
 
     valid_set1 <- unique(set1[set1 %in% object@names])
     max_possible_edges <- 0
+    size1 <- 0
+    size2 <- 0
 
     if (is.null(set2)) {
       lambda <- switch(lambda_method,
@@ -586,6 +588,7 @@ setMethod(
                        fast = calculate_lambda_in_fast(object, valid_set1),
                        stop("Invalid method for within-set analysis."))
       max_possible_edges <- length(valid_set1) * (length(valid_set1) - 1) / 2
+      size1 <- length(valid_set1)
     } else {
       valid_set2 <- unique(set2[set2 %in% object@names])
       lambda <- switch(lambda_method,
@@ -594,6 +597,8 @@ setMethod(
                        fast = calculate_lambda_between_fast(object, valid_set1, valid_set2),
                        stop("Invalid method for between-set analysis."))
       max_possible_edges <- length(valid_set1) * length(valid_set2)
+      size1 <- length(valid_set1)
+      size2 <- length(valid_set2)
     }
 
     p_value <- calculate_p_value(object, observed_edge_count, max_possible_edges, lambda)
@@ -607,7 +612,9 @@ setMethod(
                 observed_edge_count = observed_edge_count,
                 log2_Anscombe_ratio = log2_Anscombe_ratio,
                 lambda = lambda,
-                max_possible_edges = max_possible_edges))
+                max_possible_edges = max_possible_edges,
+                size1 = size1,
+                size2 = size2))
   })
 
 #' @title Calculate P-value for an Observed Edge Count
