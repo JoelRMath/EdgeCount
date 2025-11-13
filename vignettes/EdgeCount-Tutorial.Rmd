@@ -173,6 +173,151 @@ plot_urchin_graph <- function(ecp, core_set, symbol_lookup = NULL) {
       plot.margin = unit(c(1, 1, 1, 1), "cm")
     )
 }
+
+plot_between_sets <- function(ecp, core_set_1, core_set_2, symbol_lookup = NULL) {
+
+  if (!requireNamespace("igraph", quietly = TRUE) || !requireNamespace("ggraph", quietly = TRUE)) {
+    message("Packages 'igraph' and 'ggraph' are required to plot the graph.")
+    return(invisible(NULL))
+  }
+
+  # --- 1. Identify Node Sets ---
+  nodes_set_1 <- intersect(core_set_1, ecp@names)
+  nodes_set_2 <- intersect(core_set_2, ecp@names)
+
+  inter <- intersect(nodes_set_1, nodes_set_2)
+  nodes_set_1 <- setdiff(nodes_set_1, inter)
+  nodes_set_2 <- setdiff(nodes_set_2, inter)
+
+  all_core_nodes <- union(nodes_set_1, nodes_set_2)
+
+  if (length(all_core_nodes) == 0) return(invisible(NULL))
+
+  # --- 2. Initialize Edge & Node Lists ---
+  intra_edges_list <- list()
+  inter_edges_list <- list()
+  external_stubs_list <- list()
+  stub_nodes <- c()
+
+  # --- 3. Loop over all core nodes to categorize edges ---
+  for (node in all_core_nodes) {
+    all_neighbors <- ecp@adj[[node]]
+
+    # Get neighbors from all categories
+    neighbors_in_set_1 <- intersect(all_neighbors, nodes_set_1)
+    neighbors_in_set_2 <- intersect(all_neighbors, nodes_set_2)
+    external_neighbors <- setdiff(all_neighbors, all_core_nodes)
+
+    n_external <- length(external_neighbors)
+
+    # --- Edge Logic ---
+    # We only build edges *from* Set 1 to avoid duplication
+    if (node %in% nodes_set_1) {
+      # Add Intra-Set 1 edges
+      if (length(neighbors_in_set_1) > 0) {
+        # Filter for non-duplicates
+        neighbors_in_set_1_filtered <- neighbors_in_set_1[neighbors_in_set_1 > node]
+        if (length(neighbors_in_set_1_filtered) > 0) {
+          intra_edges_list <- c(intra_edges_list, list(data.table(
+            from = node, to = neighbors_in_set_1_filtered, type = "Intra-set"
+          )))
+        }
+      }
+
+      # Add Inter-Set edges (from Set 1 to Set 2)
+      if (length(neighbors_in_set_2) > 0) {
+        inter_edges_list <- c(inter_edges_list, list(data.table(
+          from = node, to = neighbors_in_set_2, type = "Inter-set"
+        )))
+      }
+    }
+
+    # Add Intra-Set 2 edges (looping only from Set 2 nodes)
+    if (node %in% nodes_set_2) {
+      if (length(neighbors_in_set_2) > 0) {
+        neighbors_in_set_2_filtered <- neighbors_in_set_2[neighbors_in_set_2 > node]
+        if (length(neighbors_in_set_2_filtered) > 0) {
+          intra_edges_list <- c(intra_edges_list, list(data.table(
+            from = node, to = neighbors_in_set_2_filtered, type = "Intra-set"
+          )))
+        }
+      }
+    }
+
+    # --- Stub Logic ---
+    n_external <- 0
+    if (n_external > 0) {
+      new_stub_nodes <- paste0(node, "_stub_", 1:n_external)
+      stub_nodes <- c(stub_nodes, new_stub_nodes)
+
+      external_stubs_list <- c(external_stubs_list, list(data.table(
+        from = node, to = new_stub_nodes, type = "External"
+      )))
+    }
+  }
+
+  # --- 4. Create Node Metadata ---
+  nodes_df <- data.frame(
+    name = c(nodes_set_1, nodes_set_2, stub_nodes),
+    category = c(rep("Set 1", length(nodes_set_1)),
+                 rep("Set 2", length(nodes_set_2)),
+                 rep("Spike", length(stub_nodes))),
+    stringsAsFactors = FALSE
+  )
+
+  nodes_df$label <- NA_character_
+  if (!is.null(symbol_lookup)) {
+    core_indices <- which(nodes_df$category %in% c("Set 1", "Set 2"))
+    core_node_ids <- nodes_df$name[core_indices]
+
+    symbols <- symbol_lookup[core_node_ids]
+    nodes_df$label[core_indices] <- ifelse(is.na(symbols), core_node_ids, symbols)
+  }
+
+  # --- 5. Create Final Edge Table ---
+  all_edges_df <- rbindlist(c(intra_edges_list, inter_edges_list, external_stubs_list))
+
+  # --- 6. Create igraph Object ---
+  g <- igraph::graph_from_data_frame(all_edges_df, directed = FALSE, vertices = nodes_df)
+
+
+  ggraph(g) +
+    # Draw edges
+    geom_edge_link(
+      aes(width = type, alpha = type, color = type)
+    ) +
+    # Define edge styles
+    scale_edge_width_manual(values = c("Inter-set" = 2.0, "Intra-set" = 0.5, "External" = 0.5)) +
+    scale_edge_alpha_manual(values = c("Inter-set" = 1.0, "Intra-set" = 0.8, "External" = 0.6)) +
+    scale_edge_color_manual(values = c("Inter-set" = "red", "Intra-set" = "black", "External" = "gray")) +
+
+    # Draw nodes
+    geom_node_point(
+      aes(size = category, fill = category, color = category),
+      shape = 21,
+      stroke = 1
+    ) +
+    scale_size_manual(values = c("Set 1" = 6, "Set 2" = 6, "Spike" = 0.01)) +
+    scale_fill_manual(values = c("Set 1" = "#FFA500", "Set 2" = "#00BFFF", "Spike" = "white")) +
+    scale_color_manual(values = c("Set 1" = "black", "Set 2" = "black", "Spike" = "white")) +
+
+    # Add labels
+    geom_node_text(aes(label = label),
+                   repel = TRUE,
+                   color = "black",
+                   bg.color = NA,
+                   bg.r = 0.15,
+                   fontface = "bold",
+                   size = 5) +
+
+    coord_cartesian(clip = "off") +
+    theme_void() +
+    theme(
+      legend.position = "none",
+      plot.margin = unit(c(1, 1, 1, 1), "cm")
+    )
+}
+
 ```
 
 ```{css, echo=FALSE}
@@ -572,26 +717,24 @@ This test answers the question: "Are two given vertex sets $S_1$ and $S_2$ more 
 The basic method is again `edge_count_statistics`. Its argument `observed_edge_count` is now obtained with method `get_edge_count_between`, which takes the two sets $S_1$ and $S_2$ as arguments.  
 
 ```{r ecprob_between_example}
-# (Continuing from the example above)
+line <- 316
+df <- read.table("../data-raw/res/between_top10000.tsv", sep="\t", header = TRUE, quote = "", stringsAsFactors = FALSE)
+setA_id <- df[line, 1]
+setB_id <- df[line, 3]
+# bipartite network (term-element relationships)
+data("sample_ects")
+data("sample_term_lookup")
+setA_name <- sample_term_lookup[setA_id]
+print(setA_name)
+setB_name <- sample_term_lookup[setB_id]
+print(setB_name)
+setA <- get_neighbors(sample_ects@ecprob, setA_id) 
+setB <- get_neighbors(sample_ects@ecprob, setB_id) 
+# observed edge count in the graph between elements (interaction network sample_ecg)
+data("sample_ecg")
+sample_ecp <- ECProb(sample_ecg)
+plot_between_sets(sample_ecp, setA, setB)
 
-# 1. Define two sets of interest
-set_1 <- c("A", "B")
-set_2 <- c("D", "E")
-
-# 2. Calculate statistics
-#    - First, get the observed edge count
-obs_ec <- get_edge_count_between(ecp, set_1, set_2)
-print(paste("Observed edges:", obs_ec))
-
-#    - Then, get the full statistics
-stats_between <- edge_count_statistics(
-  ecp,
-  set1 = set_1,
-  set2 = set_2,
-  observed_edge_count = obs_ec,
-  lambda_method = "fast"
-)
-print(stats_between)
 ```
 
 ## Analysis of Bipartite Graphs (ECTermScoring)
