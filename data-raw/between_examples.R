@@ -57,10 +57,6 @@ calculate_between_stats_slow <- function(object, pairs_dt, set_membership_dt) {
   return(cbind(pairs_dt, results_dt))
 }
 
-# ----------
-# BENCHMARK
-# ----------
-
 run_benchmark <- function(){
 
   data(sample_ecg)
@@ -110,7 +106,10 @@ save_pairs <- function(){
   data(sample_ects)
 
   ecp <- ECProb(sample_ecg)
-  candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects)
+
+  print(system.time(
+    candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects))
+  )
   set_membership <- as.data.table(to_dataframe(sample_ects))
   setnames(set_membership, c("term", "element"), c("set_id", "element"))
 
@@ -122,7 +121,9 @@ save_pairs <- function(){
     results <- calculate_between_stats_fast_vectorized(ecp, test_pairs, set_membership)
   ))
   setorder(results, -log2_Anscombe_ratio)
-  results_red <- results[1:10000]
+  results_red <- results[size1 > 3 & size2 > 3]
+  select_dt <- results[(size1 == 6 & size2 == 5 & observed_edges == 21) | (size1 == 5 & size2 == 6 & observed_edges == 21)]
+  results_red <- results[1:5000]
 
   data("sample_term_lookup")
   lookup_dt <- data.table(
@@ -134,9 +135,13 @@ save_pairs <- function(){
   annotated_results[lookup_dt, on = .(set1 = set_id), term_name_1 := i.term_name]
   annotated_results[lookup_dt, on = .(set2 = set_id), term_name_2 := i.term_name]
 
-  print(annotated_results)
-  fwrite(annotated_results, "data-raw/res/between_top10000.tsv", sep = "\t", quote = FALSE)
-  print(annotated_results)
+  annotated_select <- copy(select_dt)
+  annotated_select[lookup_dt, on = .(set1 = set_id), term_name_1 := i.term_name]
+  annotated_select[lookup_dt, on = .(set2 = set_id), term_name_2 := i.term_name]
+
+  fwrite(annotated_results, "data-raw/res/between_examples.tsv", sep = "\t", quote = FALSE)
+  fwrite(annotated_select, "data-raw/res/between_select.tsv", sep = "\t", quote = FALSE)
+  # print(annotated_results)
 }
 
 # --- MAIN ---

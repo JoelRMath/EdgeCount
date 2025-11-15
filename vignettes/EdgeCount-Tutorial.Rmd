@@ -318,6 +318,132 @@ plot_between_sets <- function(ecp, core_set_1, core_set_2, symbol_lookup = NULL)
     )
 }
 
+plot_between_comparison <- function(ecp, core_set_1, core_set_2, symbol_lookup = NULL) {
+  
+  if (!requireNamespace("igraph", quietly = TRUE) || !requireNamespace("ggraph", quietly = TRUE)) {
+    message("Packages 'igraph' and 'ggraph' are required to plot the graph.")
+    return(invisible(NULL))
+  }
+  
+  # --- 1. Identify Node Sets (Disjoint Only) ---
+  valid_set_1 <- intersect(core_set_1, ecp@names)
+  valid_set_2 <- intersect(core_set_2, ecp@names)
+  
+  nodes_set_1_disjoint <- setdiff(valid_set_1, valid_set_2)
+  nodes_set_2_disjoint <- setdiff(valid_set_2, valid_set_1)
+  
+  all_core_nodes <- c(nodes_set_1_disjoint, nodes_set_2_disjoint)
+  
+  if (length(all_core_nodes) == 0) return(invisible(NULL))
+
+  # --- 2. Initialize Edge Lists ---
+  intra_edges_list <- list()
+  inter_edges_list <- list()
+
+  # --- 3. Loop over all core nodes to categorize edges ---
+  for (node in all_core_nodes) {
+    all_neighbors <- ecp@adj[[node]]
+    
+    neighbors_in_set_1 <- intersect(all_neighbors, nodes_set_1_disjoint)
+    neighbors_in_set_2 <- intersect(all_neighbors, nodes_set_2_disjoint)
+    
+    # --- Edge Logic ---
+    if (node %in% nodes_set_1_disjoint) {
+      # Add Intra-Set 1 edges
+      if (length(neighbors_in_set_1) > 0) {
+        internal_neighbors_filtered <- neighbors_in_set_1[neighbors_in_set_1 > node]
+        if (length(internal_neighbors_filtered) > 0) {
+          intra_edges_list <- c(intra_edges_list, list(data.table(
+            from = node, to = internal_neighbors_filtered, type = "Intra-set", 
+            layout_weight = 10  # <-- HIGH weight to keep cluster tight
+          )))
+        }
+      }
+      # Add Inter-Set edges (from Set 1 to Set 2)
+      if (length(neighbors_in_set_2) > 0) {
+        inter_edges_list <- c(inter_edges_list, list(data.table(
+          from = node, to = neighbors_in_set_2, type = "Inter-set", 
+          layout_weight = 1   # <-- LOW weight to allow separation
+        )))
+      }
+    }
+    
+    # Add Intra-Set 2 edges (looping only from Set 2 nodes)
+    if (node %in% nodes_set_2_disjoint) {
+      if (length(neighbors_in_set_2) > 0) {
+        internal_neighbors_filtered <- neighbors_in_set_2[neighbors_in_set_2 > node]
+        if (length(internal_neighbors_filtered) > 0) {
+          intra_edges_list <- c(intra_edges_list, list(data.table(
+            from = node, to = internal_neighbors_filtered, type = "Intra-set", 
+            layout_weight = 10  # <-- HIGH weight to keep cluster tight
+          )))
+        }
+      }
+    }
+  }
+
+  # --- 4. Create Node Metadata ---
+  nodes_df <- data.frame(
+    name = c(nodes_set_1_disjoint, nodes_set_2_disjoint),
+    category = c(rep("Set 1", length(nodes_set_1_disjoint)), 
+                 rep("Set 2", length(nodes_set_2_disjoint))),
+    stringsAsFactors = FALSE
+  )
+  
+  nodes_df$label <- NA_character_ 
+  if (!is.null(symbol_lookup)) {
+    core_indices <- which(nodes_df$category %in% c("Set 1", "Set 2"))
+    core_node_ids <- nodes_df$name[core_indices]
+    
+    symbols <- symbol_lookup[core_node_ids]
+    nodes_df$label[core_indices] <- ifelse(is.na(symbols), core_node_ids, symbols)
+  }
+
+  # --- 5. Create Final Edge Table ---
+  all_edges_df <- rbindlist(c(intra_edges_list, inter_edges_list))
+  
+  # --- 6. Create igraph Object ---
+  g <- igraph::graph_from_data_frame(all_edges_df, directed = FALSE, vertices = nodes_df)
+  
+  # --- 7. Plot with ggraph ---
+  # Use the 'layout_weight' attribute to drive the 'fr' layout
+  layout <- create_layout(g, layout = 'fr', weights = E(g)$layout_weight)
+  
+  ggraph(layout) +
+    # Draw edges
+    geom_edge_link(
+      aes(width = type, alpha = type, color = type)
+    ) +
+    # Define *visual* edge styles (Inter-set is thick, Intra-set is thin)
+    scale_edge_width_manual(values = c("Inter-set" = 4.0, "Intra-set" = 1)) +
+    scale_edge_alpha_manual(values = c("Inter-set" = 1.0, "Intra-set" = 1)) +
+    scale_edge_color_manual(values = c("Inter-set" = "blue", "Intra-set" = "black")) +
+    
+    # Draw nodes
+    geom_node_point(
+      aes(fill = category, color = category), 
+      shape = 21,
+      size = 30,
+      stroke = 1
+    ) +
+    scale_fill_manual(values = c("Set 1" = "#FFA500", "Set 2" = "green")) +
+    scale_color_manual(values = c("Set 1" = "black", "Set 2" = "black")) +
+    
+    # Add labels
+    geom_node_text(aes(label = label),
+                   repel = TRUE, 
+                   color = "black",
+                   bg.color = NA,
+                   bg.r = 0.15,
+                   size = 12) +
+    
+    coord_cartesian(clip = "off") + 
+    theme_void() +
+    theme(
+      legend.position = "none",
+      plot.margin = unit(c(1, 1, 1, 1), "cm")
+    )
+}
 ```
 
 ```{css, echo=FALSE}
@@ -669,42 +795,33 @@ print(annotated_results)
 Note that `set_size` corresponds to that of the input set reduced to vertices present in the `ECProb` object. Method `calculate_in_stats_fast_vectorized` has been optimized for speed and its returned value is a data table containing edge-count statistics. Distributions of some of those statistics obtained with the above example are shown below.
 
 ```{r plot_distributions, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=8, fig.align="center", out.width="90%"}
-# Load plotting libraries
 library(ggplot2)
 library(patchwork)
 
-# 1. Plot for Observed Edge Count (log10 scale)
-# We add +1 for the log-transform to handle the many 0s.
 p1 <- ggplot(annotated_results, aes(x = log10(observed_edge_count + 1))) +
   geom_histogram(bins = 30, fill = "#0c4a6e", color = "white", alpha = 0.8) +
   ggtitle("Observed Edge Count") +
   xlab("log10(observed_edge_count + 1)") +
   theme_minimal(base_size = 14)
 
-# 2. Plot for Lambda (Expected Count) (log10 scale)
-# We filter for lambda > 0 for the log-transform.
 p2 <- ggplot(annotated_results[lambda >0 ], aes(x = log10(lambda))) +
   geom_histogram(bins = 30, fill = "#047857", color = "white", alpha = 0.8) +
   ggtitle("Expected Edge Count") +
   xlab("log10(lambda > 0)") +
   theme_minimal(base_size = 14)
 
-# 3. Plot for P-Values
-# This histogram is key. A good result will have a spike at 0 (significant terms).
 p3 <- ggplot(annotated_results, aes(x = p_value)) +
   geom_histogram(bins = 20, boundary = 0, fill = "#c2410c", color = "white", alpha = 0.8) +
   ggtitle("P-Value") +
   xlab("p_value") +
   theme_minimal(base_size = 14)
 
-# 4. Plot for Log2 Anscombe Ratio (Effect Size)
 p4 <- ggplot(annotated_results, aes(x = log2_Anscombe_ratio)) +
   geom_histogram(bins = 40, fill = "#9a3412", color = "white", alpha = 0.8) +
   ggtitle("Effect Size") +
   xlab("log2_Anscombe_ratio") +
   theme_minimal(base_size = 14)
 
-# Combine all four plots into a 2x2 grid
 (p1 + p2) / (p3 + p4)
 ```
 
@@ -716,26 +833,46 @@ This test answers the question: "Are two given vertex sets $S_1$ and $S_2$ more 
 
 The basic method is again `edge_count_statistics`. Its argument `observed_edge_count` is now obtained with method `get_edge_count_between`, which takes the two sets $S_1$ and $S_2$ as arguments.  
 
-```{r ecprob_between_example}
-line <- 316
-df <- read.table("../data-raw/res/between_top10000.tsv", sep="\t", header = TRUE, quote = "", stringsAsFactors = FALSE)
-setA_id <- df[line, 1]
-setB_id <- df[line, 3]
-# bipartite network (term-element relationships)
+
+```{r plot_between_comparison, message=FALSE, warning=FALSE, echo=FALSE, fig.width=25, fig.height=12, out.width="80%", fig.align = "center"}
+set1_id <- "GO:0000221"
+set2_id <- "GO:0016471"
+set3_id <- "GO:0071986"
+set4_id <- "GO:1990130"
 data("sample_ects")
 data("sample_term_lookup")
-setA_name <- sample_term_lookup[setA_id]
-print(setA_name)
-setB_name <- sample_term_lookup[setB_id]
-print(setB_name)
-setA <- get_neighbors(sample_ects@ecprob, setA_id) 
-setB <- get_neighbors(sample_ects@ecprob, setB_id) 
-# observed edge count in the graph between elements (interaction network sample_ecg)
+set1_name <- sample_term_lookup[set1_id]
+set2_name <- sample_term_lookup[set2_id]
+set3_name <- sample_term_lookup[set3_id]
+set4_name <- sample_term_lookup[set4_id]
+
+set1 <- get_neighbors(sample_ects@ecprob, set1_id) 
+set2 <- get_neighbors(sample_ects@ecprob, set2_id) 
+set3 <- get_neighbors(sample_ects@ecprob, set3_id) 
+set4 <- get_neighbors(sample_ects@ecprob, set4_id) 
+
 data("sample_ecg")
 sample_ecp <- ECProb(sample_ecg)
-plot_between_sets(sample_ecp, setA, setB)
 
+
+tsz <- 35
+
+# 1. Create Plot A and save it to a variable
+p_A <- plot_between_comparison(sample_ecp, set1, set2, sample_gene_symbol_lookup) + 
+  ggtitle(paste0("")) + 
+  theme(plot.title = element_text(size = tsz))
+
+# 2. Create Plot B and save it to a variable
+p_B <- plot_between_comparison(sample_ecp, set3, set4, sample_gene_symbol_lookup) + 
+  ggtitle(paste0(""))  + 
+  theme(plot.title = element_text(size = tsz))
+
+# 3
+p_A + p_B
 ```
+
+
+
 
 ## Analysis of Bipartite Graphs (ECTermScoring)
 
