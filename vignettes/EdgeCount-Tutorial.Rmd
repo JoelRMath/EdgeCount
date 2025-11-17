@@ -174,150 +174,6 @@ plot_urchin_graph <- function(ecp, core_set, symbol_lookup = NULL) {
     )
 }
 
-plot_between_sets <- function(ecp, core_set_1, core_set_2, symbol_lookup = NULL) {
-
-  if (!requireNamespace("igraph", quietly = TRUE) || !requireNamespace("ggraph", quietly = TRUE)) {
-    message("Packages 'igraph' and 'ggraph' are required to plot the graph.")
-    return(invisible(NULL))
-  }
-
-  # --- 1. Identify Node Sets ---
-  nodes_set_1 <- intersect(core_set_1, ecp@names)
-  nodes_set_2 <- intersect(core_set_2, ecp@names)
-
-  inter <- intersect(nodes_set_1, nodes_set_2)
-  nodes_set_1 <- setdiff(nodes_set_1, inter)
-  nodes_set_2 <- setdiff(nodes_set_2, inter)
-
-  all_core_nodes <- union(nodes_set_1, nodes_set_2)
-
-  if (length(all_core_nodes) == 0) return(invisible(NULL))
-
-  # --- 2. Initialize Edge & Node Lists ---
-  intra_edges_list <- list()
-  inter_edges_list <- list()
-  external_stubs_list <- list()
-  stub_nodes <- c()
-
-  # --- 3. Loop over all core nodes to categorize edges ---
-  for (node in all_core_nodes) {
-    all_neighbors <- ecp@adj[[node]]
-
-    # Get neighbors from all categories
-    neighbors_in_set_1 <- intersect(all_neighbors, nodes_set_1)
-    neighbors_in_set_2 <- intersect(all_neighbors, nodes_set_2)
-    external_neighbors <- setdiff(all_neighbors, all_core_nodes)
-
-    n_external <- length(external_neighbors)
-
-    # --- Edge Logic ---
-    # We only build edges *from* Set 1 to avoid duplication
-    if (node %in% nodes_set_1) {
-      # Add Intra-Set 1 edges
-      if (length(neighbors_in_set_1) > 0) {
-        # Filter for non-duplicates
-        neighbors_in_set_1_filtered <- neighbors_in_set_1[neighbors_in_set_1 > node]
-        if (length(neighbors_in_set_1_filtered) > 0) {
-          intra_edges_list <- c(intra_edges_list, list(data.table(
-            from = node, to = neighbors_in_set_1_filtered, type = "Intra-set"
-          )))
-        }
-      }
-
-      # Add Inter-Set edges (from Set 1 to Set 2)
-      if (length(neighbors_in_set_2) > 0) {
-        inter_edges_list <- c(inter_edges_list, list(data.table(
-          from = node, to = neighbors_in_set_2, type = "Inter-set"
-        )))
-      }
-    }
-
-    # Add Intra-Set 2 edges (looping only from Set 2 nodes)
-    if (node %in% nodes_set_2) {
-      if (length(neighbors_in_set_2) > 0) {
-        neighbors_in_set_2_filtered <- neighbors_in_set_2[neighbors_in_set_2 > node]
-        if (length(neighbors_in_set_2_filtered) > 0) {
-          intra_edges_list <- c(intra_edges_list, list(data.table(
-            from = node, to = neighbors_in_set_2_filtered, type = "Intra-set"
-          )))
-        }
-      }
-    }
-
-    # --- Stub Logic ---
-    n_external <- 0
-    if (n_external > 0) {
-      new_stub_nodes <- paste0(node, "_stub_", 1:n_external)
-      stub_nodes <- c(stub_nodes, new_stub_nodes)
-
-      external_stubs_list <- c(external_stubs_list, list(data.table(
-        from = node, to = new_stub_nodes, type = "External"
-      )))
-    }
-  }
-
-  # --- 4. Create Node Metadata ---
-  nodes_df <- data.frame(
-    name = c(nodes_set_1, nodes_set_2, stub_nodes),
-    category = c(rep("Set 1", length(nodes_set_1)),
-                 rep("Set 2", length(nodes_set_2)),
-                 rep("Spike", length(stub_nodes))),
-    stringsAsFactors = FALSE
-  )
-
-  nodes_df$label <- NA_character_
-  if (!is.null(symbol_lookup)) {
-    core_indices <- which(nodes_df$category %in% c("Set 1", "Set 2"))
-    core_node_ids <- nodes_df$name[core_indices]
-
-    symbols <- symbol_lookup[core_node_ids]
-    nodes_df$label[core_indices] <- ifelse(is.na(symbols), core_node_ids, symbols)
-  }
-
-  # --- 5. Create Final Edge Table ---
-  all_edges_df <- rbindlist(c(intra_edges_list, inter_edges_list, external_stubs_list))
-
-  # --- 6. Create igraph Object ---
-  g <- igraph::graph_from_data_frame(all_edges_df, directed = FALSE, vertices = nodes_df)
-
-
-  ggraph(g) +
-    # Draw edges
-    geom_edge_link(
-      aes(width = type, alpha = type, color = type)
-    ) +
-    # Define edge styles
-    scale_edge_width_manual(values = c("Inter-set" = 2.0, "Intra-set" = 0.5, "External" = 0.5)) +
-    scale_edge_alpha_manual(values = c("Inter-set" = 1.0, "Intra-set" = 0.8, "External" = 0.6)) +
-    scale_edge_color_manual(values = c("Inter-set" = "red", "Intra-set" = "black", "External" = "gray")) +
-
-    # Draw nodes
-    geom_node_point(
-      aes(size = category, fill = category, color = category),
-      shape = 21,
-      stroke = 1
-    ) +
-    scale_size_manual(values = c("Set 1" = 6, "Set 2" = 6, "Spike" = 0.01)) +
-    scale_fill_manual(values = c("Set 1" = "#FFA500", "Set 2" = "#00BFFF", "Spike" = "white")) +
-    scale_color_manual(values = c("Set 1" = "black", "Set 2" = "black", "Spike" = "white")) +
-
-    # Add labels
-    geom_node_text(aes(label = label),
-                   repel = TRUE,
-                   color = "black",
-                   bg.color = NA,
-                   bg.r = 0.15,
-                   fontface = "bold",
-                   size = 5) +
-
-    coord_cartesian(clip = "off") +
-    theme_void() +
-    theme(
-      legend.position = "none",
-      plot.margin = unit(c(1, 1, 1, 1), "cm")
-    )
-}
-
 plot_between_comparison <- function(ecp, core_set_1, core_set_2, symbol_lookup = NULL) {
   
   if (!requireNamespace("igraph", quietly = TRUE) || !requireNamespace("ggraph", quietly = TRUE)) {
@@ -423,10 +279,10 @@ plot_between_comparison <- function(ecp, core_set_1, core_set_2, symbol_lookup =
     geom_node_point(
       aes(fill = category, color = category), 
       shape = 21,
-      size = 30,
-      stroke = 1
+      size = 34,
+      stroke = 2
     ) +
-    scale_fill_manual(values = c("Set 1" = "#FFA500", "Set 2" = "green")) +
+    scale_fill_manual(values = c("Set 1" = "orange", "Set 2" = "green")) +
     scale_color_manual(values = c("Set 1" = "black", "Set 2" = "black")) +
     
     # Add labels
@@ -434,7 +290,6 @@ plot_between_comparison <- function(ecp, core_set_1, core_set_2, symbol_lookup =
                    repel = TRUE, 
                    color = "black",
                    bg.color = NA,
-                   bg.r = 0.15,
                    size = 12) +
     
     coord_cartesian(clip = "off") + 
@@ -676,10 +531,10 @@ Method `edge_count_statistics` returns a list:
 - `$lambda`, $\lambda$ is the expected number of observed edges within `setA` in the RGGED, that is, the average number of edges over all realizations of the RGGED
 - `$p-value` $p_S$ is $\Pr\left( X \geq x\right)$, where $X$ is the random variable 'number of edges within `setA`' in the RGGED
 - `$log2_Anscombe_ratio` $lAr$ is the observed *log effect size*
-- `$size1` is the size of the input set after it has been reduced to vertices represented in the `ECProb` object
+- `$size1` is the size of the input set reduced to its vertices represented in the `ECProb` object
 - `$size2` is used only for between-sets connectedness. Here it is zero because argument `set2` is null
 
-Calling $p_{ij}$ the probability of connecting two vertices $i$ and $j$ of a set $S$ in the RGGED, $k$ the degree of a vertex, and $M$ the graph size we have in general
+Calling $p_{ij}$ the probability of connecting two vertices $i$ and $j$ in the RGGED, $k$ the degree of a vertex, $M$ the graph size and $X$ the random variable 'number of edges within $S$' under the RGGED model, we have in general
 
 $$p_{ij} = \min\left(1, \frac{k_ik_j}{2M}\right)$$
 $$m = \frac{1}{2}\left| S \right|\left( \left| S\right|-1\right)$$
@@ -827,14 +682,73 @@ p4 <- ggplot(annotated_results, aes(x = log2_Anscombe_ratio)) +
 
 ### Test for *between-set* connectedness
 
-This test answers the question: "Are two given vertex sets $S_1$ and $S_2$ more connected to each other than expected by *chance*?" The concept of *chance* is again based on the RGGED: the distribution of the number of edges between $S_1$ and $S_2$ over all possible realizations of the RGGED, a null model accounting for individual vertex degrees. This 'between-sets' connectedness is different from the 'within-connectedness' of individual sets. Therefore, the methods first reduce pairs of sets to their disjoint parts.
+This test answers the question: "Are two given vertex sets $S_1$ and $S_2$ more connected to each other than expected by *chance*?" The concept of *chance* is again based on the RGGED: the distribution of the number of edges between $S_1$ and $S_2$ over all possible realizations of the RGGED, a null model that accounts for individual vertex degrees. 
+
+The 'between-sets' connectedness is a concept different from that of 'within-connectedness' for individual sets. Do two sets 'talk' to each other, independently of their own internal connectedness? That is, pairs of sets are first reduced to their specific parts and then these two disjoint parts are tested for connectedness with each other. 
 
 #### Basic method
 
-The basic method is again `edge_count_statistics`. Its argument `observed_edge_count` is now obtained with method `get_edge_count_between`, which takes the two sets $S_1$ and $S_2$ as arguments.  
+The basic method is again `edge_count_statistics`. Two sets $S_1$ and $S_2$ are now passed as arguments, and argument `observed_edge_count` is obtained with method `get_edge_count_between`.
+
+Below is an example with two vertex sets represented in bipartite network `sample_ects` and tested for their 'between connectedness' with interaction network `sample_ecg` and its `ECProb` instance `sample_ecp`.
+
+```{r between_basic, message=FALSE, warning=FALSE}
+# bipartite network (term-element relationships)
+data("sample_ects")
+# selection of two terms and their descriptions
+data("sample_term_lookup")
+set1_id <- "GO:0000221"
+set1_name <- sample_term_lookup[set1_id]
+set1_name
+set2_id <- "GO:0016471"
+set2_name <- sample_term_lookup[set2_id]
+set2_name
+# elements mapped to terms (bipartite network sample_ects@ecprob)
+set1 <- get_neighbors(sample_ects@ecprob, set1_id) 
+set2 <- get_neighbors(sample_ects@ecprob, set2_id) 
+# observed edge count in the graph between the two sets (interaction network sample_ecg)
+data("sample_ecg")
+sample_ecp <- ECProb(sample_ecg)
+observed_ec <- get_edge_count_between(sample_ecp, set1, set2) 
+# calculation of statistics
+stats <- edge_count_statistics(sample_ecp, 
+                               set1 = set1, 
+                               set2 = set2, 
+                               observed_edge_count = observed_ec,
+                               lambda_method = "fast")
+stats
+```
 
 
-```{r plot_between_comparison, message=FALSE, warning=FALSE, echo=FALSE, fig.width=25, fig.height=12, out.width="80%", fig.align = "center"}
+Method `edge_count_statistics` returns a list:
+
+- `$observed_edge_count` $x$ is the observed number of edges, here the edge count between the disjoint parts of `set1` and `set2`
+- `max_possible_edges` $m$ is the maximum number of edges one could observe in the RGGED, here the number of possible edges between the disjoint parts of `set1` and `set2` reduced to vertices represented in the `ECProb` object, that is $5\times 6 = 30$.
+- `$lambda`, $\lambda$ is the expected number of observed edges between disjoint sets `set1` and `set2` in the RGGED, that is, the average number of edges over all realizations of the RGGED
+- `$p-value` $p_{S_1,S_2}$ is $\Pr\left( X \geq x\right)$, where $X$ is the random variable 'number of edges between `set1` and `set2`' in the RGGED
+- `$log2_Anscombe_ratio` $lAr$ is the observed *log effect size*
+- `$size1` and `size2`: sizes of the disjoint parts of the input sets after their reduction to vertices represented in the `ECProb` object
+
+Calling $p_{ij}$ the probability of connecting two vertices $i$ and $j$ in the RGGED, $k$ the degree of a vertex, $M$ the graph size and $X$ the RGGED random variable 'observed number of edges between $S_1$ and $S_2$', we have
+
+$$p_{ij} = \min\left(1, \frac{k_ik_j}{2M}\right)$$
+$$m = \left| S_1 \right| \left| S_2\right|$$
+$$\lambda = \sum_{i \in S_1, j \in S_2} p_{ij}$$
+$$p_{S_1,S_2} = \sum_{u=x}^m \Pr\left(X = u\right)$$
+$$\Pr\left(X = u\right) = \frac{1}{\alpha}\frac{\lambda^u}{u!}$$
+$$\alpha = \sum_{v=0}^{m} \frac{\lambda^v}{v!}$$
+$$lAr = \frac{1}{2} \log_2 \frac{x +3/8}{\lambda + 3/8}$$
+Again, using $lAr$ as effect size is important because $X$ can have a truncated Poisson distribution of parameter $\lambda$ small enough to yield an asymmetric distribution.
+
+With `lambda_method = "fast"` calculations are simplified as follows
+
+$$p_{ij} = \frac{k_ik_j}{2M} \quad \text{and} \quad \lambda = \frac{1}{2M} \left(\sum_{i\in S_1} k_i\right) \left( \sum_{j\in S_2} k_j \right)$$
+That is, time complexity is now $O\left( \left| S_1 \right| + \left| S_2 \right| \right)$ instead of $O\left( \left| S_1 \right| \left| S_2 \right| \right)$.
+
+As previously mentioned, utilizing the RGGED model takes into account individual vertex degrees in the quantification of connectedness. To illustrate this, consider now `set3` (GO\:0071986) and `set4` (GO\:1990130), that yield the same doublet $\left\{ 5, 6\right\}$ of set sizes, and thus the same maximum number of 'between' edges 30, and the same observed number of edges 21. Because vertices of the two pairs have different degrees, the two pairs yield different estimations of connectedness:
+
+```{r plot_between_comparison, echo=FALSE, fig.align="center", fig.height=12, fig.width=25, message=FALSE, warning=FALSE, out.width="90%"}
+library(ggtext)
 set1_id <- "GO:0000221"
 set2_id <- "GO:0016471"
 set3_id <- "GO:0071986"
@@ -848,30 +762,55 @@ set4_name <- sample_term_lookup[set4_id]
 
 set1 <- get_neighbors(sample_ects@ecprob, set1_id) 
 set2 <- get_neighbors(sample_ects@ecprob, set2_id) 
+observed_ec1 <- get_edge_count_between(sample_ecp, set1, set2) 
+stats1 <- edge_count_statistics(sample_ecp, 
+                               set1 = set1, 
+                               set2 = set2, 
+                               observed_edge_count = observed_ec1,
+                               lambda_method = "fast")
+
 set3 <- get_neighbors(sample_ects@ecprob, set3_id) 
 set4 <- get_neighbors(sample_ects@ecprob, set4_id) 
+observed_ec2 <- get_edge_count_between(sample_ecp, set3, set4) 
+stats2 <- edge_count_statistics(sample_ecp, 
+                               set1 = set3, 
+                               set2 = set4, 
+                               observed_edge_count = observed_ec2,
+                               lambda_method = "fast")
 
 data("sample_ecg")
 sample_ecp <- ECProb(sample_ecg)
 
-
-tsz <- 35
+tsz <- 30
 
 # 1. Create Plot A and save it to a variable
 p_A <- plot_between_comparison(sample_ecp, set1, set2, sample_gene_symbol_lookup) + 
-  ggtitle(paste0("")) + 
-  theme(plot.title = element_text(size = tsz))
+  ggtitle(paste0("<span style='color:#C76E00;'> Set 1: ", set1_id, ", (", stats1$size1, " elements) <br>",
+                 set1_name, "</span><br>",
+                 "<span style='color:#50C878;'> Set 2: ", set2_id, ", (", stats1$size2, " elements) <br>",
+                 set2_name, "</span><br>",
+                "<span style='color:blue;'> observed_edge_count = ", stats1$observed_edge_count, "</span><br> <br> ",
+                "lambda = ", signif(stats1$lambda, digits=3), "<br>",
+                "p_value = ", signif(stats1$p_value, digits=3), "<br>","log2_Anscombe_ratio = ", signif(stats1$log2_Anscombe_ratio, digits=3), "<br>")) + 
+  theme(plot.title = element_markdown(size = tsz, hjust = 0), plot.margin = unit(c(1, 6, 1, 1), "cm") )
 
 # 2. Create Plot B and save it to a variable
 p_B <- plot_between_comparison(sample_ecp, set3, set4, sample_gene_symbol_lookup) + 
-  ggtitle(paste0(""))  + 
-  theme(plot.title = element_text(size = tsz))
+ ggtitle(paste0("<span style='color:#C76E00;'> Set 3: ", set3_id, ", (", stats2$size1," elements) <br>",
+                set3_name, "</span><br>",
+                 "<span style='color:#50C878;'> Set 4: ", set4_id,", (", stats2$size2, " elements) <br>",
+                set4_name, "</span><br>",
+                "<span style='color:blue;'> observed_edge_count = ", stats2$observed_edge_count, "</span><br> <br> ",
+                "lambda = ", signif(stats2$lambda, digits=3), "<br>", 
+                "p_value = ", signif(stats2$p_value, digits=3), "<br>",
+                "log2_Anscombe_ratio = ", signif(stats2$log2_Anscombe_ratio, digits=3), "<br>"))  + 
+  theme(plot.title = element_markdown(size = tsz, hjust = 0), plot.margin = unit(c(1, 1, 1, 6), "cm") )
 
 # 3
 p_A + p_B
 ```
 
-
+#### Vectorized method
 
 
 ## Analysis of Bipartite Graphs (ECTermScoring)
