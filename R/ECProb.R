@@ -365,7 +365,7 @@ get_disjoint_sets <- function(pairs_dt, set_membership_dt) {
 #' using a high-performance, vectorized algorithm.
 #'
 #' @param object An ECProb object.
-#' @param pairs_dt A data table of pairs of element sets.
+#' @param pairs_dt A data table of pairs of set IDs.
 #' @param set_membership_dt A data table mapping set IDs to their elements.
 #'
 #' @return A final `data.table` with stats (`observed_edges`, `lambda`, etc.).

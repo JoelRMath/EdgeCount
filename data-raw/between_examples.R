@@ -6,6 +6,7 @@ library(data.table)
 # ---------------------
 
 get_candidate_pairs <- function(ecg, ects) {
+
   network_edges <- data.table(to_dataframe(ecg))
   setnames(network_edges, c("from", "to"), c("element1", "element2"))
   bipartite_edges <- as.data.table(to_dataframe(ects))

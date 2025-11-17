@@ -12,7 +12,7 @@ calculate_between_stats_fast_vectorized(object, pairs_dt, set_membership_dt)
 \arguments{
 \item{object}{An ECProb object.}
 
-\item{pairs_dt}{A data table of pairs of element sets.}
+\item{pairs_dt}{A data table of pairs of set IDs.}
 
 \item{set_membership_dt}{A data table mapping set IDs to their elements.}
 }

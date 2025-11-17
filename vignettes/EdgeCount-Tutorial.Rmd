@@ -608,7 +608,7 @@ p_A + p_B
 
 #### Vectorized method
 
-The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of sets as argument. **Note that this method is specific to the fast lambda approximation**.
+The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of sets as argument. **Note that this method uses only the fast lambda approximation**.
 
 Method `calculate_in_stats_fast_vectorized(ecprob, sets_dt, set_membership_dt)` has the following arguments
 
@@ -643,7 +643,7 @@ setkey(lookup_dt, set_id)
 annotated_results <- lookup_dt[results, on = "set_id"]
 setorder(annotated_results, -log2_Anscombe_ratio)
 
-print(annotated_results)
+annotated_results
 
 ```
 
@@ -680,7 +680,7 @@ p4 <- ggplot(annotated_results, aes(x = log2_Anscombe_ratio)) +
 (p1 + p2) / (p3 + p4)
 ```
 
-### Test for *between-set* connectedness
+### Test for *between-sets* connectedness
 
 This test answers the question: "Are two given vertex sets $S_1$ and $S_2$ more connected to each other than expected by *chance*?" The concept of *chance* is again based on the RGGED: the distribution of the number of edges between $S_1$ and $S_2$ over all possible realizations of the RGGED, a null model that accounts for individual vertex degrees. 
 
@@ -812,6 +812,73 @@ p_A + p_B
 
 #### Vectorized method
 
+The last examples showed how to test a singel pair of sets for their between connectedness in an interaction network. When dealing with multiple pairs, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of pairs as argument. **Note that this method is designed for the fast lambda approximation only**. 
+
+Method `calculate_between_stats_fast_vectorized` has the following arguments
+
+- `object`: the `ECProb` object representing an interaction network
+- `pairs_dt`: a data table of pairs of set identifiers ("set1_id", "set2_id")
+- `set_membership_dt`: a data table representing set-element membership ("set_id", "element")
+
+Below is the application of this method to all possible pairs of sets  contained in `sample_ects` (GO categories [[6]](#ref6),[[7]](#ref7), [[8]](#ref8), [[9]](#ref9)) and the interaction network `sample_ecg` (extracted from STRING [[4]](#ref4),[[5]](#ref5)).
+
+Numbers of terms and possible pairs are quite large.
+
+```{r sample_ects_pairs}
+data("sample_ects")
+data("sample_ecg")
+sample_ecp <- ECProb(sample_ecg)
+number_of_terms <- length(sample_ects@terms)
+number_of_terms
+number_of_pairs <- number_of_terms*(number_of_terms-1)/2
+number_of_pairs
+```
+
+Because `sample_ects` is a sparse network, it is better to focus on pairs that are connected by at least one edge in the interaction network. Indeed, if a pair of sets has no interaction, its p-value is 1 and we can ignore it: 
+$$p_{S_1,S_2} = 1 \quad \text{and} \quad \text{lAr } = \log_2 \frac{3/8}{\lambda+3/8} \leq 0.$$
+The following function efficiently returns pairs of sets having at least one interaction.
+
+```{r candidate_pairs}
+get_candidate_pairs <- function(ecg, ects) {
+
+  network_edges <- data.table(to_dataframe(ecg))
+  setnames(network_edges, c("from", "to"), c("element1", "element2"))
+  bipartite_edges <- as.data.table(to_dataframe(ects))
+  bipartite_edges[, `:=`(term = as.character(term), element = as.character(element))]
+  merged1 <- network_edges[bipartite_edges, on = .(element1 = element), nomatch = 0, allow.cartesian = TRUE]
+  setnames(merged1, "term", "term1")
+  merged2 <- merged1[bipartite_edges, on = .(element2 = element), nomatch = 0, allow.cartesian = TRUE]
+  setnames(merged2, "term", "term2")
+  unique_pairs_dt <- merged2[term1 != term2,
+                             .(term1 = pmin(term1, term2), term2 = pmax(term1, term2))
+  ][, unique(.SD)]
+  data.table::setnames(unique_pairs_dt, c("term1", "term2"), c("set1", "set2"))
+  return(unique_pairs_dt)
+}
+```
+
+This indeed rapidly returms a much smaller number of pairs (less than 1%).
+
+```{r pairs_sparse}
+system.time(
+  candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects)
+)
+length(candidate_pairs$set1)
+signif(length(candidate_pairs$set1)/number_of_pairs, 2)
+```
+
+```{r vectorized_between}
+# fast calculation of between statistics for candidate pairs
+set_membership_dt <- as.data.table(to_dataframe(sample_ects))
+setnames(set_membership_dt, c("term", "element"), c("set_id", "element"))
+system.time(
+  results <- calculate_between_stats_fast_vectorized(sample_ecp, 
+                                                   candidate_pairs,
+                                                   set_membership_dt)
+)
+setorder(results, -log2_Anscombe_ratio)
+results
+```
 
 ## Analysis of Bipartite Graphs (ECTermScoring)
 
