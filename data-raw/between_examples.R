@@ -70,8 +70,9 @@ run_benchmark <- function(){
   setnames(set_membership, c("term", "element"), c("set_id", "element"))
   candidate_pairs <- get_disjoint_connected_pairs(sample_ecp, set_membership)
 
-  print(length(candidate_pairs[,set1]))
+  print(nrow(candidate_pairs))
   test_pairs <- head(candidate_pairs, 10000)
+  test_pairs[, observed_edges := NULL]
 
   message("Running 'slow but safe' version...")
   start_time_slow <- Sys.time()
@@ -79,6 +80,7 @@ run_benchmark <- function(){
   end_time_slow <- Sys.time()
   time_diff_slow <- as.numeric(end_time_slow - start_time_slow, units = "secs")
   print(paste("Slow method time:", round(time_diff_slow, 4), "seconds"))
+  print(results_slow)
 
   message("Running fast vectorized S4 method...")
   start_time_fast <- Sys.time()
