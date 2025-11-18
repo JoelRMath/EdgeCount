@@ -608,7 +608,7 @@ p_A + p_B
 
 #### Vectorized method
 
-The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of sets as argument. **Note that this method uses only the fast lambda approximation**.
+The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed, mostly by using the `data.table` package [[10]](#ref10), and takes a data table of sets as argument. **Note that this method uses only the fast lambda approximation**.
 
 Method `calculate_in_stats_fast_vectorized(ecprob, sets_dt, set_membership_dt)` has the following arguments
 
@@ -649,7 +649,7 @@ annotated_results
 
 Note that `set_size` corresponds to that of the input set reduced to vertices present in the `ECProb` object. Method `calculate_in_stats_fast_vectorized` has been optimized for speed and its returned value is a data table containing edge-count statistics. Distributions of some of those statistics obtained with the above example are shown below.
 
-```{r plot_distributions, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=8, fig.align="center", out.width="90%"}
+```{r plot_distributions_in, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=8, fig.align="center", out.width="90%"}
 library(ggplot2)
 library(patchwork)
 
@@ -745,7 +745,7 @@ With `lambda_method = "fast"` calculations are simplified as follows
 $$p_{ij} = \frac{k_ik_j}{2M} \quad \text{and} \quad \lambda = \frac{1}{2M} \left(\sum_{i\in S_1} k_i\right) \left( \sum_{j\in S_2} k_j \right)$$
 That is, time complexity is now $O\left( \left| S_1 \right| + \left| S_2 \right| \right)$ instead of $O\left( \left| S_1 \right| \left| S_2 \right| \right)$.
 
-As previously mentioned, utilizing the RGGED model takes into account individual vertex degrees in the quantification of connectedness. To illustrate this, consider now `set3` (GO\:0071986) and `set4` (GO\:1990130), that yield the same doublet $\left\{ 5, 6\right\}$ of set sizes, and thus the same maximum number of 'between' edges 30, and the same observed number of edges 21. Because vertices of the two pairs have different degrees, the two pairs yield different estimations of connectedness:
+As previously mentioned, utilizing the RGGED model takes into account individual vertex degrees in the quantification of connectedness. To illustrate this, consider now the pair of `set3` (GO\:0071986) and `set4` (GO\:1990130), that yields the same doubletof set sizes ($\left\{ 5, 6\right\}$), and thus the same maximum number of 'between' edges (30), and the same observed number of edges (21). Because vertices of the two pairs have different degrees, the two pairs yield different estimations of connectedness:
 
 ```{r plot_between_comparison, echo=FALSE, fig.align="center", fig.height=12, fig.width=25, message=FALSE, warning=FALSE, out.width="90%"}
 library(ggtext)
@@ -812,7 +812,7 @@ p_A + p_B
 
 #### Vectorized method
 
-The last examples showed how to test a singel pair of sets for their between connectedness in an interaction network. When dealing with multiple pairs, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of pairs as argument. **Note that this method is designed for the fast lambda approximation only**. 
+The last examples showed how to test a single pair of sets for their between connectedness in an interaction network. When dealing with multiple pairs, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of pairs as argument. **Note that this method relies on the fast lambda approximation**. 
 
 Method `calculate_between_stats_fast_vectorized` has the following arguments
 
@@ -835,7 +835,7 @@ number_of_pairs
 ```
 
 Because `sample_ects` is a sparse network, it is better to focus on pairs that are connected by at least one edge in the interaction network. Indeed, if a pair of sets has no interaction, its p-value is 1 and we can ignore it: 
-$$p_{S_1,S_2} = 1 \quad \text{and} \quad \text{lAr } = \log_2 \frac{3/8}{\lambda+3/8} \leq 0.$$
+$$p_{S_1,S_2} = 1 \quad \text{and} \quad \text{lAr } = \log_2 \frac{3/8}{\lambda+3/8} < 0.$$
 The following function efficiently returns pairs of sets having at least one interaction.
 
 ```{r candidate_pairs}
@@ -857,7 +857,7 @@ get_candidate_pairs <- function(ecg, ects) {
 }
 ```
 
-This indeed rapidly returms a much smaller number of pairs (less than 1%).
+The function rapidly returms a much smaller number of pairs (less than 1%).
 
 ```{r pairs_sparse}
 system.time(
@@ -866,6 +866,8 @@ system.time(
 length(candidate_pairs$set1)
 signif(length(candidate_pairs$set1)/number_of_pairs, 2)
 ```
+
+Next, `candidate_pairs` are efficiently scored for their between connectedness, as this method is fully vectorized, mostly by utilizing the `data.table` package [[10]](#ref10), and it relies on fast lambda approximations.
 
 ```{r vectorized_between}
 # fast calculation of between statistics for candidate pairs
@@ -878,6 +880,39 @@ system.time(
 )
 setorder(results, -log2_Anscombe_ratio)
 results
+```
+
+Distributions of some of those statistics obtained with the above example are shown below.
+
+```{r plot_distributions_between, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=8, fig.align="center", out.width="90%"}
+library(ggplot2)
+library(patchwork)
+
+p1 <- ggplot(results, aes(x = log10(observed_edges + 1))) +
+  geom_histogram(bins = 30, fill = "#0c4a6e", color = "white", alpha = 0.8) +
+  ggtitle("Observed Edge Count") +
+  xlab("log10(observed_edge_count + 1)") +
+  theme_minimal(base_size = 14)
+
+p2 <- ggplot(results, aes(x = log10(lambda))) +
+  geom_histogram(bins = 30, fill = "#047857", color = "white", alpha = 0.8) +
+  ggtitle("Expected Edge Count") +
+  xlab("log10(lambda > 0)") +
+  theme_minimal(base_size = 14)
+
+p3 <- ggplot(results, aes(x = p_value)) +
+  geom_histogram(bins = 30, boundary = 0, fill = "#c2410c", color = "white", alpha = 0.8) +
+  ggtitle("P-Value") +
+  xlab("p_value") +
+  theme_minimal(base_size = 14)
+
+p4 <- ggplot(results, aes(x = log2_Anscombe_ratio)) +
+  geom_histogram(bins = 30, fill = "#9a3412", color = "white", alpha = 0.8) +
+  ggtitle("Effect Size") +
+  xlab("log2_Anscombe_ratio") +
+  theme_minimal(base_size = 14)
+
+(p1 + p2) / (p3 + p4)
 ```
 
 ## Analysis of Bipartite Graphs (ECTermScoring)
@@ -932,4 +967,6 @@ print(head(vsea_results$max_score_summary))
 
 <a id="ref8">(8.)</a> Carlson, M. (2019). org.Hs.eg.db: Genome wide annotation for Human. *R package*.
 
-<a id="ref10">(9.)</a> `sample_ects` is derived from Gene Ontology (GO) term-to-gene mappings [[6, 7, 9]](#ref6). Element IDs are Entrez Gene IDs [[8]](#ref8). Source: <a href="http://geneontology.org/" target= "_blank">[geneontology.org]</a>. GO data is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target= "_blank">[CC BY 4.0]</a>.
+<a id="ref9">(9.)</a> `sample_ects` is derived from Gene Ontology (GO) term-to-gene mappings [[6, 7, 9]](#ref6). Element IDs are Entrez Gene IDs [[8]](#ref8). Source: <a href="http://geneontology.org/" target= "_blank">[geneontology.org]</a>. GO data is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target= "_blank">[CC BY 4.0]</a>.
+
+<a id="ref10">(10.)</a> Barrett T, Dowle M, Srinivasan A, Gorecki J, Chirico M, Hocking T, Schwendinger B, Krylov I (2025). data.table: Extension of 'data.frame'. R package version 1.17.99, <a href="https://r-datatable.com" target= "_blank">[r-datatable.com]</a>.

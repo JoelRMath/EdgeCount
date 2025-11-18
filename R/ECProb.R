@@ -317,7 +317,7 @@ setMethod(
 # --------------------------------------------------------------------------- #
 
 #' @title Get Disjoint Sets for Multiple Pairs (Vectorized)
-#' @description An internal, high-performance function that calculates the
+#' @description An internal function that calculates the
 #' disjoint element sets for a list of set pairs.
 #' @param pairs_dt A `data.table` with two columns ("set1", "set2").
 #' @param set_membership_dt A `data.table` with "set_id" and "element" columns.
