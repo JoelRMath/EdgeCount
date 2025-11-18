@@ -80,7 +80,6 @@ run_benchmark <- function(){
   end_time_slow <- Sys.time()
   time_diff_slow <- as.numeric(end_time_slow - start_time_slow, units = "secs")
   print(paste("Slow method time:", round(time_diff_slow, 4), "seconds"))
-  print(results_slow)
 
   message("Running fast vectorized S4 method...")
   start_time_fast <- Sys.time()
@@ -112,13 +111,15 @@ save_pairs <- function(){
 
   sample_ecp <- ECProb(sample_ecg)
 
-  print(system.time(
-    candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects))
-  )
+
   set_membership <- as.data.table(to_dataframe(sample_ects))
   setnames(set_membership, c("term", "element"), c("set_id", "element"))
+  print(system.time(
+    candidate_pairs <- get_disjoint_connected_pairs(sample_ecp, set_membership))
+  )
+  candidate_pairs[, observed_edges := NULL]
 
-  print(length(candidate_pairs[,set1]))
+  print(nrow(candidate_pairs))
   test_pairs <- candidate_pairs
 
   message("Running fast vectorized S4 method...")
@@ -151,6 +152,6 @@ save_pairs <- function(){
 
 # --- MAIN ---
 
-run_benchmark()
+# run_benchmark()
 
-# save_pairs()
+save_pairs()
