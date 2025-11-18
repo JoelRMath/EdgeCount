@@ -455,29 +455,28 @@ setMethod("get_disjoint_connected_pairs", signature(object = "ECProb", set_membe
             return(final_results)
           })
 
-#' @title Vectorized calculation of fast between-set statistics
+#' @title Vectorized calculation of fast between statistics
 #'
-#' @description Calculates fast between-set statistics for a collection of set pairs
+#' @description Calculates fast between statistics for a collection of set pairs
 #' using a high-performance, vectorized algorithm.
 #'
-#' @param object An ECProb object.
-#' @param pairs_dt A data table of pairs of set IDs.
-#' @param set_membership_dt A data table mapping set IDs to their elements.
+#' @details This function is designed for efficiency when processing many term
+#' pairs at once. It uses a series of `data.table` joins and aggregations to
+#' avoid slow R-level loops. Note that this method uses the "fast" lambda
+#' approximation.
 #'
-#' @return A final `data.table` with stats (`observed_edges`, `lambda`, etc.).
+#' @param object An ECProb object.
+#' @param pairs_dt A data table of pairs of element sets, with two columns
+#'   "set1" and "set2" giving the set IDs.
+#' @param set_membership_dt A data table mapping set IDs to their elements.
+#'   Must have "set_id" and "element" columns.
+#'
+#' @return A final `data.table` with the original pairs and columns for all
+#'   calculated statistics (`set1`, `size1`, `set2`, `size2`, `observed_edges`,
+#'   `lambda`, `p_value`, `log2_Anscombe_ratio`).
 #' @export
 #' @examples
-#' # Create sample data
-#' ecg <- ECGraph(data.frame(p1=c("E1","E3"), p2=c("E4","E5")))
-#' ecp <- ECProb(ecg)
-#' pairs <- data.table(set1 = c("SA", "SC"), set2 = c("SB", "SD"))
-#' memberships <- data.table(
-#'   set_id = c("SA","SA","SB","SC","SC","SD"),
-#'   element = c("E1","E2","E2","E3","E4","E5")
-#' )
-#' # Run vectorized calculation
-#' calculate_between_stats_fast_vectorized(ecp, pairs, memberships)
-#'
+#' # TBD
 setGeneric("calculate_between_stats_fast_vectorized",
            function(object, pairs_dt, set_membership_dt) standardGeneric("calculate_between_stats_fast_vectorized"))
 
@@ -486,6 +485,8 @@ setMethod("calculate_between_stats_fast_vectorized",
           "ECProb",
           function(object, pairs_dt, set_membership_dt) {
 
+            # --- Step 1: Get Disjoint Sets and Intermediate Values ---
+            # Call the standalone function (no object needed)
             disjoint_sets_dt <- get_disjoint_sets(pairs_dt, set_membership_dt)
             disjoint_sets_dt[, pair_id := .I]
 
@@ -495,33 +496,52 @@ setMethod("calculate_between_stats_fast_vectorized",
             )
             data.table::setkey(all_element_degrees_dt, element)
 
+            # Unnest the lists to get long-format element tables for joining
             long_disjoint1 <- disjoint_sets_dt[, .(element = unlist(elements1_disjoint)), by = pair_id]
             data.table::setkey(long_disjoint1, element)
+
+            # Pre-calculate degree sums for Set 1
             sums1_dt <- all_element_degrees_dt[long_disjoint1, on = "element", nomatch = 0][,
                                                                                             .(sum_degrees1 = sum(degree, na.rm = TRUE)), by = pair_id]
 
             long_disjoint2 <- disjoint_sets_dt[, .(element = unlist(elements2_disjoint)), by = pair_id]
             data.table::setkey(long_disjoint2, element)
+
+            # Pre-calculate degree sums for Set 2
             sums2_dt <- all_element_degrees_dt[long_disjoint2, on = "element", nomatch = 0][,
                                                                                             .(sum_degrees2 = sum(degree, na.rm = TRUE)), by = pair_id]
 
-            ecg_edges <- data.table(to_dataframe(object))
-            setnames(ecg_edges, c("from", "to"), c("e1", "e2"))
-            ecg_edges[, `:=`(canon1 = pmin(e1, e2), canon2 = pmax(e1, e2))]
-            ecg_edges <- unique(ecg_edges, by = c("canon1", "canon2"))
-            setkey(ecg_edges, canon1, canon2)
+            # --- THE OPTIMIZATION: Replace Cartesian Product with Edge List Join ---
 
-            setkey(long_disjoint1, pair_id)
-            setkey(long_disjoint2, pair_id)
-            possible_edges <- long_disjoint1[long_disjoint2, on = "pair_id", allow.cartesian = TRUE, nomatch=0]
-            if (nrow(possible_edges) > 0) {
-              setnames(possible_edges, c("element", "i.element"), c("element1", "element2"))
-              possible_edges[, `:=`(canon1 = pmin(element1, element2), canon2 = pmax(element1, element2))]
-              observed_edges_long <- ecg_edges[possible_edges, on = .(canon1, canon2), nomatch = 0]
-              observed_edges_dt <- observed_edges_long[, .(observed_edges = .N), by = pair_id]
-            } else {
-              observed_edges_dt <- data.table(pair_id = integer(), observed_edges = integer())
-            }
+            # 1. Prepare a bidirectional edge list (u -> v AND v -> u)
+            #    This allows us to find connections regardless of direction in the original data.
+            ecg_edges <- data.table(to_dataframe(object))
+            setnames(ecg_edges, c("from", "to"), c("u", "v"))
+            # Double the edges to make them bidirectional for the join
+            ecg_edges_dbl <- rbind(ecg_edges, ecg_edges[, .(u=v, v=u)])
+            setkey(ecg_edges_dbl, u)
+
+            # 2. Join Set 1 elements to the Edge List
+            #    This finds all neighbors of elements in Set 1.
+            #    We reuse 'long_disjoint1' (cols: pair_id, element)
+            #    Join condition: element == u
+            set1_neighbors <- ecg_edges_dbl[long_disjoint1, on = .(u = element), nomatch = 0, allow.cartesian = TRUE]
+            # Result cols: v (neighbor), pair_id
+
+            # 3. Join Neighbors to Set 2 elements
+            #    This filters the neighbors to keep ONLY those that are in Set 2 *for the same pair*.
+            #    We reuse 'long_disjoint2' (cols: pair_id, element)
+            #    Join condition: v == element AND pair_id == pair_id
+            setkey(long_disjoint2, pair_id, element)
+            # Rename 'v' to 'element' for the join
+            setnames(set1_neighbors, "v", "element")
+
+            observed_edges_long <- long_disjoint2[set1_neighbors, on = .(pair_id, element), nomatch = 0]
+
+            # 4. Aggregate to count observed edges
+            observed_edges_dt <- observed_edges_long[, .(observed_edges = .N), by = pair_id]
+
+            # --- End Optimization ---
 
             all_pairs_ids <- data.table(pair_id = 1:nrow(disjoint_sets_dt))
             setkey(all_pairs_ids, pair_id)
@@ -529,25 +549,32 @@ setMethod("calculate_between_stats_fast_vectorized",
             observed_edges_dt <- observed_edges_dt[all_pairs_ids]
             observed_edges_dt[is.na(observed_edges), observed_edges := 0L]
 
-            final_dt <- copy(disjoint_sets_dt)
+            # --- Step 2: Join all intermediate results to create the final table ---
+            data.table::setkey(sums1_dt, pair_id)
+            data.table::setkey(sums2_dt, pair_id)
+            degree_sums_dt <- merge(sums1_dt, sums2_dt, by = "pair_id", all = TRUE)
+            degree_sums_dt[is.na(sum_degrees1), sum_degrees1 := 0]
+            degree_sums_dt[is.na(sum_degrees2), sum_degrees2 := 0]
 
-            final_dt[sums1_dt, on = "pair_id", sum_degrees1 := i.sum_degrees1]
-            final_dt[sums2_dt, on = "pair_id", sum_degrees2 := i.sum_degrees2]
+            data.table::setkey(disjoint_sets_dt, pair_id)
+            final_dt <- degree_sums_dt[disjoint_sets_dt, on = "pair_id"]
 
-            final_dt[is.na(sum_degrees1), sum_degrees1 := 0]
-            final_dt[is.na(sum_degrees2), sum_degrees2 := 0]
+            data.table::setkey(observed_edges_dt, pair_id)
+            final_dt <- observed_edges_dt[final_dt, on = "pair_id"]
 
-            final_dt[observed_edges_dt, on = "pair_id", observed_edges := i.observed_edges]
-
+            # --- Step 3: Perform the final calculations on this complete table ---
             final_dt[, `:=`(
               size1 = lengths(elements1_disjoint),
               size2 = lengths(elements2_disjoint)
             )]
             final_dt[, max_possible_edges := as.numeric(size1) * as.numeric(size2)]
             final_dt[, lambda := (sum_degrees1 * sum_degrees2) / (2 * object@graph_size)]
+
             final_dt[, p_value := calculate_p_value(object, observed_edges, max_possible_edges, lambda)]
             final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
 
+
+            # --- Return the final columns ---
             return(final_dt[, .(set1, size1, set2, size2, observed_edges, lambda, p_value, log2_Anscombe_ratio)])
           })
 

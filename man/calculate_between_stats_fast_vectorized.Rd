@@ -3,7 +3,7 @@
 \name{calculate_between_stats_fast_vectorized}
 \alias{calculate_between_stats_fast_vectorized}
 \alias{calculate_between_stats_fast_vectorized,ECProb-method}
-\title{Vectorized calculation of fast between-set statistics}
+\title{Vectorized calculation of fast between statistics}
 \usage{
 calculate_between_stats_fast_vectorized(object, pairs_dt, set_membership_dt)
 
@@ -12,16 +12,26 @@ calculate_between_stats_fast_vectorized(object, pairs_dt, set_membership_dt)
 \arguments{
 \item{object}{An ECProb object.}
 
-\item{pairs_dt}{A data table of pairs of set IDs.}
+\item{pairs_dt}{A data table of pairs of element sets, with two columns
+"set1" and "set2" giving the set IDs.}
 
-\item{set_membership_dt}{A data table mapping set IDs to their elements.}
+\item{set_membership_dt}{A data table mapping set IDs to their elements.
+Must have "set_id" and "element" columns.}
 }
 \value{
-A final `data.table` with stats (`observed_edges`, `lambda`, etc.).
+A final `data.table` with the original pairs and columns for all
+  calculated statistics (`set1`, `size1`, `set2`, `size2`, `observed_edges`,
+  `lambda`, `p_value`, `log2_Anscombe_ratio`).
 }
 \description{
-Calculates fast between-set statistics for a collection of set pairs
+Calculates fast between statistics for a collection of set pairs
 using a high-performance, vectorized algorithm.
+}
+\details{
+This function is designed for efficiency when processing many term
+pairs at once. It uses a series of `data.table` joins and aggregations to
+avoid slow R-level loops. Note that this method uses the "fast" lambda
+approximation.
 }
 \section{Methods (by class)}{
 \itemize{
@@ -29,15 +39,5 @@ using a high-performance, vectorized algorithm.
 
 }}
 \examples{
-# Create sample data
-ecg <- ECGraph(data.frame(p1=c("E1","E3"), p2=c("E4","E5")))
-ecp <- ECProb(ecg)
-pairs <- data.table(set1 = c("SA", "SC"), set2 = c("SB", "SD"))
-memberships <- data.table(
-  set_id = c("SA","SA","SB","SC","SC","SD"),
-  element = c("E1","E2","E2","E3","E4","E5")
-)
-# Run vectorized calculation
-calculate_between_stats_fast_vectorized(ecp, pairs, memberships)
-
+# TBD
 }

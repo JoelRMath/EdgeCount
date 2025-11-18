@@ -114,9 +114,7 @@ save_pairs <- function(){
 
   set_membership <- as.data.table(to_dataframe(sample_ects))
   setnames(set_membership, c("term", "element"), c("set_id", "element"))
-  print(system.time(
-    candidate_pairs <- get_disjoint_connected_pairs(sample_ecp, set_membership))
-  )
+  candidate_pairs <- get_disjoint_connected_pairs(sample_ecp, set_membership)
   candidate_pairs[, observed_edges := NULL]
 
   print(nrow(candidate_pairs))
@@ -152,6 +150,8 @@ save_pairs <- function(){
 
 # --- MAIN ---
 
-# run_benchmark()
+message("-- running run_benchmark --")
+run_benchmark()
 
+message("-- running save_pairs --")
 save_pairs()
