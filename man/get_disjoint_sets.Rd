@@ -16,7 +16,6 @@ A `data.table` with "set1", "set2", "elements1_disjoint" (list),
   and "elements2_disjoint" (list).
 }
 \description{
-An internal, high-performance function that calculates the
+An internal function that calculates the
 disjoint element sets for a list of set pairs.
 }
-\keyword{internal}

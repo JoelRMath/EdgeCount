@@ -1,3 +1,4 @@
+#' @include ECProb.R
 #' @title ECTermScoring S4 Class and Constructor
 #'
 #' @description The main class for EdgeCount analysis, representing a bipartite

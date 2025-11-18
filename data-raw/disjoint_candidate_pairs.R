@@ -1,12 +1,35 @@
 library(EdgeCount)
 library(data.table)
 
+# --- Helper Function (Included for standalone compatibility) ---
+get_disjoint_sets <- function(pairs_dt, set_membership_dt) {
+  pairs_with_id <- pairs_dt[, .(pair_id = .I, set1, set2)]
+  long_pairs <- melt(pairs_with_id, id.vars = "pair_id", measure.vars = c("set1", "set2"), value.name = "set_id")
+  setkey(long_pairs, set_id)
+  setkey(set_membership_dt, set_id)
+  all_elements_by_pair <- set_membership_dt[long_pairs, on = "set_id", allow.cartesian = TRUE]
+  intersecting_elements <- all_elements_by_pair[, .N, by = .(pair_id, element)][N == 2]
+  setkey(intersecting_elements, pair_id, element)
+  setkey(all_elements_by_pair, pair_id, element)
+  disjoint_elements <- all_elements_by_pair[!intersecting_elements]
+  disjoint1 <- disjoint_elements[variable == "set1", .(elements1_disjoint = list(element)), by = pair_id]
+  disjoint2 <- disjoint_elements[variable == "set2", .(elements2_disjoint = list(element)), by = pair_id]
+  setkey(disjoint1, pair_id)
+  setkey(disjoint2, pair_id)
+  merged_disjoint <- merge(disjoint1, disjoint2, by = "pair_id", all = TRUE)
+  setkey(pairs_with_id, pair_id)
+  final_output <- merged_disjoint[pairs_with_id, on = "pair_id"]
+  final_output[sapply(elements1_disjoint, is.null), elements1_disjoint := list(list(character(0)))]
+  final_output[sapply(elements2_disjoint, is.null), elements2_disjoint := list(list(character(0)))]
+  return(final_output[, .(set1, set2, elements1_disjoint, elements2_disjoint)])
+}
+
+
 #' @title Get Candidate Pairs (Original)
 #' @description Finds all pairs of terms that are connected by at least one
-#' edge in the interaction graph. This is a fast, approximate "superset" query
-#' and may include pairs connected only via their intersection.
-#' @param ecg An ECGraph/ECProb object (the interaction network).
-#' @param ects An ECTermScoring object (the bipartite graph).
+#' edge in the interaction graph. This is a fast, approximate "superset" query.
+#' @param ecg An ECGraph/ECProb object.
+#' @param ects An ECTermScoring object.
 #' @return A data.table with "set1" and "set2" columns.
 get_candidate_pairs <- function(ecg, ects) {
 
@@ -30,92 +53,70 @@ get_candidate_pairs <- function(ecg, ects) {
 }
 
 
-#' @title Get Disjoint Observed Edges (NEW Lightweight Helper)
-#' @description Calculates *only* the observed edge count between the
-#' disjoint parts of set pairs.
-#' @param object An ECProb object.
-#' @param pairs_dt A data table of pairs ("set1", "set2").
-#' @param set_membership_dt A data table mapping "set_id" to "element".
-#' @return A data.table with "set1", "set2", and "observed_edges".
-get_disjoint_observed_edges <- function(object, pairs_dt, set_membership_dt) {
+get_disjoint_connected_pairs_proto <- function(ecp, ects) {
 
-  # --- Step 1: Get Disjoint Sets ---
-  # This helper is defined in the ECProb.R file
-  disjoint_sets_dt <- get_disjoint_sets(pairs_dt, set_membership_dt)
-  disjoint_sets_dt[, pair_id := .I]
+  message("Step 1: Mapping graph edges to term pairs...")
+  # 1. Prepare Edge Lists
+  network_edges <- data.table(to_dataframe(ecp))
+  setnames(network_edges, c("from", "to"), c("element1", "element2"))
 
-  # --- Step 2: Get Graph Edges ---
-  ecg_edges <- data.table(to_dataframe(object))
-  setnames(ecg_edges, c("from", "to"), c("e1", "e2"))
-  ecg_edges[, `:=`(canon1 = pmin(e1, e2), canon2 = pmax(e1, e2))]
-  ecg_edges <- unique(ecg_edges, by = c("canon1", "canon2"))
-  setkey(ecg_edges, canon1, canon2)
+  bipartite_edges <- as.data.table(to_dataframe(ects))
+  bipartite_edges[, `:=`(term = as.character(term), element = as.character(element))]
 
-  # --- Step 3: Find all *possible* edges between disjoint sets ---
-  long_disjoint1 <- disjoint_sets_dt[, .(element = unlist(elements1_disjoint)), by = pair_id]
-  long_disjoint2 <- disjoint_sets_dt[, .(element = unlist(elements2_disjoint)), by = pair_id]
+  # 2. Map element edges to term pairs (Create the 'merged2' table)
+  # This table contains every instance of an edge connecting Term1 and Term2
+  merged1 <- network_edges[bipartite_edges, on = .(element1 = element), nomatch = 0, allow.cartesian = TRUE]
+  setnames(merged1, "term", "term1")
 
-  setkey(long_disjoint1, pair_id)
-  setkey(long_disjoint2, pair_id)
+  merged2 <- merged1[bipartite_edges, on = .(element2 = element), nomatch = 0, allow.cartesian = TRUE]
+  setnames(merged2, "term", "term2")
 
-  possible_edges <- long_disjoint1[long_disjoint2, on = "pair_id", allow.cartesian = TRUE, nomatch=0]
+  # Filter out self-term loops immediately to reduce size
+  merged2 <- merged2[term1 != term2]
 
-  if (nrow(possible_edges) == 0) {
-    # No possible edges, return an empty table
-    return(data.table(set1=character(), set2=character(), observed_edges=integer()))
+  # --- THE OPTIMIZATION: Filter for Disjointness ---
+  message("Step 2: Filtering for disjoint connections using anti-joins...")
+
+  # We have rows: element1 -- element2, where e1 in term1, e2 in term2.
+  # A connection is disjoint if: e1 NOT in term2  AND  e2 NOT in term1.
+
+  # To use data.table joins efficiently, we need keys
+  setkey(bipartite_edges, element, term)
+
+  # Check 1: Is element1 also in term2?
+  # We perform a join. If a match is found, it's an intersection (bad).
+  # We flag these rows.
+  # Note: merged2 has (element1, term2). Bipartite has (element, term).
+  ids_shared1 <- merged2[bipartite_edges, on = .(element1 = element, term2 = term),
+                         nomatch = 0, which = TRUE] # 'which=TRUE' returns indices
+
+  # Check 2: Is element2 also in term1?
+  ids_shared2 <- merged2[bipartite_edges, on = .(element2 = element, term1 = term),
+                         nomatch = 0, which = TRUE]
+
+  # Combine indices of all "bad" (non-disjoint) edges
+  bad_indices <- unique(c(ids_shared1, ids_shared2))
+
+  # 3. Create the clean list of disjoint edges
+  if (length(bad_indices) > 0) {
+    valid_edges <- merged2[-bad_indices]
+  } else {
+    valid_edges <- merged2
   }
 
-  setnames(possible_edges, c("element", "i.element"), c("element1", "element2"))
-  possible_edges[, `:=`(canon1 = pmin(element1, element2), canon2 = pmax(element1, element2))]
+  message("Step 3: Aggregating unique pairs...")
 
-  # --- Step 4: Join with *actual* graph edges ---
-  observed_edges_long <- ecg_edges[possible_edges, on = .(canon1, canon2), nomatch = 0]
+  # 4. Canonicalize pairs and count observed edges
+  # We use pmin/pmax to ensure (A, B) and (B, A) are treated as the same pair.
+  final_results <- valid_edges[, .(
+    set1 = pmin(term1, term2),
+    set2 = pmax(term1, term2)
+  )]
 
-  # --- Step 5: Count observed edges per pair ---
-  observed_edges_dt <- observed_edges_long[, .(observed_edges = .N), by = pair_id]
+  # Count the number of disjoint edges for each pair
+  final_results <- final_results[, .(observed_edges = .N), by = .(set1, set2)]
 
-  # --- Step 6: Join back to original pair names ---
-  pairs_with_id <- pairs_dt[, .(pair_id = .I, set1, set2)]
-  setkey(pairs_with_id, pair_id)
-  setkey(observed_edges_dt, pair_id)
-
-  final_results <- observed_edges_dt[pairs_with_id, on = "pair_id", nomatch = 0]
-
-  return(final_results[, .(set1, set2, observed_edges)])
-}
-
-
-#' @title Get Disjoint Connected Pairs (Optimized Version)
-#' @description Finds all pairs of terms that have at least one edge
-#' connecting their *disjoint* parts.
-#' @param ecp An ECProb object (the interaction network).
-#' @param ects An ECTermScoring object (the bipartite graph).
-#' @return A data.table containing the pairs ("set1", "set2") and their
-#'   disjoint `observed_edges` count.
-get_disjoint_connected_pairs <- function(ecp, ects) {
-
-  # 1. Get all *potential* candidate pairs using the fast method.
-  message("Step 1: Finding all potential candidate pairs...")
-  candidate_pairs <- get_candidate_pairs(ecp, ects)
-
-  # 2. Get the full term-element membership data
-  set_membership_dt <- as.data.table(to_dataframe(ects))
-  setnames(set_membership_dt, c("term", "element"), c("set_id", "element"))
-
-  # 3. Run the new, *lightweight* function to get observed edge counts
-  message("Step 2: Calculating observed edges for disjoint sets...")
-  all_pair_stats <- get_disjoint_observed_edges(
-    object = ecp,
-    pairs_dt = candidate_pairs,
-    set_membership_dt = set_membership_dt
-  )
-
-  # 4. Filter for pairs where a disjoint connection was actually found.
-  #    This step is now implicitly handled by get_disjoint_observed_edges
-  #    (it only returns pairs with at least one observed edge).
-  message("Step 3: Returning pairs with observed_edges > 0.")
-
-  return(all_pair_stats)
+  return(final_results)
 }
 
 # ---
@@ -127,13 +128,11 @@ data(sample_ects)
 ecp <- ECProb(sample_ecg)
 
 message("\n--- Running the original, fast 'superset' method ---")
-# This will include pairs connected by their intersection
-candidates <- get_candidate_pairs(ecp, sample_ects)
+system.time(candidates <- get_candidate_pairs(ecp, sample_ects))
 message(paste("Found", nrow(candidates), "total candidate pairs."))
 
 message("\n--- Running the new, rigorous 'disjoint' method ---")
-# This will be a smaller, more correct set
-disjoint_pairs <- get_disjoint_connected_pairs(ecp, sample_ects)
+system.time(disjoint_pairs <- get_disjoint_connected_pairs_proto(ecp, sample_ects))
 message(paste("Found", nrow(disjoint_pairs), "pairs with true disjoint connections."))
 
 print(head(disjoint_pairs))

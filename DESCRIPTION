@@ -24,3 +24,9 @@ Imports: data.table, igraph, dplyr, methods
 VignetteBuilder: knitr
 Depends: 
     R (>= 3.5)
+Collate: 
+    'ECGraph.R'
+    'ECProb.R'
+    'ECTermScoring.R'
+    'EdgeCount-package.R'
+    'data.R'

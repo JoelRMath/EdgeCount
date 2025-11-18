@@ -63,24 +63,26 @@ run_benchmark <- function(){
   data(sample_ecg)
   data(sample_ects)
 
-  ecp <- ECProb(sample_ecg)
-  candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects)
+  sample_ecp <- ECProb(sample_ecg)
+  # candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects)
+
   set_membership <- as.data.table(to_dataframe(sample_ects))
   setnames(set_membership, c("term", "element"), c("set_id", "element"))
+  candidate_pairs <- get_disjoint_connected_pairs(sample_ecp, set_membership)
 
   print(length(candidate_pairs[,set1]))
   test_pairs <- head(candidate_pairs, 10000)
 
   message("Running 'slow but safe' version...")
   start_time_slow <- Sys.time()
-  results_slow <- calculate_between_stats_slow(ecp, test_pairs, set_membership)
+  results_slow <- calculate_between_stats_slow(sample_ecp, test_pairs, set_membership)
   end_time_slow <- Sys.time()
   time_diff_slow <- as.numeric(end_time_slow - start_time_slow, units = "secs")
   print(paste("Slow method time:", round(time_diff_slow, 4), "seconds"))
 
   message("Running fast vectorized S4 method...")
   start_time_fast <- Sys.time()
-  results_fast <- calculate_between_stats_fast_vectorized(ecp, test_pairs, set_membership)
+  results_fast <- calculate_between_stats_fast_vectorized(sample_ecp, test_pairs, set_membership)
   end_time_fast <- Sys.time()
   time_diff_fast <- as.numeric(end_time_fast - start_time_fast, units = "secs")
   print(paste("Fast method time:", round(time_diff_fast, 4), "seconds"))
@@ -106,7 +108,7 @@ save_pairs <- function(){
   data(sample_ecg)
   data(sample_ects)
 
-  ecp <- ECProb(sample_ecg)
+  sample_ecp <- ECProb(sample_ecg)
 
   print(system.time(
     candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects))
@@ -119,7 +121,7 @@ save_pairs <- function(){
 
   message("Running fast vectorized S4 method...")
   print(system.time(
-    results <- calculate_between_stats_fast_vectorized(ecp, test_pairs, set_membership)
+    results <- calculate_between_stats_fast_vectorized(sample_ecp, test_pairs, set_membership)
   ))
   setorder(results, -log2_Anscombe_ratio)
   results_red <- results[size1 > 3 & size2 > 3]
@@ -147,6 +149,6 @@ save_pairs <- function(){
 
 # --- MAIN ---
 
-# run_benchmark()
+run_benchmark()
 
-save_pairs()
+# save_pairs()

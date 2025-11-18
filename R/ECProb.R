@@ -323,7 +323,7 @@ setMethod(
 #' @param set_membership_dt A `data.table` with "set_id" and "element" columns.
 #' @return A `data.table` with "set1", "set2", "elements1_disjoint" (list),
 #'   and "elements2_disjoint" (list).
-#' @keywords internal
+#' @export
 get_disjoint_sets <- function(pairs_dt, set_membership_dt) {
   pairs_with_id <- pairs_dt[, .(pair_id = .I, set1, set2)]
 
@@ -358,6 +358,102 @@ get_disjoint_sets <- function(pairs_dt, set_membership_dt) {
 
   return(final_output[, .(set1, set2, elements1_disjoint, elements2_disjoint)])
 }
+
+#' @title Get Disjoint Connected Pairs
+#'
+#' @description Finds all pairs of sets (terms) that have at least one edge
+#' connecting their *disjoint* parts in the interaction network (\code{ECProb}).
+#' This method uses fast anti-joins on the observed edge list to filter out connections
+#' that only exist due to overlapping elements (intersections), returning only pairs
+#' with true disjoint connectivity.
+#'
+#' @param object An \code{ECProb} object (the interaction network).
+#' @param set_membership A \code{data.frame} or \code{data.table} representing the
+#'   bipartite graph (membership). It must have two columns corresponding to
+#'   the set/term ID and the element ID. Columns are assumed to be "term" and "element"
+#'   if named, or the first two columns otherwise.
+#' @param sets A character vector of set IDs to focus on. If \code{NULL} (default),
+#'   all sets in \code{set_membership} are considered.
+#'
+#' @return A \code{data.table} containing the pairs ("set1", "set2") and their
+#'   disjoint \code{observed_edges} count.
+#' @export
+setGeneric("get_disjoint_connected_pairs", function(object, set_membership, sets = NULL) standardGeneric("get_disjoint_connected_pairs"))
+
+#' @describeIn get_disjoint_connected_pairs Method for ECProb and data.frame/data.table membership.
+setMethod("get_disjoint_connected_pairs", signature(object = "ECProb", set_membership = "data.frame"),
+          function(object, set_membership, sets = NULL) {
+
+            # 1. Prepare Edge Lists
+            network_edges <- data.table(to_dataframe(object))
+            setnames(network_edges, c("from", "to"), c("element1", "element2"))
+
+            bipartite_edges <- as.data.table(set_membership)
+
+            # Standardize column names (Term ID, Element ID)
+            if (!all(c("term", "element") %in% names(bipartite_edges))) {
+              setnames(bipartite_edges, c(1, 2), c("term", "element"))
+            }
+            bipartite_edges[, `:=`(term = as.character(term), element = as.character(element))]
+
+            # Filter for specific sets if requested
+            if (!is.null(sets)) {
+              bipartite_edges <- bipartite_edges[term %in% sets]
+            }
+
+            if (nrow(bipartite_edges) == 0) {
+              return(data.table(set1=character(), set2=character(), observed_edges=integer()))
+            }
+
+            # 2. Map element edges to term pairs (Create the 'merged2' table)
+            # This table contains every instance of an edge connecting Term1 and Term2
+            merged1 <- network_edges[bipartite_edges, on = .(element1 = element), nomatch = 0, allow.cartesian = TRUE]
+            setnames(merged1, "term", "term1")
+
+            merged2 <- merged1[bipartite_edges, on = .(element2 = element), nomatch = 0, allow.cartesian = TRUE]
+            setnames(merged2, "term", "term2")
+
+            # Filter out self-term loops immediately
+            merged2 <- merged2[term1 != term2]
+
+            if (nrow(merged2) == 0) {
+              return(data.table(set1=character(), set2=character(), observed_edges=integer()))
+            }
+
+            # --- 3. The Anti-Join Optimization: Filter for Disjointness ---
+
+            # To use data.table joins efficiently, we need keys
+            setkey(bipartite_edges, element, term)
+
+            # Check 1: Is element1 also in term2? (Bad connection)
+            ids_shared1 <- merged2[bipartite_edges, on = .(element1 = element, term2 = term),
+                                   nomatch = 0, which = TRUE]
+
+            # Check 2: Is element2 also in term1? (Bad connection)
+            ids_shared2 <- merged2[bipartite_edges, on = .(element2 = element, term1 = term),
+                                   nomatch = 0, which = TRUE]
+
+            # Combine indices of all "bad" (non-disjoint) edges
+            bad_indices <- unique(c(ids_shared1, ids_shared2))
+
+            # 4. Create the clean list of disjoint edges
+            if (length(bad_indices) > 0) {
+              valid_edges <- merged2[-bad_indices]
+            } else {
+              valid_edges <- merged2
+            }
+
+            # 5. Canonicalize pairs and count observed edges
+            final_results <- valid_edges[, .(
+              set1 = pmin(term1, term2),
+              set2 = pmax(term1, term2)
+            )]
+
+            # Count the number of disjoint edges for each pair
+            final_results <- final_results[, .(observed_edges = .N), by = .(set1, set2)]
+
+            return(final_results)
+          })
 
 #' @title Vectorized calculation of fast between-set statistics
 #'

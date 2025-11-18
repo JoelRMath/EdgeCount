@@ -437,3 +437,33 @@ test_that("calculate_in_stats_fast_vectorized", {
 
   expect_equal(results_slow, results_fast)
 })
+
+test_that("get_disjoint_connected_pairs works correctly", {
+  # Case 1: Intersection-only connection (Should be filtered out)
+  # Term1={A, B}, Term2={B, C}. Graph has A-B and B-C.
+  # Intersection is {B}. Disjoint sets are {A} and {C}.
+  # There is NO edge between {A} and {C}.
+  edge_df_toy <- data.frame(p1 = c("A", "B"), p2 = c("B", "C"), stringsAsFactors = FALSE)
+  ecp_toy <- ECProb(ECGraph(edge_df_toy))
+
+  term_dt_toy <- data.table(
+    term = c("Term1", "Term1", "Term2", "Term2"),
+    element = c("A", "B", "B", "C"),
+    stringsAsFactors = FALSE
+  )
+
+  toy_res <- get_disjoint_connected_pairs(ecp_toy, term_dt_toy)
+  expect_equal(nrow(toy_res), 0)
+
+  # Case 2: True disjoint connection
+  # Add edge A-C. Now {A} and {C} are connected.
+  edge_df_conn <- data.frame(p1 = c("A", "B", "A"), p2 = c("B", "C", "C"), stringsAsFactors = FALSE)
+  ecp_conn <- ECProb(ECGraph(edge_df_conn))
+
+  conn_res <- get_disjoint_connected_pairs(ecp_conn, term_dt_toy)
+
+  expect_equal(nrow(conn_res), 1)
+  expect_equal(conn_res$observed_edges, 1)
+  expect_true("Term1" %in% c(conn_res$set1, conn_res$set2))
+  expect_true("Term2" %in% c(conn_res$set1, conn_res$set2))
+})
