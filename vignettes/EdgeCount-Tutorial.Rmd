@@ -488,7 +488,7 @@ Indeed, it is suitable for fast approximations not only because `pij_over_1` = 0
 
 Object `sample_ecp` is utilized next to provide examples of `ECProb` uses.
 
-## Analysis of Interaction Networks (ECProb)
+## Analysis with Interaction Networks (ECProb)
 
 Example of connectedness analyses within an undirected, unipartite graph are now presented.
 
@@ -608,7 +608,7 @@ p_A + p_B
 
 #### Vectorized method
 
-The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed, mostly by using the `data.table` package [[10]](#ref10), and takes a data table of sets as argument. **Note that this method uses only the fast lambda approximation**.
+The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed, by using the `data.table` package [[10]](#ref10) and **fast lambda methods**.
 
 Method `calculate_in_stats_fast_vectorized(ecprob, sets_dt, set_membership_dt)` has the following arguments
 
@@ -644,7 +644,6 @@ annotated_results <- lookup_dt[results, on = "set_id"]
 setorder(annotated_results, -log2_Anscombe_ratio)
 
 annotated_results
-
 ```
 
 Note that `set_size` corresponds to that of the input set reduced to vertices present in the `ECProb` object. Method `calculate_in_stats_fast_vectorized` has been optimized for speed and its returned value is a data table containing edge-count statistics. Distributions of some of those statistics obtained with the above example are shown below.
@@ -662,11 +661,11 @@ p1 <- ggplot(annotated_results, aes(x = log10(observed_edge_count + 1))) +
 p2 <- ggplot(annotated_results[lambda >0 ], aes(x = log10(lambda))) +
   geom_histogram(bins = 30, fill = "#047857", color = "white", alpha = 0.8) +
   ggtitle("Expected Edge Count") +
-  xlab("log10(lambda > 0)") +
+  xlab("log10(lambda)") +
   theme_minimal(base_size = 14)
 
 p3 <- ggplot(annotated_results, aes(x = p_value)) +
-  geom_histogram(bins = 20, boundary = 0, fill = "#c2410c", color = "white", alpha = 0.8) +
+  geom_histogram(bins = 20, boundary = 0, fill = "#FF7518", color = "white", alpha = 0.8) +
   ggtitle("P-Value") +
   xlab("p_value") +
   theme_minimal(base_size = 14)
@@ -812,7 +811,7 @@ p_A + p_B
 
 #### Vectorized method
 
-The last examples showed how to test a single pair of sets for their between connectedness in an interaction network. When dealing with multiple pairs, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of pairs as argument. **Note that this method relies on the fast lambda approximation**. 
+The last examples showed how to test a single pair of sets for their between connectedness in an interaction network. When dealing with multiple pairs, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of pairs as argument. **Note that this method relies on a fast lambda approximation**. 
 
 Method `calculate_between_stats_fast_vectorized` has the following arguments
 
@@ -834,40 +833,26 @@ number_of_pairs <- number_of_terms*(number_of_terms-1)/2
 number_of_pairs
 ```
 
-Because `sample_ects` is a sparse network, it is better to focus on pairs that are connected by at least one edge in the interaction network. Indeed, if a pair of sets has no interaction, its p-value is 1 and we can ignore it: 
+Because `sample_ecp` is a sparse network, it is better to focus on pairs that are connected by at least one edge in the interaction network. Indeed, if a pair of sets has no interaction, its p-value is 1 and we can ignore it: 
 $$p_{S_1,S_2} = 1 \quad \text{and} \quad \text{lAr } = \log_2 \frac{3/8}{\lambda+3/8} < 0.$$
-The following function efficiently returns pairs of sets having at least one interaction.
+The package contains `ECProb` method `get_disjoint_connected_pairs` that efficiently reduces a data table of set pairs to those pairs that are at least connected by one edge through their disjoint parts (the between connectedness is estimated on the disjoint parts). 
 
-```{r candidate_pairs}
-get_candidate_pairs <- function(ecg, ects) {
-
-  network_edges <- data.table(to_dataframe(ecg))
-  setnames(network_edges, c("from", "to"), c("element1", "element2"))
-  bipartite_edges <- as.data.table(to_dataframe(ects))
-  bipartite_edges[, `:=`(term = as.character(term), element = as.character(element))]
-  merged1 <- network_edges[bipartite_edges, on = .(element1 = element), nomatch = 0, allow.cartesian = TRUE]
-  setnames(merged1, "term", "term1")
-  merged2 <- merged1[bipartite_edges, on = .(element2 = element), nomatch = 0, allow.cartesian = TRUE]
-  setnames(merged2, "term", "term2")
-  unique_pairs_dt <- merged2[term1 != term2,
-                             .(term1 = pmin(term1, term2), term2 = pmax(term1, term2))
-  ][, unique(.SD)]
-  data.table::setnames(unique_pairs_dt, c("term1", "term2"), c("set1", "set2"))
-  return(unique_pairs_dt)
-}
-```
-
-The function rapidly returms a much smaller number of pairs (less than 1%).
+Below is the application to pairs of sets derived from `sample_ects`.
 
 ```{r pairs_sparse}
+set_membership <- as.data.table(to_dataframe(sample_ects))
+setnames(set_membership, c("term", "element"), c("set_id", "element"))
 system.time(
-  candidate_pairs <- get_candidate_pairs(sample_ecg, sample_ects)
+  connected_pairs <- get_disjoint_connected_pairs(sample_ecp, 
+                                                  set_membership,
+                                                  sets = NULL)
 )
-length(candidate_pairs$set1)
-signif(length(candidate_pairs$set1)/number_of_pairs, 2)
+nrow(connected_pairs)
+signif(nrow(connected_pairs)/number_of_pairs, 2)
 ```
+Note that method `get_disjoint_connected_pairs` has a third optional argument `sets` that can be utilized to focus on some of the sets represented in the second argument `set_membership`. The method rapidly returms a much smaller number of pairs (0.75%) than the full Cartesian product.
 
-Next, `candidate_pairs` are efficiently scored for their between connectedness, as this method is fully vectorized, mostly by utilizing the `data.table` package [[10]](#ref10), and it relies on fast lambda approximations.
+Next, `connected_pairs` are efficiently scored for their between connectedness with method `calculate_between_stats_fast_vectorized`. This method is fully vectorized by using the `data.table` package [[10]](#ref10) and fast lambda approximations.
 
 ```{r vectorized_between}
 # fast calculation of between statistics for candidate pairs
@@ -875,34 +860,34 @@ set_membership_dt <- as.data.table(to_dataframe(sample_ects))
 setnames(set_membership_dt, c("term", "element"), c("set_id", "element"))
 system.time(
   results <- calculate_between_stats_fast_vectorized(sample_ecp, 
-                                                   candidate_pairs,
+                                                   connected_pairs,
                                                    set_membership_dt)
 )
 setorder(results, -log2_Anscombe_ratio)
 results
 ```
 
-Distributions of some of those statistics obtained with the above example are shown below.
+Distributions of some of the statistics obtained with the above example are shown below.
 
 ```{r plot_distributions_between, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=8, fig.align="center", out.width="90%"}
 library(ggplot2)
 library(patchwork)
 
-p1 <- ggplot(results, aes(x = log10(observed_edges + 1))) +
+p1 <- ggplot(results, aes(x = log10(observed_edges))) +
   geom_histogram(bins = 30, fill = "#0c4a6e", color = "white", alpha = 0.8) +
-  ggtitle("Observed Edge Count") +
-  xlab("log10(observed_edge_count + 1)") +
+  ggtitle("Observed Edge Count (> 0)") +
+  xlab("log10(observed_edge_count)") +
   theme_minimal(base_size = 14)
 
 p2 <- ggplot(results, aes(x = log10(lambda))) +
   geom_histogram(bins = 30, fill = "#047857", color = "white", alpha = 0.8) +
-  ggtitle("Expected Edge Count") +
-  xlab("log10(lambda > 0)") +
+  ggtitle("Expected Edge Count (> 0)") +
+  xlab("log10(lambda)") +
   theme_minimal(base_size = 14)
 
 p3 <- ggplot(results, aes(x = p_value)) +
-  geom_histogram(bins = 30, boundary = 0, fill = "#c2410c", color = "white", alpha = 0.8) +
-  ggtitle("P-Value") +
+  geom_histogram(bins = 30, boundary = 0, fill = "#FF7518", color = "white", alpha = 0.8) +
+  ggtitle("P-Value (< 1)") +
   xlab("p_value") +
   theme_minimal(base_size = 14)
 
@@ -915,7 +900,9 @@ p4 <- ggplot(results, aes(x = log2_Anscombe_ratio)) +
 (p1 + p2) / (p3 + p4)
 ```
 
-## Analysis of Bipartite Graphs (ECTermScoring)
+Remember that the above plots are restricted to pairs having at least one connection. Over all possible pairs, the proportion of p-values equal to 1 is 99.25%.
+
+## Analysis with Bipartite Graphs (ECTermScoring)
 
 This workflow is for analyzing term-element membership graphs (e.g., GO terms to genes). The main object for this is `ECTermScoring`. This is the foundation for Vertex Set Enrichment Analysis (VSEA).
 
