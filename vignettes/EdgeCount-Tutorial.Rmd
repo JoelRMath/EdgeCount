@@ -333,7 +333,7 @@ The primary functions allow users to:
 
 # Installation
 
-The `EdgeCount` package is currently available on GitHub. You can install it using the `devtools` package. If you do not have `devtools` installed, you can install it from CRAN.
+The `EdgeCount` package is currently available on GitHub. It can be installed using the `devtools` package. 
 
 ```{r installation, eval=FALSE}
 # install.packages("devtools")
@@ -498,7 +498,7 @@ This test answers the question: "Are the vertices of a given set $S$ more connec
 
 #### Basic method 
 
-The package comes with a sample bipartite network `sample_ects` that maps a trimmed version of GO categories to their human gene elements [[6]](#ref6), [[7]](#ref7), [[9]](#ref9). Object `sample_ects@ecprob` is utilized below to define with a term a set of elements/vertices which is then tested for its connectedness in interaction network `sample_ecp`.
+The package also comes with a sample bipartite network `sample_ects` that maps a trimmed version of GO categories to their human gene elements [[6]](#ref6), [[7]](#ref7), [[9]](#ref9). Object `sample_ects@ecprob` is utilized below to define with a term a set of elements/vertices which is then tested for its connectedness in interaction network `sample_ecp`.
 
 ```{r setA_in, message=FALSE, warning=FALSE}
 # bipartite network (term-element relationships)
@@ -608,7 +608,7 @@ p_A + p_B
 
 #### Vectorized method
 
-The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed, by using the `data.table` package [[10]](#ref10) and **fast lambda methods**.
+The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed, by using the `data.table` package [[10]](#ref10) and **fast lambda approximation**.
 
 Method `calculate_in_stats_fast_vectorized(ecprob, sets_dt, set_membership_dt)` has the following arguments
 
@@ -646,7 +646,7 @@ setorder(annotated_results, -log2_Anscombe_ratio)
 annotated_results
 ```
 
-Note that `set_size` corresponds to that of the input set reduced to vertices present in the `ECProb` object. Method `calculate_in_stats_fast_vectorized` has been optimized for speed and its returned value is a data table containing edge-count statistics. Distributions of some of those statistics obtained with the above example are shown below.
+Note that `set_size` corresponds to that of the input set reduced to vertices represented in the `ECProb` object. Distributions of some of the statistics in the above returned data table are shown below.
 
 ```{r plot_distributions_in, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=8, fig.align="center", out.width="90%"}
 library(ggplot2)
@@ -687,7 +687,7 @@ The 'between-sets' connectedness is a concept different from that of 'within-con
 
 #### Basic method
 
-The basic method is again `edge_count_statistics`. Two sets $S_1$ and $S_2$ are now passed as arguments, and argument `observed_edge_count` is obtained with method `get_edge_count_between`.
+The basic method is again `edge_count_statistics`. Two sets $S_1$ and $S_2$ are passed as arguments, and argument `observed_edge_count` is now obtained with method `get_edge_count_between`.
 
 Below is an example with two vertex sets represented in bipartite network `sample_ects` and tested for their 'between connectedness' with interaction network `sample_ecg` and its `ECProb` instance `sample_ecp`.
 
@@ -737,14 +737,14 @@ $$p_{S_1,S_2} = \sum_{u=x}^m \Pr\left(X = u\right)$$
 $$\Pr\left(X = u\right) = \frac{1}{\alpha}\frac{\lambda^u}{u!}$$
 $$\alpha = \sum_{v=0}^{m} \frac{\lambda^v}{v!}$$
 $$lAr = \frac{1}{2} \log_2 \frac{x +3/8}{\lambda + 3/8}$$
-Again, using $lAr$ as effect size is important because $X$ can have a truncated Poisson distribution of parameter $\lambda$ small enough to yield an asymmetric distribution.
+Using $lAr$ as effect size is important because $X$ can have a truncated Poisson distribution of parameter $\lambda$ small enough to yield an asymmetric distribution.
 
 With `lambda_method = "fast"` calculations are simplified as follows
 
 $$p_{ij} = \frac{k_ik_j}{2M} \quad \text{and} \quad \lambda = \frac{1}{2M} \left(\sum_{i\in S_1} k_i\right) \left( \sum_{j\in S_2} k_j \right)$$
-That is, time complexity is now $O\left( \left| S_1 \right| + \left| S_2 \right| \right)$ instead of $O\left( \left| S_1 \right| \left| S_2 \right| \right)$.
+That is, time complexity is now $O\left( \left| S_1 \right| + \left| S_2 \right| \right)$ instead of $O\left( \left| S_1 \right| \times \left| S_2 \right| \right)$.
 
-As previously mentioned, utilizing the RGGED model takes into account individual vertex degrees in the quantification of connectedness. To illustrate this, consider now the pair of `set3` (GO\:0071986) and `set4` (GO\:1990130), that yields the same doubletof set sizes ($\left\{ 5, 6\right\}$), and thus the same maximum number of 'between' edges (30), and the same observed number of edges (21). Because vertices of the two pairs have different degrees, the two pairs yield different estimations of connectedness:
+As previously mentioned, utilizing the RGGED model takes into account individual vertex degrees in the quantification of connectedness. To illustrate this, consider now the pair of `set3` (GO\:0071986) and `set4` (GO\:1990130), that yields the same doublet of set sizes ($\left\{ 5, 6\right\}$), and thus the same maximum number of 'between' edges (30), and the same observed number of edges (21). Because vertices of the two pairs have different degrees, the two pairs yield different estimations of connectedness:
 
 ```{r plot_between_comparison, echo=FALSE, fig.align="center", fig.height=12, fig.width=25, message=FALSE, warning=FALSE, out.width="90%"}
 library(ggtext)
@@ -847,6 +847,8 @@ system.time(
                                                   set_membership,
                                                   sets = NULL)
 )
+setorder(connected_pairs, -observed_edges)
+connected_pairs
 nrow(connected_pairs)
 signif(nrow(connected_pairs)/number_of_pairs, 2)
 ```
@@ -900,11 +902,81 @@ p4 <- ggplot(results, aes(x = log2_Anscombe_ratio)) +
 (p1 + p2) / (p3 + p4)
 ```
 
-Remember that the above plots are restricted to pairs having at least one connection. Over all possible pairs, the proportion of p-values equal to 1 is 99.25%.
+Remember that the above plots are restricted to pairs having at least one connection. Over all possible pairs in `sample_ects`, the proportion of p-values equal to 1 is 99.25%.
 
-## Analysis with Bipartite Graphs (ECTermScoring)
+## Analysis with Bipartite Graphs
 
-This workflow is for analyzing term-element membership graphs (e.g., GO terms to genes). The main object for this is `ECTermScoring`. This is the foundation for Vertex Set Enrichment Analysis (VSEA).
+### The ECTermScoring class
+
+S4 class `ECTermScoring` represents an undirected bipartite graph and some associated methods. It is built from class `ECProb` and has additional slots:
+
+- `@ecprob`: represents an underlying `ECGraph` and its associated statistical methods
+- `@elements`: a vector of vertex names in `ECProb`
+- `@terms`: another vector of vertex names in `ECProb`, disjoint from `@elements`
+
+Undirected edges run only bewteen a `term` and an `element` (bipartite graph).
+An `ECTermScoring` instance is a collection of terms, each having its own set of elements, though these sets can overlap between terms.
+
+```{r bipartite_plot, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=6, fig.align="center", out.width="30%"}
+term_element_df <- data.frame(
+  Term = c("T1", "T1", "T2", "T2", "T3"),
+  Element = c("E1", "E2", "E2", "E3", "E4"),
+  stringsAsFactors = FALSE
+)
+
+nodes_df <- data.frame(
+  name = unique(c(term_element_df$Term, term_element_df$Element)),
+  stringsAsFactors = FALSE
+)
+
+nodes_df$is_element <- nodes_df$name %in% term_element_df$Element
+nodes_df$category <- ifelse(nodes_df$is_element, "Element", "Term")
+
+g_bipartite <- igraph::graph_from_data_frame(term_element_df, directed = FALSE, vertices = nodes_df)
+
+V(g_bipartite)$type <- V(g_bipartite)$is_element
+
+ggraph(g_bipartite, layout = 'bipartite') +
+  
+  geom_edge_link(color = "black", alpha = 1, width = 2) +
+  
+  geom_node_point(
+    aes(shape = category, fill = category),
+    color = "black",
+    size = 50,
+    stroke = 1
+  ) +
+  
+  geom_node_text(aes(label = name), color = "black", size = 16) +
+  
+  scale_shape_manual(values = c("Term" = 22, "Element" = 21)) + 
+  scale_fill_manual(values = c("Term" = "green", "Element" = "orange")) +
+  
+  # Flip coordinates to get Left-Right columns instead of Top-Bottom rows
+  coord_cartesian(clip = "off") + 
+    theme_void() +
+    theme(
+      legend.position = "none",
+      plot.margin = unit(c(1.5, 1.5, 1.5, 1.5), "cm")
+    )
+```
+
+The constructor argument of `ECTermScoring` can be either a data frame of bipartite edges or a file path.
+
+```{r ects_constructor}
+  term_element_df <- data.frame(
+    Term = c("T1", "T1", "T2", "T2", "T3"),
+    Element = c("E1", "E2", "E2", "E3", "E4"),
+    stringsAsFactors = FALSE
+  )
+  ects <- ECTermScoring(term_element_df)
+  
+  temp_file <- tempfile(fileext = ".tsv")
+  write.table(term_element_df, file = temp_file, sep = "\t", row.names = FALSE, quote = FALSE)
+  ects <- ECTermScoring(temp_file)
+  str(ects)
+  unlink(temp_file)
+```
 
 ```{r ects_example, eval=FALSE}
 # This example is commented out to speed up the vignette build.
