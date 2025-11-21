@@ -46,6 +46,34 @@ ECProb <- function(ecgraph) {
       average_degree = average_degree)
 }
 
+
+#' @describeIn ECProb Shows ECGraph statistics plus the pre-calculated graph properties (size, order, average degree).
+#' @export
+setMethod("show", "ECProb", function(object) {
+  cat("An object of class \"", class(object), "\"\n", sep = "")
+  cat(paste0("------------------------------------------------\n"))
+  cat(paste0("Statistics:\n"))
+  cat(paste0("  Vertices:   ", format(object@graph_order, big.mark=","), "\n"))
+  cat(paste0("  Edges:      ", format(object@graph_size, big.mark=","), "\n"))
+  cat(paste0("  Average Degree: ", round(object@average_degree, 4), "\n"))
+
+  if (object@graph_order > 0) {
+    cat(paste0("  Vertex names:   ", paste(head(object@names, 5), collapse=", "),
+               if(object@graph_order > 5) "..." else "", "\n"))
+  }
+
+  cat(paste0("\nSlot Summary:\n"))
+  # Inherited slots
+  cat(paste0("  @adj            : List of length ", format(length(object@adj), big.mark=","), "\n"))
+  cat(paste0("  @degrees        : List of length ", format(length(object@degrees), big.mark=","), "\n"))
+  cat(paste0("  @names          : Character vector [", length(object@names), "]\n"))
+  # New slots
+  cat(paste0("  @graph_size     : Numeric \n"))
+  cat(paste0("  @graph_order    : Numeric \n"))
+  cat(paste0("  @average_degree : Numeric\n"))
+  cat(paste0("------------------------------------------------\n"))
+})
+
 # --------------------------------------------------------------------------- #
 # Non-Vectorized (Single Set/Pair) Methods
 # --------------------------------------------------------------------------- #

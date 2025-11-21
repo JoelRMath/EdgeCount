@@ -173,6 +173,35 @@ ECGraph <- function(edges_input,
   new("ECGraph", adj = adj_list, degrees = degrees_list, names = all_vertex_names)
 }
 
+#' @describeIn ECGraph Custom show method to display basic graph statistics (N, M) and slot summary.
+#' @export
+setMethod("show", "ECGraph", function(object) {
+
+  N <- length(object@names)
+  total_degree <- if(length(object@degrees) > 0) sum(unlist(object@degrees)) else 0
+  M <- total_degree / 2
+
+  cat("An object of class \"", class(object), "\"\n", sep = "")
+  cat(paste0("------------------------------------------------\n"))
+  cat(paste0("Statistics:\n"))
+  cat(paste0("  Vertices: ", format(N, big.mark=","), "\n"))
+  cat(paste0("  Edges:    ", format(M, big.mark=","), "\n"))
+
+  if (N > 0) {
+    cat(paste0("  Vertex names: ", paste(head(object@names, 5), collapse=", "),
+               if(N > 5) "..." else "", "\n"))
+  }
+
+  cat(paste0("\nSlot Summary:\n"))
+  cat(paste0("  @adj     : List of length ", format(length(object@adj), big.mark=","),
+             " (Adjacency)\n"))
+  cat(paste0("  @degrees : List of length ", format(length(object@degrees), big.mark=","),
+             " (Integer degrees)\n"))
+  cat(paste0("  @names   : Character vector of length ", format(length(object@names), big.mark=","),
+             "\n"))
+  cat(paste0("------------------------------------------------\n"))
+})
+
 #' @title Convert ECGraph to Data Frame
 #'
 #' @description Creates a data frame of edges from an ECGraph object.

@@ -54,7 +54,6 @@ setClass("ECTermScoring",
            terms     = "character"
          )
 )
-
 ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...) {
 
   if (is.character(term_element_edges) && length(term_element_edges) == 1) {
@@ -62,7 +61,6 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
     if (!file.exists(term_element_edges)) {
       stop("File not found: ", term_element_edges)
     }
-
     # Default arguments for read.table
     default_read_args <- list(
       header = TRUE,
@@ -70,10 +68,8 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
       stringsAsFactors = FALSE,
       quote = ""
     )
-
     # If user-provided arguments from ...
     user_read_args <- list(...)
-
     final_read_args <- utils::modifyList(default_read_args, user_read_args)
     final_read_args$file <- term_element_edges
 
@@ -83,16 +79,15 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
       stop("Error reading file '", term_element_edges, "': ", e$message,
            "\nArguments used for read.table: ", paste(names(final_read_args), final_read_args, sep="=", collapse=", "))
     })
-
   } else if (is.data.frame(term_element_edges)) {
     edge_df <- term_element_edges
   } else {
     stop("'term_element_edges' must be a data frame or a file path.")
   }
-
   if (ncol(edge_df) < 2) {
     stop("Input 'term_element_edges' must have at least two columns.")
   }
+
   validate_col_spec <- function(col_spec, df_names, df_ncols, col_name_for_error) {
     if (is.numeric(col_spec)) {
       if (col_spec < 1 || col_spec > df_ncols) {
@@ -112,7 +107,6 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
   # Vertex IDs are character
   term_ids_char <- as.character(edge_df[[col_term]])
   element_ids_char <- as.character(edge_df[[col_element]])
-
   bipartite_edge_list_for_ecgraph <- data.frame(
     vertex1 = term_ids_char,    # Terms will be 'vertex1'
     vertex2 = element_ids_char, # Elements will be 'vertex2'
@@ -129,7 +123,6 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
 
   # Filter to those actually present in the graph
   actual_graph_vertices <- ecprob_bipartite@names
-
   final_element_vertices <- potential_element_vertices[potential_element_vertices %in% actual_graph_vertices]
   final_term_vertices    <- potential_term_vertices[potential_term_vertices %in% actual_graph_vertices]
 
@@ -147,6 +140,32 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
       terms     = final_term_vertices
   )
 }
+
+#' @describeIn ECTermScoring Show method for ECTermScoring objects.
+setMethod("show", "ECTermScoring", function(object) {
+  n_terms <- length(object@terms)
+  n_elems <- length(object@elements)
+  # In a bipartite graph context, M is the total number of connections
+  n_edges <- object@ecprob@graph_size
+
+  cat("An object of class \"ECTermScoring\" (Bipartite)\n")
+  cat(paste0("------------------------------------------------\n"))
+  cat(paste0("Statistics:\n"))
+  cat(paste0("  Terms:    ", format(n_terms, big.mark=","), "\n"))
+  cat(paste0("  Elements: ", format(n_elems, big.mark=","), "\n"))
+  cat(paste0("  Edges:    ", format(n_edges, big.mark=","), "\n"))
+
+  if (n_terms > 0) {
+    cat(paste0("  Terms ex: ", paste(head(object@terms, 4), collapse=", "),
+               if(n_terms > 4) "..." else "", "\n"))
+  }
+
+  cat(paste0("\nSlot Summary:\n"))
+  cat(paste0("  @ecprob   : <ECProb> object (The underlying graph engine)\n"))
+  cat(paste0("  @terms    : Character vector [", format(n_terms, big.mark=","), "]\n"))
+  cat(paste0("  @elements : Character vector [", format(n_elems, big.mark=","), "]\n"))
+  cat(paste0("------------------------------------------------\n"))
+})
 
 #' @title Score Terms Against an Element Set
 #'
@@ -170,7 +189,6 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
 setGeneric("terms_ecset_statistics",
            function(object, element_set, lambda_method = "optimized")
              standardGeneric("terms_ecset_statistics"))
-
 #' @describeIn terms_ecset_statistics Method for ECTermScoring objects.
 setMethod(
   "terms_ecset_statistics",
@@ -185,39 +203,30 @@ setMethod(
 
     connected_terms <- get_neighbors(object@ecprob, valid_element_set)
     relevant_terms <- intersect(connected_terms, object@terms)
-
     if (length(relevant_terms) < 1){
       warning("No terms are connected to the provided element set.")
       return(NULL)
     }
 
     ect_stats_single_term <- function(ecprob_obj, single_term_id, current_element_set, current_lambda_method) {
-
       max_possible_edges <- length(current_element_set)
-
       lambda <- switch(current_lambda_method,
                        accurate = calculate_lambda_between_naive(ecprob_obj, c(single_term_id), current_element_set),
                        optimized = calculate_lambda_between(ecprob_obj, c(single_term_id), current_element_set),
                        fast = calculate_lambda_between_fast(ecprob_obj, c(single_term_id), current_element_set),
                        stop("Invalid lambda_method specified in ect_stats_single_term.")
       )
-
       observed_edges <- get_edge_count_between(ecprob_obj, c(single_term_id), current_element_set)
-
       p_value <- calculate_p_value(ecprob_obj, observed_edges, max_possible_edges, lambda)
-
       observed_edge_count <- observed_edges
-
       log2_Anscombe_ratio <- NA_real_
       if (!is.na(lambda) && (lambda + 3/8) > 0 && (observed_edges + 3/8) > 0) {
         log2_Anscombe_ratio <- 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))
       }
-
       log2_relative_change <- NA_real_
       if (!is.na(lambda) && lambda > 0 && observed_edges > 0) {
         log2_relative_change <- log2(observed_edges) - log2(lambda)
       }
-
       return(list(p_value = p_value,
                   observed_edge_count = observed_edge_count,
                   lambda = lambda,
@@ -239,7 +248,6 @@ setMethod(
     )
 
     names(all_term_scores_list) <- relevant_terms
-
     if (length(all_term_scores_list) > 0) {
       results_df <- do.call(rbind, lapply(names(all_term_scores_list), function(term_name) {
         data.frame(
@@ -305,11 +313,11 @@ setMethod(
 setGeneric("terms_ecset_statistics_vectorized",
            function(object, input_sets, lambda_method = "fast")
              standardGeneric("terms_ecset_statistics_vectorized"))
-
 #' @describeIn terms_ecset_statistics_vectorized Method for ECTermScoring objects.
 setMethod("terms_ecset_statistics_vectorized",
           "ECTermScoring",
           function(object, input_sets, lambda_method = "fast") {
+
             if (is.list(input_sets) && !is.data.frame(input_sets)) {
               input_sets_dt <- as.data.table(utils::stack(input_sets))
               setnames(input_sets_dt, c("values", "ind"), c("element", "set_id"))
@@ -320,43 +328,30 @@ setMethod("terms_ecset_statistics_vectorized",
             bipartite_edges <- as.data.table(to_dataframe(object))
             setnames(bipartite_edges, "term", "term_id")
             bipartite_edges[, term_id := as.character(term_id)]
-
             input_sets_dt_unique <- unique(input_sets_dt, by = c("set_id", "element"))
-
             setkey(input_sets_dt_unique, element)
             setkey(bipartite_edges, element)
             all_connections <- bipartite_edges[input_sets_dt_unique, on = "element", nomatch = 0, allow.cartesian = TRUE]
-
             observed_edges_dt <- all_connections[, .(observed_edges = .N), by = .(input_set_id = set_id, term_id)]
-
             all_element_degrees <- unlist(object@ecprob@degrees)
-
             term_degrees <- all_element_degrees[bipartite_edges[, unique(term_id)]]
             term_summary <- data.table(term_id = names(term_degrees), term_degree = term_degrees)
-
             valid_input_elements <- all_connections[, .(input_set_id = set_id, element)] |> unique()
             input_set_summary <- valid_input_elements[,
                                                       .(sum_degrees_set = sum(all_element_degrees[element], na.rm = TRUE)),
                                                       by = input_set_id
             ]
-
             final_dt <- copy(observed_edges_dt)
-
             final_dt[term_summary, on = "term_id", term_degree := i.term_degree]
             final_dt[input_set_summary, on = "input_set_id", sum_degrees_set := i.sum_degrees_set]
-
             input_set_sizes <- valid_input_elements[, .(set_size = .N), by = input_set_id]
             final_dt[input_set_sizes, on = "input_set_id", max_possible_edges := i.set_size]
-
             final_dt[, lambda := (term_degree * sum_degrees_set) / (2 * object@ecprob@graph_size)]
             final_dt[, p_value := calculate_p_value(object@ecprob, observed_edges, max_possible_edges, lambda)]
             final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
-
             setnames(final_dt, "input_set_id", "set1")
             setnames(final_dt, "term_id", "set2")
-
             results_list <- split(final_dt, by = "set1")
-
             return(results_list)
           })
 
@@ -394,7 +389,6 @@ setMethod("terms_ecset_statistics_vectorized",
 setGeneric("terms_ecranks_statistics",
            function(object, element_ranks)
              standardGeneric("terms_ecranks_statistics"))
-
 #' @describeIn terms_ecranks_statistics Method for ECTermScoring objects.
 setMethod(
   "terms_ecranks_statistics",
@@ -409,14 +403,12 @@ setMethod(
     object <- reduce_universe_by_elements(object, valid_elements)
     element_ranks <- rank(element_ranks[valid_elements])
 
-
     # --- Step 2: Pre-computation of core data structures ---
     all_element_degrees <- unlist(object@ecprob@degrees)
     ranks_dt <- data.table(element_id = names(element_ranks), global_rank = element_ranks)
     setorder(ranks_dt, global_rank)
     ranks_dt[, degree := all_element_degrees[element_id]]
     ranks_dt[, cumsum_degrees := cumsum(degree)]
-
     bipartite_edges <- as.data.table(to_dataframe(object))
     setnames(bipartite_edges, c("term", "element"), c("term_id", "element_id"))
     bipartite_edges[, term_id := as.character(term_id)]
@@ -425,10 +417,8 @@ setMethod(
     setkey(bipartite_edges, element_id)
     setkey(ranks_dt, element_id)
     final_dt <- ranks_dt[bipartite_edges, on = "element_id"]
-
     setorder(final_dt, term_id, global_rank)
     final_dt[, rank_in_term := 1:.N, by = term_id]
-
     term_sizes <- lengths(object@ecprob@adj[object@terms])
     term_summary <- data.table(
       term_id = names(term_sizes),
@@ -443,30 +433,23 @@ setMethod(
       max_ec = pmin(term_size, global_rank),
       lambda = (term_degree / (2 * object@ecprob@graph_size)) * cumsum_degrees
     )]
-
     final_dt[, `:=`(
       p_value = calculate_p_value(object@ecprob, observed_ec, max_ec, lambda),
       log2_Anscombe_ratio = 0.5 * (log2(observed_ec + 3/8) - log2(lambda + 3/8))
     )]
 
-
     # --- STEP 5: Reshape output to the required named list format ---
     results_list <- split(final_dt, by = "term_id")
-
     # Define and reorder columns for final output
     final_cols <- c("element_id", "global_rank", "rank_in_term",
                     "observed_ec", "max_ec", "term_size",
                     "lambda", "p_value", "log2_Anscombe_ratio")
-
     results_list_final <- lapply(results_list, function(dt) {
       # It is safer to create the final table with a fresh subset
       dt[, ..final_cols]
     })
-
     return(results_list_final)
   })
-
-
 
 #' @title Full Summary of Rank Statistics (for User Output)
 #'
@@ -489,7 +472,6 @@ summarize_ranks_full <- function(term_scores_list, scoring_statistic = "log2_Ans
     idx_min <- which.min(get(scoring_statistic))
     idx_max <- which.max(get(scoring_statistic))
     idx_median <- which.min(abs(get(scoring_statistic) - median(get(scoring_statistic), na.rm = TRUE)))
-
     # Return a list of all the summary info for this term
     .(
       term_size = term_size[1],
@@ -504,7 +486,6 @@ summarize_ranks_full <- function(term_scores_list, scoring_statistic = "log2_Ans
       rank_at_max = global_rank[idx_max]
     )
   }, by = term_id]
-
   return(summary_dt)
 }
 
@@ -574,7 +555,6 @@ summarize_ranks_full <- function(term_scores_list, scoring_statistic = "log2_Ans
 setGeneric("run_vsea_analysis",
            function(object, element_ranks, scoring_statistic = "log2_Anscombe_ratio", n_permutations = 1000, seed = NULL)
              standardGeneric("run_vsea_analysis"))
-
 #' @describeIn run_vsea_analysis Method for ECTermScoring objects.
 setMethod("run_vsea_analysis",
           "ECTermScoring",
@@ -592,14 +572,13 @@ setMethod("run_vsea_analysis",
             if (length(valid_elements) < 1) {
               stop("None of the elements in `element_ranks` are in the ECTermScoring object.")
             }
+
             analysis_object <- reduce_universe_by_elements(object, valid_elements)
             element_ranks <- rank(element_ranks[valid_elements])
-
             all_element_degrees <- unlist(analysis_object@ecprob@degrees)
             bipartite_edges <- as.data.table(to_dataframe(analysis_object))
             setnames(bipartite_edges, c("term", "element"), c("term_id", "element_id"))
             bipartite_edges[, term_id := as.character(term_id)]
-
             term_sizes <- lengths(analysis_object@ecprob@adj[analysis_object@terms])
             term_summary <- data.table(
               term_id = names(term_sizes),
@@ -637,7 +616,6 @@ setMethod("run_vsea_analysis",
             real_ranks_dt <- data.table(element_id = names(element_ranks), global_rank = element_ranks)
             setorder(real_ranks_dt, global_rank)
             real_scores_flat_dt <- score_core(analysis_object, real_ranks_dt, summary_only = FALSE)
-
             real_summary_lean <- real_scores_flat_dt[, .(
               min_score = min(get(scoring_statistic), na.rm = TRUE),
               max_score = max(get(scoring_statistic), na.rm = TRUE),
@@ -651,7 +629,6 @@ setMethod("run_vsea_analysis",
               setorder(shuffled_ranks_dt, global_rank)
               score_core(analysis_object, shuffled_ranks_dt, summary_only = TRUE)
             }, simplify = FALSE)
-
             null_scores_long <- rbindlist(perm_results_list, idcol = "perm_id")
 
             # NES and FDR
@@ -662,19 +639,14 @@ setMethod("run_vsea_analysis",
               ), by = term_id]
               mean_nulls[is.nan(mean_pos), mean_pos := 1]
               mean_nulls[is.nan(mean_neg), mean_neg := 1]
-
               real_summary_dt[mean_nulls, on="term_id", `:=`(mean_null_pos = i.mean_pos, mean_null_neg = i.mean_neg)]
               real_summary_dt[, nes := ifelse(get(score_col) > 0, get(score_col) / mean_null_pos, get(score_col) / mean_null_neg)]
-
               null_scores_dt[mean_nulls, on="term_id", `:=`(mean_null_pos = i.mean_pos, mean_null_neg = i.mean_neg)]
               null_scores_dt[, null_nes := ifelse(get(score_col) > 0, get(score_col) / mean_null_pos, get(score_col) / mean_null_neg)]
-
               all_null_nes <- na.omit(null_scores_dt$null_nes)
               null_nes_pos <- all_null_nes[all_null_nes > 0]
               null_nes_neg <- all_null_nes[all_null_nes < 0]
-
               nes_real_vec <- real_summary_dt$nes
-
               fdr_values <- vapply(nes_real_vec, function(score) {
                 if (score > 0) {
                   if (length(null_nes_pos) == 0) return(1)
@@ -690,17 +662,13 @@ setMethod("run_vsea_analysis",
                   return(1)
                 }
               }, FUN.VALUE = numeric(1))
-
               fdr_values[fdr_values > 1] <- 1
               real_summary_dt[, fdr_q_value := fdr_values]
-
               return(real_summary_dt)
             }
-
             results_max <- calculate_nes_fdr(real_summary_lean[, .(term_id, max_score)], null_scores_long, "max_score")
             results_min <- calculate_nes_fdr(real_summary_lean[, .(term_id, min_score)], null_scores_long, "min_score")
             results_median <- calculate_nes_fdr(real_summary_lean[, .(term_id, median_score)], null_scores_long, "median_score")
-
             summarize_ranks_full <- function(flat_dt) {
               flat_dt[, {
                 scores <- get(scoring_statistic)
@@ -721,22 +689,18 @@ setMethod("run_vsea_analysis",
                 )
               }, by = term_id]
             }
-            real_summary_rich <- summarize_ranks_full(real_scores_flat_dt)
 
+            real_summary_rich <- summarize_ranks_full(real_scores_flat_dt)
             final_max <- real_summary_rich[results_max, on = "term_id"]
             setorder(final_max, fdr_q_value)
-
             final_min <- real_summary_rich[results_min, on = "term_id"]
             setorder(final_min, fdr_q_value)
-
             final_median <- real_summary_rich[results_median, on = "term_id"]
             setorder(final_median, fdr_q_value)
-
             return(list(max_score_summary = final_max,
                         min_score_summary = final_min,
                         median_score_summary = final_median))
           })
-
 
 #' @title Trim High-Degree Vertices from a Bipartite Graph
 #'
@@ -766,7 +730,6 @@ setMethod("run_vsea_analysis",
 #' }
 #' @export
 setGeneric("trim_bipartite_terms", function(object, threshold = 1.0) standardGeneric("trim_bipartite_terms"))
-
 #' @describeIn trim_bipartite_terms Method for ECTermScoring objects.
 setMethod("trim_bipartite_terms", "ECTermScoring", function(object, threshold = 1.0) {
 
@@ -774,7 +737,6 @@ setMethod("trim_bipartite_terms", "ECTermScoring", function(object, threshold = 
   all_degrees <- unlist(object@ecprob@degrees)
   current_term_degrees <- all_degrees[object@terms]
   current_element_degrees <- all_degrees[object@elements]
-
   two_m_current <- object@ecprob@graph_size * 2
   removed_terms <- character(0)
 
@@ -783,26 +745,21 @@ setMethod("trim_bipartite_terms", "ECTermScoring", function(object, threshold = 
     max_kt <- max(current_term_degrees)
     max_ke <- max(current_element_degrees)
     # print(max_ke * max_kt / two_m_current)
-
     # If the condition is met, we're done trimming.
     if (max_ke * max_kt < threshold * two_m_current) {
       break
     }
-
     # Identify the term(s) with the current max degree
     terms_to_remove <- names(current_term_degrees[current_term_degrees == max_kt])
     removed_terms <- c(removed_terms, terms_to_remove)
-
     # Find neighbors of the removed terms to update their degrees
     neighbors_to_update <- unlist(object@ecprob@adj[terms_to_remove])
-
     # Efficiently decrement the degrees of affected elements
     if(length(neighbors_to_update) > 0) {
       neighbor_counts <- table(neighbors_to_update)
       affected_elements <- names(neighbor_counts)
       current_element_degrees[affected_elements] <- current_element_degrees[affected_elements] - neighbor_counts
     }
-
     # Update state for the next iteration
     two_m_current <- two_m_current - (length(terms_to_remove) * max_kt * 2) # Each edge removal reduces sum of degrees by 2
     current_term_degrees <- current_term_degrees[!names(current_term_degrees) %in% terms_to_remove]
@@ -811,7 +768,6 @@ setMethod("trim_bipartite_terms", "ECTermScoring", function(object, threshold = 
 
   # --- STEP 3: Rebuild the new, trimmed ECTermScoring object ---
   kept_terms <- setdiff(object@terms, removed_terms)
-
   if (length(kept_terms) == 0) {
     # Return an empty object if no terms are left
     empty_df <- data.frame(term=character(), element=character())
@@ -831,10 +787,8 @@ setMethod("trim_bipartite_terms", "ECTermScoring", function(object, threshold = 
   # Create the new ECTermScoring object using its constructor.
   # The constructor will automatically determine the final set of elements.
   new_ects <- ECTermScoring(new_edge_df[, c("term", "element")])
-
   # Determine which elements were removed as a consequence
   final_removed_elements <- setdiff(object@elements, new_ects@elements)
-
   return(list(
     trimmed_object = new_ects,
     removed_terms = removed_terms,
@@ -867,33 +821,25 @@ setMethod("trim_bipartite_terms", "ECTermScoring", function(object, threshold = 
 #' ects_base <- ECTermScoring(te_df) # E3 is not in this edge list
 #'
 setGeneric("remove_isolated_elements", function(object) standardGeneric("remove_isolated_elements"))
-
 #' @describeIn remove_isolated_elements Method for ECTermScoring objects.
 setMethod("remove_isolated_elements", "ECTermScoring", function(object) {
 
   element_degrees <- unlist(object@ecprob@degrees[object@elements])
   kept_elements <- names(element_degrees[element_degrees > 0])
-
   if (length(kept_elements) == length(object@elements)) {
     return(object)
   }
-
   term_neighbors_list <- object@ecprob@adj[object@terms]
-
   term_neighbors_clean <- lapply(term_neighbors_list, function(neighbors) {
     neighbors[neighbors %in% kept_elements]
   })
-
   new_edge_df <- utils::stack(term_neighbors_clean)
-
   if(nrow(new_edge_df) == 0) {
     final_df <- data.frame(term=character(), element=character())
   } else {
     names(new_edge_df) <- c("element", "term")
     final_df <- new_edge_df[, c("term", "element")]
-
   }
-
   ECTermScoring(final_df)
 })
 
@@ -928,24 +874,19 @@ setMethod("remove_isolated_elements", "ECTermScoring", function(object) {
 #' # print(ects_trimmed@terms) # Would not contain "T2"
 #'
 setGeneric("remove_empty_terms", function(object) standardGeneric("remove_empty_terms"))
-
 #' @describeIn remove_empty_terms Method for ECTermScoring objects.
 setMethod("remove_empty_terms", "ECTermScoring", function(object) {
 
   term_degrees <- unlist(object@ecprob@degrees[object@terms])
   kept_terms <- names(term_degrees[term_degrees > 0])
-
   if (length(kept_terms) == length(object@terms)) {
     # No empty terms to remove, return original object
     return(object)
   }
-
   # Reconstruct the term->element edge list from the original object,
   # but only for the terms we are keeping.
   term_neighbors_list <- object@ecprob@adj[kept_terms]
-
   new_edge_df <- utils::stack(term_neighbors_list)
-
   if(nrow(new_edge_df) == 0) {
     # Handle case where removing terms leaves no edges
     final_df <- data.frame(term=character(), element=character())
@@ -953,7 +894,6 @@ setMethod("remove_empty_terms", "ECTermScoring", function(object) {
     names(new_edge_df) <- c("element", "term")
     final_df <- new_edge_df[, c("term", "element")]
   }
-
   # Create a new ECTermScoring object using its constructor.
   # The constructor will correctly build the new graph and element list.
   ECTermScoring(final_df)
@@ -988,16 +928,12 @@ setMethod("to_dataframe",
           function(object) {
             # stack() correctly creates the unique term -> element edge list
             edge_df <- utils::stack(object@ecprob@adj[object@terms])
-
             if(nrow(edge_df) == 0) {
               return(data.frame(term = character(), element = character()))
             }
-
             names(edge_df) <- c("element", "term")
-
             edge_df[, c("term", "element")]
           })
-
 #' @title Reduce the Universe of an ECTermScoring Object to a Set of Elements
 #'
 #' @description Creates a new, smaller ECTermScoring object by restricting it
@@ -1015,13 +951,11 @@ setMethod("to_dataframe",
 #' @return A new, smaller ECTermScoring object.
 #' @export
 setGeneric("reduce_universe_by_elements", function(object, elements_to_keep) standardGeneric("reduce_universe_by_elements"))
-
 #' @describeIn reduce_universe_by_elements Method for ECTermScoring objects.
 setMethod("reduce_universe_by_elements", "ECTermScoring", function(object, elements_to_keep) {
 
   bipartite_edges <- as.data.table(to_dataframe(object))
   reduced_edges <- bipartite_edges[element %in% elements_to_keep]
-
   return(ECTermScoring(reduced_edges))
 })
 
@@ -1041,16 +975,12 @@ setMethod("reduce_universe_by_elements", "ECTermScoring", function(object, eleme
 #' @return A new, smaller ECTermScoring object.
 #' @export
 setGeneric("reduce_universe_by_terms", function(object, terms_to_keep) standardGeneric("reduce_universe_by_terms"))
-
 #' @describeIn reduce_universe_by_terms Method for ECTermScoring objects.
 setMethod("reduce_universe_by_terms", "ECTermScoring", function(object, terms_to_keep) {
-
   bipartite_edges <- as.data.table(to_dataframe(object))
   reduced_edges <- bipartite_edges[term %in% terms_to_keep]
-
   return(ECTermScoring(reduced_edges))
 })
-
 #' @title Summarize Bipartite Graph Suitability for Fast Lambda Approximation
 #'
 #' @description Provides statistics on the pairwise Bernoulli parameters (p_ij)
@@ -1072,7 +1002,6 @@ setMethod("reduce_universe_by_terms", "ECTermScoring", function(object, terms_to
 #' @export
 setGeneric("summarize_suitability_bipartite",
            function(object) standardGeneric("summarize_suitability_bipartite"))
-
 #' @describeIn summarize_suitability_bipartite Method for ECTermScoring objects.
 setMethod("summarize_suitability_bipartite",
           "ECTermScoring",
@@ -1081,10 +1010,8 @@ setMethod("summarize_suitability_bipartite",
             all_degrees <- unlist(object@ecprob@degrees)
             term_degrees <- all_degrees[object@terms]
             element_degrees <- all_degrees[object@elements]
-
             Nt <- length(term_degrees)
             Ne <- length(element_degrees)
-
             if (Nt == 0 || Ne == 0) {
               return(list(
                 pij_over_1 = 0,
@@ -1092,42 +1019,33 @@ setMethod("summarize_suitability_bipartite",
                 prop_problematic_elements = 0
               ))
             }
-
             M <- object@ecprob@graph_size
             two_M <- 2 * M
-
             t_dist <- table(term_degrees)
             k_t <- as.numeric(names(t_dist))
             n_t <- as.numeric(t_dist)
-
             e_dist <- table(element_degrees)
             k_e <- as.numeric(names(e_dist))
             n_e <- as.numeric(e_dist)
-
             p_t <- n_t / Nt
             p_e <- n_e / Ne
-
             prod_matrix <- outer(k_t, k_e, "*") / two_M
             prob_matrix <- outer(p_t, p_e, "*")
             count_matrix <- outer(n_t, n_e)
             count_vec <- as.vector(count_matrix)
-
             prod_vec <- as.vector(prod_matrix)
             prob_vec <- as.vector(prob_matrix)
             dt <- data.table(pij = prod_vec,
                              count = count_vec,
                              prop = prob_vec)
-
             dt <- dt[, .(
               count = as.integer(sum(count)),
               prop = sum(prop)
             ), by = .(pij)]
-
             pij_over_1 <- sum(prob_vec[prod_vec >= 1])
             threshold <- sqrt(two_M)
             prop_prob_terms <- mean(term_degrees > threshold)
             prop_prob_elems <- mean(element_degrees > threshold)
-
             return(list(
               pij_over_1 = pij_over_1,
               prop_problematic_terms = prop_prob_terms,

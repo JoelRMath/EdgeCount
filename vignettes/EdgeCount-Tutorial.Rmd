@@ -423,6 +423,7 @@ edge_df <- data.frame(
 
 # ECGraph and ECProb objects from the edge list
 ecg <- ECGraph(edge_df)
+ecg
 ecp <- ECProb(ecg)
 
 # Same from a file
@@ -437,8 +438,8 @@ igraph_obj <- igraph::graph_from_data_frame(edge_df, directed = FALSE)
 ecg_from_igraph <- ECGraph(igraph_obj)
 ecp_from_igraph <- ECProb(ecg_from_igraph)
 
-# ECProb structure
-str(ecp)
+# ECProb 
+ecp
 ```
 
 The S4 class `ECProb` inherits the slots of `ECGraph`:
@@ -514,28 +515,28 @@ The `pij_over_1` value is 4.5%. This indicates that some vertex pairs have an ap
 
 In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. 
 
-**However, the fast approximation methods are conservative**:
+This said, false-positive results cannot be obtained with fast approximation methods. Indeed,
 
-- They overestimate $p_{ij}$ values.
-- They underestimate effect sizes.
-- They overestimate edge-count p-values.
+- they overestimate $p_{ij}$ values,
+- they underestimate effect sizes,
+- they overestimate edge-count p-values.
 
-**That is, fast approximation methods cannnot yield false-positive results**. In other words, using the fast approximation methods by default is a conservative approach for analysis.
+In other words, using the fast approximation methods by default is a conservative approach to analysis.
 
 The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5). The network is limited to protein interactions having a confidence score greater than or equal to 900. Proteins IDs have been replaced with their mapped Gene Entrez IDs. 
 
 
 ```{r sample_ecg}
 data("sample_ecg")
-data("sample_ects")
 sample_ecp <- ECProb(sample_ecg)
-str(sample_ecp, list.len = 6)
+sample_ecp
 ```
 
 This network is relatively large and it is sparse.
 
 ```{r sample_ecg_suitability}
-summarize_suitability_fast(sample_ecp)
+system.time(suitability <- summarize_suitability_fast(sample_ecp))
+suitability
 ```
 
 Indeed, it is suitable for fast approximations not only because `pij_over_1` = 0, but also because the majority of $p_{ij}$ values are close to $4.10^{-4}$. 
@@ -594,8 +595,8 @@ $$p_{ij} = \min\left(1, \frac{k_ik_j}{2M}\right)$$
 $$m = \frac{1}{2}\left| S \right|\left( \left| S\right|-1\right)$$
 $$\lambda = \sum_{i < j, \in S} p_{ij}$$
 $$p_S = \sum_{u=x}^m \Pr\left(X = u\right)$$
-$$\Pr\left(X = u\right) = \frac{1}{\alpha}\frac{\lambda^u}{u!}$$
-$$\alpha = \sum_{v=0}^{m} \frac{\lambda^v}{v!}$$
+$$\Pr\left(X = u\right) = \frac{e^{-\lambda}}{\alpha}\frac{\lambda^u}{u!}$$
+$$\alpha = e^{-\lambda}\sum_{v=0}^{m} \frac{\lambda^v}{v!}$$
 $$lAr = \frac{1}{2} \log_2 \frac{x +3/8}{\lambda + 3/8}$$
 Using $lAr$ as effect size is important because $X$ can have a truncated Poisson distribution of parameter $\lambda$ small enough to yield an asymmetric distribution.
 
@@ -662,7 +663,7 @@ p_A + p_B
 
 #### Vectorized method
 
-The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed, by using the `data.table` package [[10]](#ref10) and **fast lambda approximation**.
+The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed, by using the `data.table` package [[10]](#ref10) and fast lambda approximation.
 
 Method `calculate_in_stats_fast_vectorized(ecprob, sets_dt, set_membership_dt)` has the following arguments
 
@@ -788,8 +789,8 @@ $$p_{ij} = \min\left(1, \frac{k_ik_j}{2M}\right)$$
 $$m = \left| S_1 \right| \left| S_2\right|$$
 $$\lambda = \sum_{i \in S_1, j \in S_2} p_{ij}$$
 $$p_{S_1,S_2} = \sum_{u=x}^m \Pr\left(X = u\right)$$
-$$\Pr\left(X = u\right) = \frac{1}{\alpha}\frac{\lambda^u}{u!}$$
-$$\alpha = \sum_{v=0}^{m} \frac{\lambda^v}{v!}$$
+$$\Pr\left(X = u\right) = \frac{e^{-\lambda}}{\alpha}\frac{\lambda^u}{u!}$$
+$$\alpha = e^{-\lambda}\sum_{v=0}^{m} \frac{\lambda^v}{v!}$$
 $$lAr = \frac{1}{2} \log_2 \frac{x +3/8}{\lambda + 3/8}$$
 Using $lAr$ as effect size is important because $X$ can have a truncated Poisson distribution of parameter $\lambda$ small enough to yield an asymmetric distribution.
 
@@ -865,7 +866,7 @@ p_A + p_B
 
 #### Vectorized method
 
-The last examples showed how to test a single pair of sets for their between connectedness in an interaction network. When dealing with multiple pairs, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of pairs as argument. **Note that this method relies on a fast lambda approximation**. 
+The last examples showed how to test a single pair of sets for their between connectedness in an interaction network. When dealing with multiple pairs, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of pairs as argument. Note that this method relies on a fast lambda approximation. 
 
 Method `calculate_between_stats_fast_vectorized` has the following arguments
 
@@ -996,15 +997,15 @@ plot_bipartite(term_element_df, node_sz = 45)
   temp_file <- tempfile(fileext = ".tsv")
   write.table(term_element_df, file = temp_file, sep = "\t", row.names = FALSE, quote = FALSE)
   ects <- ECTermScoring(temp_file)
-  str(ects)
+  ects
   unlink(temp_file)
 ```
 
-Note that the constructor will fail is a vertex appears both as term and element in the provided edge list.
+Note that the constructor will fail if a vertex appears both as term and element in the provided edge list.
 
 ### Suitability for fast approximations
 
-The `@ecprob` slot of an `ECTermScoring` object allows for calculation of edge-count statistics on the underlying graph, including those based on fast lambda approximations. Because this graph is bipartite, any edge counting and associated statistics is better on edges between terms and elements. In particular, the method `summarize_suitability_fast`, used to check a graph for suitability to fast lambda approximations, is not optimal in the context of an `ECTermScoring` object. Instead, `ECTermScoring` contains method `summarize_suitability_bipartite` which is specifically designed for a bipartite graph.
+The `@ecprob` slot of an `ECTermScoring` object allows for calculation of edge-count statistics on the underlying bipartite graph, including those based on fast lambda approximations. Because this graph is bipartite, any edge counting and associated statistics is done on edges between terms and elements. In particular, the method `summarize_suitability_fast`, used to check a graph for suitability to fast lambda approximations, is not optimal in the context of an `ECTermScoring` object. Instead, `ECTermScoring` contains method `summarize_suitability_bipartite` which is specifically designed for bipartite graphs.
 
 Here is an example of small bipartite graph that is not optimal for fast lambda approximation.
 
@@ -1035,19 +1036,31 @@ The returned list has the following items:
 - `$summary_pij` is a short summary of the distribution of connection probabilities over all possible term-element pairs 
 - `$pij_distribution` is the full distribution of $p_{ij}$ values in the RGGED model with fast approximations.
 
+This said, false-positive results cannot be obtained with fast approximation methods, because
+
+- they overestimate $p_{ij}$ and $\lambda$ values,
+- they underestimate effect sizes,
+- they overestimate edge-count p-values.
+
+In other words, using the fast approximation methods by default is a conservative approach to analysis.
+
+
 The EdgeCount package comes with an example of relatively large bipartite graph `sample_ects`, a trimmed version of GO categories to their human gene elements [[6]](#ref6), [[7]](#ref7), [[9]](#ref9).
 
 ```{r sample_ects}
 data("sample_ects")
-str(sample_ects, list.len = 6)
+sample_ects
 ```
 
 Object `sample_ects` was trimmed to pass all the suitability tests.
 ```{r sample_ects_suitability}
-summarize_suitability_bipartite(sample_ects)
+system.time(suitability <- summarize_suitability_bipartite(sample_ects))
+suitability
 ```
 
-It was also built to have the same universe of human genes as `sample_ecp` (`sample_ecp <- ECProb(sample_ecg)`). Now, `sample_ecg` and `sample_ects` do not represent the same edges: the first one represent interactions between genes/elements and the second one membership of elements in terms.
+It was also built to have the same universe of human genes as `sample_ecp` (`sample_ecp <- ECProb(sample_ecg)`). Now, `sample_ecg` and `sample_ects` do not represent the same network: the first one represent interactions between genes/elements and the second one membership of elements in terms.
+
+Methods of `ECTermScoring` are tailored to a bipartite network. This said, an `ECTermScoring` object has an `@ecprob` slot, thus making it possible to also utilize more general `ECProb` methods.
 
 # References
 
