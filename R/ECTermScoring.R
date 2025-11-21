@@ -1051,3 +1051,88 @@ setMethod("reduce_universe_by_terms", "ECTermScoring", function(object, terms_to
   return(ECTermScoring(reduced_edges))
 })
 
+#' @title Summarize Bipartite Graph Suitability for Fast Lambda Approximation
+#'
+#' @description Provides statistics on the pairwise Bernoulli parameters (p_ij)
+#' specifically for Term-Element pairs. This helps assess if fast lambda
+#' approximation methods are suitable for the bipartite graph structure.
+#'
+#' @details Unlike \code{summarize_suitability_fast} which checks all vertex pairs,
+#' this method only checks pairs where one vertex is a Term and the other is an Element.
+#' This is the relevant check for bipartite enrichment analyses.
+#'
+#' @param object An ECTermScoring object.
+#'
+#' @return A list of summary statistics:
+#' \itemize{
+#'   \item `pij_over_1`: The proportion of (Term, Element) pairs such that p_ij >= 1.
+#'   \item `prop_problematic_terms`: Proportion of terms with degree > sqrt(2*M).
+#'   \item `prop_problematic_elements`: Proportion of elements with degree > sqrt(2*M).
+#' }
+#' @export
+setGeneric("summarize_suitability_bipartite",
+           function(object) standardGeneric("summarize_suitability_bipartite"))
+
+#' @describeIn summarize_suitability_bipartite Method for ECTermScoring objects.
+setMethod("summarize_suitability_bipartite",
+          "ECTermScoring",
+          function(object) {
+
+            all_degrees <- unlist(object@ecprob@degrees)
+            term_degrees <- all_degrees[object@terms]
+            element_degrees <- all_degrees[object@elements]
+
+            Nt <- length(term_degrees)
+            Ne <- length(element_degrees)
+
+            if (Nt == 0 || Ne == 0) {
+              return(list(
+                pij_over_1 = 0,
+                prop_problematic_terms = 0,
+                prop_problematic_elements = 0
+              ))
+            }
+
+            M <- object@ecprob@graph_size
+            two_M <- 2 * M
+
+            t_dist <- table(term_degrees)
+            k_t <- as.numeric(names(t_dist))
+            n_t <- as.numeric(t_dist)
+
+            e_dist <- table(element_degrees)
+            k_e <- as.numeric(names(e_dist))
+            n_e <- as.numeric(e_dist)
+
+            p_t <- n_t / Nt
+            p_e <- n_e / Ne
+
+            prod_matrix <- outer(k_t, k_e, "*") / two_M
+            prob_matrix <- outer(p_t, p_e, "*")
+            count_matrix <- outer(n_t, n_e)
+            count_vec <- as.vector(count_matrix)
+
+            prod_vec <- as.vector(prod_matrix)
+            prob_vec <- as.vector(prob_matrix)
+            dt <- data.table(pij = prod_vec,
+                             count = count_vec,
+                             prop = prob_vec)
+
+            dt <- dt[, .(
+              count = as.integer(sum(count)),
+              prop = sum(prop)
+            ), by = .(pij)]
+
+            pij_over_1 <- sum(prob_vec[prod_vec >= 1])
+            threshold <- sqrt(two_M)
+            prop_prob_terms <- mean(term_degrees > threshold)
+            prop_prob_elems <- mean(element_degrees > threshold)
+
+            return(list(
+              pij_over_1 = pij_over_1,
+              prop_problematic_terms = prop_prob_terms,
+              prop_problematic_elements = prop_prob_elems,
+              summary_pij = summary(rep(dt$pij, dt$count)),
+              pij_distribution = dt[count > 0]
+            ))
+          })

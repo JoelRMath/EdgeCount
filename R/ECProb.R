@@ -796,7 +796,6 @@ setMethod("summarize_suitability_fast",
           "ECProb",
           function(object) {
 
-            # proportion of problematic pairs
             degrees <- unlist(object@degrees)
             N <- length(degrees)
             if (N == 0) {
@@ -809,6 +808,8 @@ setMethod("summarize_suitability_fast",
 
             M <- object@graph_size
             two_M <- 2 * M
+
+            # proportion of problematic pairs
 
             degree_distribution <- table(degrees)
             k <- as.numeric(names(degree_distribution))

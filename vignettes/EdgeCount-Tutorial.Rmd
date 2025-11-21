@@ -299,6 +299,60 @@ plot_between_comparison <- function(ecp, core_set_1, core_set_2, symbol_lookup =
       plot.margin = unit(c(1, 1, 1, 1), "cm")
     )
 }
+
+plot_bipartite <- function(term_element_df, node_sz){
+  
+nodes_df <- data.frame(
+  name = unique(c(term_element_df$Term, term_element_df$Element)),
+  stringsAsFactors = FALSE
+)
+
+nodes_df$is_element <- nodes_df$name %in% term_element_df$Element
+nodes_df$category <- ifelse(nodes_df$is_element, "Element", "Term")
+
+g_bipartite <- igraph::graph_from_data_frame(term_element_df, directed = FALSE, vertices = nodes_df)
+
+V(g_bipartite)$type <- V(g_bipartite)$is_element
+
+ggraph(g_bipartite, layout = 'bipartite') +
+  
+  geom_edge_link(color = "black", alpha = 1, width = 2) +
+  
+  geom_node_point(
+    aes(shape = category, fill = category),
+    color = "black",
+    size = node_sz,
+    stroke = 1
+  ) +
+  
+  geom_node_text(aes(label = name), color = "black", size = 16) +
+  
+  scale_shape_manual(values = c("Term" = 22, "Element" = 21)) + 
+  scale_fill_manual(values = c("Term" = "green", "Element" = "orange")) +
+  
+  # Flip coordinates to get Left-Right columns instead of Top-Bottom rows
+  coord_cartesian(clip = "off") + 
+  guides(
+    color = guide_legend(override.aes = list(size = 1)), # For node color legend
+  )+
+  labs(fill = "Type", shape = "Type") +
+  guides(
+    # We must override FILL and SHAPE because those are the aesthetics in aes()
+    # We set size = 8 so the legend icons are much smaller than the plot nodes (50)
+    fill = guide_legend(override.aes = list(size = 12)),
+    shape = guide_legend(override.aes = list(size = 12))
+  ) +
+    theme_void() +
+    theme(
+      legend.position = "bottom",
+      plot.margin = unit(c(1.5, 1.5, 1.5, 1.5), "cm"),
+      legend.box.spacing = unit(1.5, "cm"), 
+      
+      legend.text = element_text(size = 40), 
+      legend.title = element_text(size = 40, face = "bold"),
+      legend.key.size = unit(3, "cm")
+    )
+}
 ```
 
 ```{css, echo=FALSE}
@@ -906,6 +960,9 @@ Remember that the above plots are restricted to pairs having at least one connec
 
 ## Analysis with Bipartite Graphs
 
+The Edge-Count statistical framework based on the RGGED and utilized for data analysis with an undirected graph represented by `ECGraph` and `ECProb` objects, can also be applied to the case of bipartite networks: a collection of sets (called `terms`) of vertices (called `elements`). In this network, edges exist only between vertices of different types. Namely, the network represent membership of elements in terms.
+
+
 ### The ECTermScoring class
 
 S4 class `ECTermScoring` represents an undirected bipartite graph and some associated methods. It is built from class `ECProb` and has additional slots:
@@ -914,8 +971,9 @@ S4 class `ECTermScoring` represents an undirected bipartite graph and some assoc
 - `@elements`: a vector of vertex names in `ECProb`
 - `@terms`: another vector of vertex names in `ECProb`, disjoint from `@elements`
 
-Undirected edges run only bewteen a `term` and an `element` (bipartite graph).
-An `ECTermScoring` instance is a collection of terms, each having its own set of elements, though these sets can overlap between terms.
+Undirected edges run only bewteen a `term` and an `element`. That is, an `ECTermScoring` instance is a collection of terms, each having its own set of elements, though these sets can overlap between terms.
+
+The argument of the `ECTermScoring` constructor can be either a data frame of bipartite edges or a file path.
 
 ```{r bipartite_plot, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=6, fig.align="center", out.width="30%"}
 term_element_df <- data.frame(
@@ -923,45 +981,9 @@ term_element_df <- data.frame(
   Element = c("E1", "E2", "E2", "E3", "E4"),
   stringsAsFactors = FALSE
 )
+plot_bipartite(term_element_df, node_sz = 45)
 
-nodes_df <- data.frame(
-  name = unique(c(term_element_df$Term, term_element_df$Element)),
-  stringsAsFactors = FALSE
-)
-
-nodes_df$is_element <- nodes_df$name %in% term_element_df$Element
-nodes_df$category <- ifelse(nodes_df$is_element, "Element", "Term")
-
-g_bipartite <- igraph::graph_from_data_frame(term_element_df, directed = FALSE, vertices = nodes_df)
-
-V(g_bipartite)$type <- V(g_bipartite)$is_element
-
-ggraph(g_bipartite, layout = 'bipartite') +
-  
-  geom_edge_link(color = "black", alpha = 1, width = 2) +
-  
-  geom_node_point(
-    aes(shape = category, fill = category),
-    color = "black",
-    size = 50,
-    stroke = 1
-  ) +
-  
-  geom_node_text(aes(label = name), color = "black", size = 16) +
-  
-  scale_shape_manual(values = c("Term" = 22, "Element" = 21)) + 
-  scale_fill_manual(values = c("Term" = "green", "Element" = "orange")) +
-  
-  # Flip coordinates to get Left-Right columns instead of Top-Bottom rows
-  coord_cartesian(clip = "off") + 
-    theme_void() +
-    theme(
-      legend.position = "none",
-      plot.margin = unit(c(1.5, 1.5, 1.5, 1.5), "cm")
-    )
 ```
-
-The constructor argument of `ECTermScoring` can be either a data frame of bipartite edges or a file path.
 
 ```{r ects_constructor}
   term_element_df <- data.frame(
@@ -978,34 +1000,30 @@ The constructor argument of `ECTermScoring` can be either a data frame of bipart
   unlink(temp_file)
 ```
 
-```{r ects_example, eval=FALSE}
-# This example is commented out to speed up the vignette build.
-# You can run it manually in your console.
+### Suitability for fast approximations
 
-# 1. Load the sample ECTermScoring object
-data("sample_ects")
+The `@ecprob` slot of an `ECTermScoring` object allows for calculation of edge-count statistics on the underlying graph, including those based on fast lambda approximations. Because this graph is bipartite, any edge-counting and associated statistics is restricted to edges between terms and elements. In particular, the method `summarize_suitability_fast`, used to check a graph for suitability to fast lambda approximations, is not to optimal in the context of an `ECTermScoring` object. Instead, `ECTermScoring` contains method `summarize_suitability_bipartite` that is specifically designed for a bipartite graph.
 
-# 2. Create a ranked list of elements
-#    (Here we use a random ranking for demonstration)
-set.seed(123)
-ranked_elements <- sample(sample_ects@elements)
-element_ranks <- setNames(seq_along(ranked_elements), ranked_elements)
+Here is an example with a small bipartite graph that is not optimal for fast lambda approximation.
 
-# 3. Run the full VSEA analysis
-#    (We use a small number of permutations for a quick example)
-vsea_results <- run_vsea_analysis(
-  sample_ects,
-  element_ranks,
-  n_permutations = 100,
-  seed = 123
+```{r plot_inap_bip, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=6, fig.align="center", out.width="35%"}
+term_element_df_p <- data.frame(
+  Term = c("T1", "T1","T2", "T2", "T3", "T3", "T4","T4", "T4", "T4", "T4", "T4","T5", "T5", "T6", "T6"),
+  Element = c("E1","E3","E2", "E3", "E2", "E3", "E1","E4", "E2", "E3", "E5", "E6", "E3", "E5", "E3", "E6"),
+  stringsAsFactors = FALSE
 )
-
-# 4. View the top results for positive enrichment
-print(head(vsea_results$max_score_summary))
+plot_bipartite(term_element_df_p, node_sz = 40)
 ```
 
-<br>
-
+```{r suitability_bipartite}
+term_element_df_p <- data.frame(
+  Term = c("T1", "T1","T2", "T2", "T3", "T3", "T4","T4", "T4", "T4", "T4", "T4","T5", "T5", "T6", "T6"),
+  Element = c("E1","E3","E2", "E3", "E2", "E3", "E1","E4", "E2", "E3", "E5", "E6", "E3", "E5", "E3", "E6"),
+  stringsAsFactors = FALSE
+)
+ects <- ECTermScoring(term_element_df_p)
+summarize_suitability_bipartite(ects)
+```
 # References
 
 <a id="ref1">(1.)</a> Chung & Lu (2002). The average distances in random graphs with given expected degrees. *PNAS*, 99 (25) 15879-1582. 
