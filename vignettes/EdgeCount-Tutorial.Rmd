@@ -956,11 +956,11 @@ p4 <- ggplot(results, aes(x = log2_Anscombe_ratio)) +
 (p1 + p2) / (p3 + p4)
 ```
 
-Remember that the above plots are restricted to pairs having at least one connection. Over all possible pairs in `sample_ects`, the proportion of p-values equal to 1 is 99.25%.
+Remember that the above plots are restricted to pairs having at least one connection. Over all possible pairs in defined by the sets/terms of `sample_ects`, the proportion of p-values equal to 1 is 99.25% in `sample_ecg`.
 
 ## Analysis with Bipartite Graphs
 
-The Edge-Count statistical framework based on the RGGED and utilized for data analysis with an undirected graph represented by `ECGraph` and `ECProb` objects, can also be applied to the case of bipartite networks: a collection of sets (called `terms`) of vertices (called `elements`). In this network, edges exist only between vertices of different types. Namely, the network represent membership of elements in terms.
+The Edge-Count statistical framework based on the RGGED and utilized for data analysis with an undirected graph represented by `ECGraph` and `ECProb` objects, can also be applied to the case of bipartite networks: a collection of sets (called `terms`) of vertices (called `elements`). In this network, edges exist only between vertices of different types. Namely, the network represents membership of elements in terms.
 
 
 ### The ECTermScoring class
@@ -1000,11 +1000,13 @@ plot_bipartite(term_element_df, node_sz = 45)
   unlink(temp_file)
 ```
 
+Note that the constructor will fail is a vertex appears both as term and element in the provided edge list.
+
 ### Suitability for fast approximations
 
-The `@ecprob` slot of an `ECTermScoring` object allows for calculation of edge-count statistics on the underlying graph, including those based on fast lambda approximations. Because this graph is bipartite, any edge-counting and associated statistics is restricted to edges between terms and elements. In particular, the method `summarize_suitability_fast`, used to check a graph for suitability to fast lambda approximations, is not to optimal in the context of an `ECTermScoring` object. Instead, `ECTermScoring` contains method `summarize_suitability_bipartite` that is specifically designed for a bipartite graph.
+The `@ecprob` slot of an `ECTermScoring` object allows for calculation of edge-count statistics on the underlying graph, including those based on fast lambda approximations. Because this graph is bipartite, any edge counting and associated statistics is better on edges between terms and elements. In particular, the method `summarize_suitability_fast`, used to check a graph for suitability to fast lambda approximations, is not optimal in the context of an `ECTermScoring` object. Instead, `ECTermScoring` contains method `summarize_suitability_bipartite` which is specifically designed for a bipartite graph.
 
-Here is an example with a small bipartite graph that is not optimal for fast lambda approximation.
+Here is an example of small bipartite graph that is not optimal for fast lambda approximation.
 
 ```{r plot_inap_bip, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=6, fig.align="center", out.width="35%"}
 term_element_df_p <- data.frame(
@@ -1024,6 +1026,29 @@ term_element_df_p <- data.frame(
 ects <- ECTermScoring(term_element_df_p)
 summarize_suitability_bipartite(ects)
 ```
+
+The returned list has the following items:
+
+- `$pij_over_1`: the proportion of edges (among all possible pairs (term $i$, element $j$)) that yield a connection probability $p_{ij}$ greater than 1 (hence unsuitable) under an approximate analytical framework of the RGGED. A value close to 0 means that fast approximation methods are appropriate.
+- `$prop_problematic_terms` is the proportion of terms with degree greater than $\sqrt{2M}$, where $M$ is the graph size `ecp@graph_size`. Indeed, under the model for fast approximations, $p_{ij} = k_ik_j/(2M)$, where $k$ is a vertex degree; so any term with $k_i > \sqrt{2M}$ might yield  $p_{ij} > 1$ with an element.
+- `$prop_problematic_elements` is the proportion of terms with degree greater than $\sqrt{2M}$. Note that `$prop_problematic_elements` > 0 does not imply `$prop_problematic_terms` > 0. Likewise, `$prop_problematic_terms` > 0 does not imply `$prop_problematic_elements` > 0.
+- `$summary_pij` is a short summary of the distribution of connection probabilities over all possible term-element pairs 
+- `$pij_distribution` is the full distribution of $p_{ij}$ values in the RGGED model with fast approximations.
+
+The EdgeCount package comes with an example of relatively large bipartite graph `sample_ects`, a trimmed version of GO categories to their human gene elements [[6]](#ref6), [[7]](#ref7), [[9]](#ref9).
+
+```{r sample_ects}
+data("sample_ects")
+str(sample_ects, list.len = 6)
+```
+
+Object `sample_ects` was trimmed to pass all the suitability tests.
+```{r sample_ects_suitability}
+summarize_suitability_bipartite(sample_ects)
+```
+
+It was also built to have the same universe of human genes as `sample_ecp` (`sample_ecp <- ECProb(sample_ecg)`). Now, `sample_ecg` and `sample_ects` do not represent the same edges: the first one represent interactions between genes/elements and the second one membership of elements in terms.
+
 # References
 
 <a id="ref1">(1.)</a> Chung & Lu (2002). The average distances in random graphs with given expected degrees. *PNAS*, 99 (25) 15879-1582. 
