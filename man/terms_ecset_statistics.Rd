@@ -5,7 +5,7 @@
 \alias{terms_ecset_statistics,ECTermScoring-method}
 \title{Score Terms Against an Element Set}
 \usage{
-terms_ecset_statistics(object, element_set, lambda_method = "optimized")
+terms_ecset_statistics(object, element_set, lambda_method = "fast")
 
 \S4method{terms_ecset_statistics}{ECTermScoring}(object, element_set, lambda_method = "optimized")
 }

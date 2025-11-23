@@ -187,7 +187,7 @@ setMethod("show", "ECTermScoring", function(object) {
 #' terms_ecset_statistics(ects, element_set = c("E1", "E2"))
 #'
 setGeneric("terms_ecset_statistics",
-           function(object, element_set, lambda_method = "optimized")
+           function(object, element_set, lambda_method = "fast")
              standardGeneric("terms_ecset_statistics"))
 #' @describeIn terms_ecset_statistics Method for ECTermScoring objects.
 setMethod(
@@ -255,8 +255,7 @@ setMethod(
           p_value = all_term_scores_list[[term_name]]$p_value,
           lambda = all_term_scores_list[[term_name]]$lambda,
           observed_edge_count = all_term_scores_list[[term_name]]$observed_edge_count,
-          log2_Anscombe = all_term_scores_list[[term_name]]$log2_Anscombe_ratio,
-          log2_RelChange = all_term_scores_list[[term_name]]$log2_relative_change,
+          log2_Anscombe_ratio = all_term_scores_list[[term_name]]$log2_Anscombe_ratio,
           stringsAsFactors = FALSE
         )
       }))
@@ -328,30 +327,42 @@ setMethod("terms_ecset_statistics_vectorized",
             bipartite_edges <- as.data.table(to_dataframe(object))
             setnames(bipartite_edges, "term", "term_id")
             bipartite_edges[, term_id := as.character(term_id)]
+
             input_sets_dt_unique <- unique(input_sets_dt, by = c("set_id", "element"))
             setkey(input_sets_dt_unique, element)
             setkey(bipartite_edges, element)
+
             all_connections <- bipartite_edges[input_sets_dt_unique, on = "element", nomatch = 0, allow.cartesian = TRUE]
-            observed_edges_dt <- all_connections[, .(observed_edges = .N), by = .(input_set_id = set_id, term_id)]
+
+            observed_edges_dt <- all_connections[, .(observed_edge_count = .N), by = .(input_set_id = set_id, term_id)]
+
             all_element_degrees <- unlist(object@ecprob@degrees)
             term_degrees <- all_element_degrees[bipartite_edges[, unique(term_id)]]
             term_summary <- data.table(term_id = names(term_degrees), term_degree = term_degrees)
+
             valid_input_elements <- all_connections[, .(input_set_id = set_id, element)] |> unique()
             input_set_summary <- valid_input_elements[,
                                                       .(sum_degrees_set = sum(all_element_degrees[element], na.rm = TRUE)),
                                                       by = input_set_id
             ]
+
             final_dt <- copy(observed_edges_dt)
             final_dt[term_summary, on = "term_id", term_degree := i.term_degree]
             final_dt[input_set_summary, on = "input_set_id", sum_degrees_set := i.sum_degrees_set]
+
             input_set_sizes <- valid_input_elements[, .(set_size = .N), by = input_set_id]
             final_dt[input_set_sizes, on = "input_set_id", max_possible_edges := i.set_size]
+
             final_dt[, lambda := (term_degree * sum_degrees_set) / (2 * object@ecprob@graph_size)]
-            final_dt[, p_value := calculate_p_value(object@ecprob, observed_edges, max_possible_edges, lambda)]
-            final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))]
+
+            final_dt[, p_value := calculate_p_value(object@ecprob, observed_edge_count, max_possible_edges, lambda)]
+            final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edge_count + 3/8) - log2(lambda + 3/8))]
+
             setnames(final_dt, "input_set_id", "set1")
             setnames(final_dt, "term_id", "set2")
+
             results_list <- split(final_dt, by = "set1")
+
             return(results_list)
           })
 

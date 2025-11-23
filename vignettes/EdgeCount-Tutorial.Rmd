@@ -7,6 +7,8 @@ output:
     toc: true
     toc_depth: 4
     number_sections: true
+bibliography: references.bib
+link-citations: yes
 vignette: >
   %\VignetteIndexEntry{EdgeCount Package Tutorial}
   %\VignetteEngine{knitr::rmarkdown}
@@ -21,25 +23,46 @@ knitr::opts_chunk$set(
 ```
 
 ```{css, echo=FALSE}
-/* This rule highlights the reference links (e.g., [1]) */
-a:target {
-  background-color: #ffeb3b; /* A nice yellow color */
-  transition: background-color 0.8s ease;
-  border-radius: 3px;
-  padding: 0 2px;
-  outline: 1px solid #fbc02d;
+/* 1. Prepare the container to handle absolute positioning */
+div.csl-entry {
+  position: relative;
+  z-index: 1; /* Ensures the text stays on top of the highlight */
 }
 
-/* This rule highlights only the HEADERS for section jumps */
+/* 2. Create the Highlight using a Pseudo-Element */
+/* instead of modifying the element itself */
+div.csl-entry:target::before {
+  content: "";
+  position: absolute;
+  
+  /* Sizing the box */
+  top: -3px;
+  bottom: -3px;
+  right: -5px;
+  /* This extends the yellow box to the left to cover the hanging indent */
+  /* -2em is usually safe for standard bibliographies (which use 1.5em indent) */
+  left: -2em; 
+  
+  /* Styling */
+  background-color: #ffeb3b;
+  border-radius: 4px;
+  outline: 1px solid #fbc02d;
+  
+  /* Layering: Put it BEHIND the text */
+  z-index: -1; 
+}
 div:target > h1,
 div:target > h2,
 div:target > h3,
 div:target > h4,
 div:target > h5,
-div:target > h6 {
-  background-color: #ffeb3b; /* A nice yellow color */
+div:target > h6,
+section:target > h1,
+section:target > h2,
+section:target > h3 {
+  background-color: #ffeb3b;
   transition: background-color 0.8s ease;
-  display: inline-block; /* Ensures background only covers the text */
+  display: inline-block;
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -370,9 +393,9 @@ img {
 # Introduction
 The `EdgeCount` package provides a statistical framework for enrichment analysis based on graph connectedness. It is designed for large, sparse graphs, such as protein interaction networks, social networks, or term-element membership graphs (bipartite graphs).
 
-The package's methodology combines the Random Graph with Given Expected Degrees (RGGED) model [[1]](#ref1) with analytical expressions for connectedness effect size and p-value [[2]](#ref2). 
+The package's methodology combines the Random Graph with Given Expected Degrees (RGGED) model [@chung2002] with analytical expressions for connectedness effect size and p-value [@pradines2005]. 
 
-It also introduces Vertex Set Enrichment Analysis (VSEA), a permutation-based method similar to GSEA [[3]](#ref3). VSEA uniquely accounts for the degree of each element (i.e., the number of terms an element belongs to).
+It also introduces Vertex Set Enrichment Analysis (VSEA), a permutation-based method similar to GSEA [@subramanian2005]. VSEA uniquely accounts for the degree of each element (i.e., the number of terms an element belongs to).
 
 The primary functions allow users to:
 
@@ -480,11 +503,11 @@ suitability_stats
 ```
 
 - `$pij_over_1` is the important criterion: the proportion of edges (among all possible pairs $(i,j)$ of vertices) that yield a connection probability $p_{ij}$ greater than 1 (hence unsuitable) under an approximate analytical framework of the RGGED. A value close to 0 means that fast approximation methods are appropriate.
-- `$prop_problematic_vertices` is the proportion of vertices with degree greater than $\sqrt{2M}$, where $M$ is the graph size `ecp@graph_size`. Indeed, under the model for fast approximations, $p_{ij} = k_ik_j/(2M)$, where $k$ is a vertex degree; so any vertex with $k_i > \sqrt{2M}$ might yield  $p_{ij} > 1$ for connection to another problematic vertex $j$.
+- `$prop_problematic_vertices` is the proportion of vertices with degree greater than $\sqrt{2M}$, where $M$ is the graph size `ecp@graph_size`. Indeed, under the model for fast approximations, $p_{ij} = k_ik_j/(2M)$, where $k$ is a vertex degree; so any vertex with $k_i > \sqrt{2M}$ might yield  $p_{ij} > 1$ for connection to another vertex $j$.
 - `$summary_pij` is a short summary of the distribution of connection probabilities over all pairs of vertices
 - `$pij_distribution` is the full distribution of $p_{ij}$ values in the RGGED model with fast approximations.
 
-Here is now an example of small graph that, even though not a complete graph, does not pass the suitability test.
+Here is now a small graph that, even though not a complete graph, does not pass the suitability test.
 
 ```{r plot_bad_graph, message=FALSE, warning=FALSE, echo=FALSE, out.width="20%", fig.width=8, fig.height = 8, fig.align = "center"}
 
@@ -513,7 +536,7 @@ suitability_stats
 
 The `pij_over_1` value is 4.5%. This indicates that some vertex pairs have an approximate edge probability greater than or equal to 1, making the fast approximation methods unsuitable. For such a graph, other methods are available in the package.
 
-In all rigor the fast approximation methods based on $p_{ij} = k_ik_j/(2M)$ are valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. 
+The fast approximation methods are based on $p_{ij} = k_ik_j/(2M)$ and valid when $p_{ij} \ll 1$, otherwise $p_{ij} = 1-\exp(-k_ik_j/(2M))$ or $p_{ij} = \min(1, k_ik_j/(2M))$ need to be utilized, and the resulting methods are slower. 
 
 This said, false-positive results cannot be obtained with fast approximation methods. Indeed,
 
@@ -523,7 +546,7 @@ This said, false-positive results cannot be obtained with fast approximation met
 
 In other words, using the fast approximation methods by default is a conservative approach to analysis.
 
-The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[[4]](#ref4),[[5]](#ref5). The network is limited to protein interactions having a confidence score greater than or equal to 900. Proteins IDs have been replaced with their mapped Gene Entrez IDs. 
+The package comes with object `sample_ecg`, an example of real large sparse graph based on the human network of the STRING database (version 12.0)[@szklarczyk2023],[@sample_ecg_data]. The network is limited to protein interactions having a confidence score greater than or equal to 900. Proteins IDs have been replaced with their mapped Gene Entrez IDs. 
 
 
 ```{r sample_ecg}
@@ -553,7 +576,7 @@ This test answers the question: "Are the vertices of a given set $S$ more connec
 
 #### Basic method 
 
-The package also comes with a sample bipartite network `sample_ects` that maps a trimmed version of GO categories to their human gene elements [[6]](#ref6), [[7]](#ref7), [[9]](#ref9). Object `sample_ects@ecprob` is utilized below to define with a term a set of elements/vertices which is then tested for its connectedness in interaction network `sample_ecp`.
+The package also comes with a sample bipartite network `sample_ects` that maps a trimmed version of GO categories to their human gene elements [@orgHsEg], [@goconsortium2023], [@sample_ects_data]. Object `sample_ects@ecprob` is utilized below to define with a term a set of elements/vertices which is then tested for its connectedness in interaction network `sample_ecp`.
 
 ```{r setA_in, message=FALSE, warning=FALSE}
 # bipartite network (term-element relationships)
@@ -589,7 +612,7 @@ Method `edge_count_statistics` returns a list:
 - `$size1` is the size of the input set reduced to its vertices represented in the `ECProb` object
 - `$size2` is used only for between-sets connectedness. Here it is zero because argument `set2` is null
 
-Calling $p_{ij}$ the probability of connecting two vertices $i$ and $j$ in the RGGED, $k$ the degree of a vertex, $M$ the graph size and $X$ the random variable 'number of edges within $S$' under the RGGED model, we have in general
+Calling $p_{ij}$ the probability of connecting two vertices $i$ and $j$ in the RGGED, $k$ the degree of a vertex, $M$ the graph size and $X$ the random variable 'number of edges within $S$ under the RGGED model', we have
 
 $$p_{ij} = \min\left(1, \frac{k_ik_j}{2M}\right)$$
 $$m = \frac{1}{2}\left| S \right|\left( \left| S\right|-1\right)$$
@@ -663,7 +686,7 @@ p_A + p_B
 
 #### Vectorized method
 
-The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed, by using the `data.table` package [[10]](#ref10) and fast lambda approximation.
+The last examples illustrated how to test an individual set for its within connectedness. When dealing with multiple sets, it is better to utilize a vectorized method which has been optimized for speed, by using the `data.table` package [@datatable2025] and fast lambda approximation.
 
 Method `calculate_in_stats_fast_vectorized(ecprob, sets_dt, set_membership_dt)` has the following arguments
 
@@ -671,7 +694,7 @@ Method `calculate_in_stats_fast_vectorized(ecprob, sets_dt, set_membership_dt)` 
 - `sets_dt`: a data table with a single column ("set_id") containing IDs of sets to test
 - `set_membership_dt': a data table with "set_id" and "element" columns (bipartite network)
 
-Below is the application of this method to the entire collection of sets  contained in `sample_ects` (GO categories [[6]](#ref6),[[7]](#ref7), [[8]](#ref8), [[9]](#ref9)) and the interaction network `sample_ecg` (extracted from STRING [[4]](#ref4),[[5]](#ref5)).
+Below is the application of this method to the entire collection of sets  contained in `sample_ects` (GO categories [@orgHsEg],[@goconsortium2023], [@sample_ects_data], [@sample_ects_data]) and the interaction network `sample_ecg` (extracted from STRING [@szklarczyk2023],[@sample_ecg_data]).
 
 
 ```{r in_vectorized}
@@ -697,6 +720,8 @@ setkey(results, set_id)
 setkey(lookup_dt, set_id)
 annotated_results <- lookup_dt[results, on = "set_id"]
 setorder(annotated_results, -log2_Anscombe_ratio)
+num_cols <- names(annotated_results)[sapply(annotated_results, is.numeric)]
+annotated_results[, (num_cols) := lapply(.SD, signif, digits = 2), .SDcols = num_cols]
 
 annotated_results
 ```
@@ -799,7 +824,7 @@ With `lambda_method = "fast"` calculations are simplified as follows
 $$p_{ij} = \frac{k_ik_j}{2M} \quad \text{and} \quad \lambda = \frac{1}{2M} \left(\sum_{i\in S_1} k_i\right) \left( \sum_{j\in S_2} k_j \right)$$
 That is, time complexity is now $O\left( \left| S_1 \right| + \left| S_2 \right| \right)$ instead of $O\left( \left| S_1 \right| \times \left| S_2 \right| \right)$.
 
-As previously mentioned, utilizing the RGGED model takes into account individual vertex degrees in the quantification of connectedness. To illustrate this, consider now the pair of `set3` (GO\:0071986) and `set4` (GO\:1990130), that yields the same doublet of set sizes ($\left\{ 5, 6\right\}$), and thus the same maximum number of 'between' edges (30), and the same observed number of edges (21). Because vertices of the two pairs have different degrees, the two pairs yield different estimations of connectedness:
+As previously mentioned, using the RGGED model takes into account individual vertex degrees in the quantification of connectedness. To illustrate this, consider now the pair of `set3` (GO\:0071986) and `set4` (GO\:1990130), that yields the same doublet of set sizes ($\left\{ 5, 6\right\}$), and thus the same maximum number of 'between' edges (30), and the same observed number of edges (21). Because vertices of the two pairs have different degrees, the two pairs yield different estimations of connectedness:
 
 ```{r plot_between_comparison, echo=FALSE, fig.align="center", fig.height=12, fig.width=25, message=FALSE, warning=FALSE, out.width="90%"}
 library(ggtext)
@@ -874,7 +899,7 @@ Method `calculate_between_stats_fast_vectorized` has the following arguments
 - `pairs_dt`: a data table of pairs of set identifiers ("set1_id", "set2_id")
 - `set_membership_dt`: a data table representing set-element membership ("set_id", "element")
 
-Below is the application of this method to all possible pairs of sets  contained in `sample_ects` (GO categories [[6]](#ref6),[[7]](#ref7), [[8]](#ref8), [[9]](#ref9)) and the interaction network `sample_ecg` (extracted from STRING [[4]](#ref4),[[5]](#ref5)).
+Below is the application of this method to all possible pairs of sets  contained in `sample_ects` (GO categories [@orgHsEg],[@goconsortium2023], [@sample_ects_data], [@sample_ects_data]) and the interaction network `sample_ecg` (extracted from STRING [@szklarczyk2023],[@sample_ecg_data]).
 
 Numbers of terms and possible pairs are quite large.
 
@@ -909,7 +934,7 @@ signif(nrow(connected_pairs)/number_of_pairs, 2)
 ```
 Note that method `get_disjoint_connected_pairs` has a third optional argument `sets` that can be utilized to focus on some of the sets represented in the second argument `set_membership`. The method rapidly returms a much smaller number of pairs (0.75%) than the full Cartesian product.
 
-Next, `connected_pairs` are efficiently scored for their between connectedness with method `calculate_between_stats_fast_vectorized`. This method is fully vectorized by using the `data.table` package [[10]](#ref10) and fast lambda approximations.
+Next, `connected_pairs` are efficiently scored for their between connectedness with method `calculate_between_stats_fast_vectorized`. This method is fully vectorized by using the `data.table` package [@datatable2025] and fast lambda approximations.
 
 ```{r vectorized_between}
 # fast calculation of between statistics for candidate pairs
@@ -921,6 +946,8 @@ system.time(
                                                    set_membership_dt)
 )
 setorder(results, -log2_Anscombe_ratio)
+num_cols <- names(results)[sapply(results, is.numeric)]
+results[, (num_cols) := lapply(.SD, signif, digits = 2), .SDcols = num_cols]
 results
 ```
 
@@ -957,7 +984,7 @@ p4 <- ggplot(results, aes(x = log2_Anscombe_ratio)) +
 (p1 + p2) / (p3 + p4)
 ```
 
-Remember that the above plots are restricted to pairs having at least one connection. Over all possible pairs in defined by the sets/terms of `sample_ects`, the proportion of p-values equal to 1 is 99.25% in `sample_ecg`.
+Remember that the above plots are restricted to pairs having at least one connection. Over all possible pairs in defined by the sets/terms of `sample_ects`, the proportion of p-values equal to 1 is actually 99.25%.
 
 ## Analysis with Bipartite Graphs
 
@@ -972,7 +999,7 @@ S4 class `ECTermScoring` represents an undirected bipartite graph and some assoc
 - `@elements`: a vector of vertex names in `ECProb`
 - `@terms`: another vector of vertex names in `ECProb`, disjoint from `@elements`
 
-Undirected edges run only bewteen a `term` and an `element`. That is, an `ECTermScoring` instance is a collection of terms, each having its own set of elements, though these sets can overlap between terms.
+Undirected edges run only bewteen a `term` and an `element`. That is, an `ECTermScoring` instance is a collection of terms, each having its own set of elements, though these sets can overlap between terms. The degree $k_t$ of a term is the number of elements it describes, and the degree $k_e$ of an element is the number of terms it is described by.
 
 The argument of the `ECTermScoring` constructor can be either a data frame of bipartite edges or a file path.
 
@@ -1005,7 +1032,7 @@ Note that the constructor will fail if a vertex appears both as term and element
 
 ### Suitability for fast approximations
 
-The `@ecprob` slot of an `ECTermScoring` object allows for calculation of edge-count statistics on the underlying bipartite graph, including those based on fast lambda approximations. Because this graph is bipartite, any edge counting and associated statistics is done on edges between terms and elements. In particular, the method `summarize_suitability_fast`, used to check a graph for suitability to fast lambda approximations, is not optimal in the context of an `ECTermScoring` object. Instead, `ECTermScoring` contains method `summarize_suitability_bipartite` which is specifically designed for bipartite graphs.
+The `@ecprob` slot of an `ECTermScoring` object allows for calculation of edge-count statistics on the underlying bipartite graph, including some based on fast lambda approximations. Because this graph is bipartite, any edge counting and associated statistics is done on edges between terms and elements. In particular, the method `summarize_suitability_fast`, used to check a graph for suitability to fast lambda approximations, is not optimal in the context of an `ECTermScoring` object. Instead, `ECTermScoring` contains method `summarize_suitability_bipartite` which is specifically designed for bipartite graphs.
 
 Here is an example of small bipartite graph that is not optimal for fast lambda approximation.
 
@@ -1045,7 +1072,7 @@ This said, false-positive results cannot be obtained with fast approximation met
 In other words, using the fast approximation methods by default is a conservative approach to analysis.
 
 
-The EdgeCount package comes with an example of relatively large bipartite graph `sample_ects`, a trimmed version of GO categories to their human gene elements [[6]](#ref6), [[7]](#ref7), [[9]](#ref9).
+The EdgeCount package comes with an example of relatively large bipartite graph `sample_ects`, a trimmed version of GO categories to their human gene elements [@orgHsEg], [@goconsortium2023], [@sample_ects_data].
 
 ```{r sample_ects}
 data("sample_ects")
@@ -1062,26 +1089,125 @@ It was also built to have the same universe of human genes as `sample_ecp` (`sam
 
 Methods of `ECTermScoring` are tailored to a bipartite network. This said, an `ECTermScoring` object has an `@ecprob` slot, thus making it possible to also utilize more general `ECProb` methods.
 
+### Test for connectedness of element sets to terms
+
+#### Basic method
+
+The first question to answer is: "Which terms are well related to a given set $E$ of elements?". The task is ranking terms with respect to each other. 
+
+The `ECTermScoring` method to answer this question is `terms_ecset_statistics (obj, set, lambda_method)`
+
+- `obj` is an ECTErmScoring object
+- `set` is a character vector that will be reduced to its intersection with `obj@elements`
+- `lambda_method` is the type of lambda calculation to be utilized
+  - "fast": the default method, with the lowest time complexity
+  - "optimized": a hybrid method having intermediate time complexity
+  - "accurate": a slow method, used mostly for package development
+
+Here is a first example expected to yield strong connectedness, by using all elements of a term as argument `set`.
+
+```{r ecset_1}
+data("sample_ects")
+term <- "GO:0005787"
+set_1 <- sample_ects@ecprob@adj[[term]]
+set_1
+dt_1 <- as.data.table(terms_ecset_statistics(sample_ects, set_1))
+setorder(dt_1, -log2_Anscombe_ratio)
+num_cols <- names(dt_1)[sapply(dt_1, is.numeric)]
+dt_1[, (num_cols) := lapply(.SD, signif, digits = 2), .SDcols = num_cols]
+dt_1
+```
+
+Edge-count statistics are calculated here in the same way they are for between connectedness, with now one of the two sets being a single term. Call $E$ the element set, $k_e$ the degree of element $e$, $k_T$ the degree of term $T$, $M$ the graph size, $X$ the random variable 'edge count between $E$ and $T$ in the RGGED', $m$ its maximum value, and $p_{e,T}$ the RGGED probability of a connection between $e$ and $T$. We have
+
+$$p_{e,T} = \min\left(1, \frac{k_ek_T}{2M}\right)$$
+$$m = \left| E \right| \left| T\right| = \left| E \right|$$
+$$\lambda = \sum_{e \in E} p_{e,T}$$
+$$p_{E,T} = \sum_{u=x}^m \Pr\left(X = u\right)$$
+$$\Pr\left(X = u\right) = \frac{e^{-\lambda}}{\alpha}\frac{\lambda^u}{u!}$$
+$$\alpha = e^{-\lambda}\sum_{v=0}^{m} \frac{\lambda^v}{v!}$$
+$$lAr = \frac{1}{2} \log_2 \frac{x +3/8}{\lambda + 3/8}$$
+Again, using $lAr$ as effect size is important because $X$ can have a truncated Poisson distribution of parameter $\lambda$ small enough to yield an asymmetric distribution.
+
+With `lambda_method = "fast"` calculations are simplified as follows
+
+$$p_{ij} = \frac{k_ek_T}{2M} \quad \text{and} \quad \lambda = \frac{k_T}{2M} \sum_{e\in E} k_e$$
+
+Connectedness to terms of `set_1` is strong as shown by large values of `observed_edge_count` and values of `log2_Anscombe_ratio` greater than 1. As expected, the term used to define `set_1` is at the top of the results. 
+
+It is important to stress that results based on an underlying RGGED are not equivalent to those obtained with a Fisher-exact test: the edge-count approach uniquely takes into account the number of terms each element is connected to.
+
+Next are the results obtained with a random set of elements `set_2` having the same size as `set_1`.
+
+```{r ecest_2}
+set.seed(2)
+set_2 <- sample(sample_ects@elements, length(set_1))
+dt_2 <- as.data.table(terms_ecset_statistics(sample_ects, set_2))
+setorder(dt_2, -log2_Anscombe_ratio)
+num_cols <- names(dt_2)[sapply(dt_2, is.numeric)]
+dt_2[, (num_cols) := lapply(.SD, signif, digits = 2), .SDcols = num_cols]
+dt_2
+```
+
+Results with `set_2` do not indicate strong connectedness to terms.
+
+- `observed_edge_count` values are all 1. Value 1 is the expected minimum, not 0, because random elements are represented in the bipartite graph, i.e. they map to at least one term.
+- `log2_Anscombe_ratio` values are positive, but between 0.93 and 0.94, that is, small compared to the best ones seen with `set_1`. Value 0.937 is actually that expected for an observed edge count of 1 and $\lambda$ very small compared to 3/8: $lAr \simeq\log_2\sqrt{1+3/8} / \sqrt{3/8} \simeq 0.937$.
+- `p_value` values are larger than those obtained with `set_1`.
+
+Now, it is important to clarify the meaning of `p_value` as returned by method `terms_ecset_statistics`. It means here the probability of observing at least `observed_edge_count` between the selected set and the terms of the bipartite network **under the null model of RGGED** (similar to edges being rewired). `p_value` is a useful measure to compare matched terms, though `log2_Anscombe_ratio` is a better one. Since `sample_ects` contains no isolated elements (every element maps to at least one term), any random set will produce an edge count of at least one and a p-value less than 1. Namely, the distribution of p-values for random sets of elements drawn from `sample_ects` is not uniform.
+
+This distribution can be estimated with a vectorized version of `terms_ecset_statistics`.
+
+#### Vectorized method
+
+Method `terms_ecset_statistics_vectorized` is similar to `terms_ecset_statistics` but it now accepts multiple sets as argument:
+
+- `input_sets`: a set-element data table with columns "set_id" and "element"
+
+Below is the application to 10,000 random sets of the same size as `set_1`.
+
+```{r vectorized_ecset_stats}
+data("sample_ects")
+n_sets <- 10000
+set_size <- length(set_1)
+
+random_elements <- unlist(replicate(n_sets, sample(sample_ects@elements, set_size), simplify = FALSE))
+
+input_sets <- data.table(
+  set_id = rep(paste0("S", 1:n_sets), each = set_size),
+  element = random_elements
+)
+system.time(
+  result <- terms_ecset_statistics_vectorized(sample_ects, input_sets)
+)
+```
+
+The returned value `result` is a named list, where each name is a set_id and the value is the corresponding data table of statistics, such as in method `terms_ecset_statistics`, with columns `observed_edge_count`, `log2_Anscombe_ratio` and `p_value`.
+
+```{r term_ecset_stat_control_1}
+random_stats_dt <- rbindlist(result, idcol = "set_id")
+summary(random_stats_dt$observed_edge_count)
+summary(random_stats_dt$log2_Anscombe_ratio)
+```
+
+The distributions of `log2_Anscombe_ratio` over 10,000 random sets is indeed centered around 0.934, a smaller value than 0.937 due to $\lambda > 0$ and asymmetry of the distribution. Likewise, the distribution of `p_value` (RGGED p-value) is definitely not symmetric and uniform:
+
+```{r term_ecset_stat_control_2}
+summary(random_stats_dt$p_value)
+```
+```{r term_ecset_stat_control_plot, message=FALSE, warning=FALSE, echo=FALSE, fig.width=10, fig.height=6, fig.align="center", out.width="50%"}
+
+ggplot(random_stats_dt, aes(x = p_value)) +
+  geom_density(fill = "#047857", alpha = 0.7, color = NA) +
+  labs(title = "Distribution of RGGED P-values for Random Sets",
+       x = "p_value (RGGED)",
+       y = "Density") +
+  theme_minimal(base_size = 22) +
+  coord_cartesian(xlim = c(0, 0.014)) 
+```
+
+This is of course because only elements connected to at least one term are selected in the random sets. Because the control distribution of `p_value` is not uniform in [0,1], one cannot apply a standard False Discovery Rate (FDR) corrections like Benjamini-Hochberg [@benjamini1995]. Instead, an empirical approach based on simulations is required.
+
 # References
 
-<a id="ref1">(1.)</a> Chung & Lu (2002). The average distances in random graphs with given expected degrees. *PNAS*, 99 (25) 15879-1582. 
-<a href="https://www.pnas.org/doi/10.1073/pnas.252631999" target="_blank">[link]</a>
-
-<a id="ref2">(2.)</a> Pradines, J.R., et al. (2005). Analyzing Protein Lists with Large Networks: Edge-Count Probabilities in Random Graphs with Given Expected Degrees. *Journal of Computational Biology*, 12(2), 113-28.<a href="https://www.liebertpub.com/doi/10.1089/cmb.2005.12.113" target="_blank">[link]</a>
-
-
-<a id="ref3">(3.)</a> Subramanian, A., et al. (2005). Gene set enrichment analysis: a knowledge-based approach for interpreting genome-wide expression profiles. *PNAS*, 102(43), 15545-50. <a href="https://www.pnas.org/doi/10.1073/pnas.0506580102" target="_blank">[link]</a>
-
-<a id="ref4">(4.)</a> Szklarczyk D, Kirsch R, Koutrouli M, Nastou K, Mehryary F, Hachilif R, Annika GL, Fang T, Doncheva NT, Pyysalo S, Bork P, Jensen LJ, von Mering C. The STRING database in 2023: protein–protein association networks and functional enrichment analyses for any sequenced genome of interest. Nucleic Acids Res. 2023 Jan 6;51(D1):D638-646 <a href="https://pubmed.ncbi.nlm.nih.gov/36370105/" target= "_blank">[link]</a>
-
-<a id="ref5">(5.)</a> Object `sample_ecg` is a subset of the human STRING network (version 12.0) with interaction scores of 900 or higher. Vertex IDs are Entrez Gene IDs [[8]](#ref8). The network has been trimmed to create a smaller, more manageable example for the package's vignettes and tests. Source: <a href="https://string-db.org/" target= "_blank">[string-db.org]</a>. Data from STRING is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target= "_blank">[CC BY 4.0]</a>.
-
-<a id="ref6">(6.)</a> Ashburner et al. (2000). Gene ontology: tool for the unification of biology. *Nat Genet*, 25(1), 25-9. <a href="https://www.nature.com/articles/ng0500_25" target="_blank">[link]</a>
-
-<a id="ref7">(7.)</a> The Gene Ontology Consortium. (2023). The Gene Ontology knowledgebase in 2023. *Genetics*, 224(1). <a href="https://doi.org/10.1093/genetics/iyad031" target="_blank">[link]</a>
-
-<a id="ref8">(8.)</a> Carlson, M. (2019). org.Hs.eg.db: Genome wide annotation for Human. *R package*.
-
-<a id="ref9">(9.)</a> `sample_ects` is derived from Gene Ontology (GO) term-to-gene mappings [[6, 7, 9]](#ref6). Element IDs are Entrez Gene IDs [[8]](#ref8). Source: <a href="http://geneontology.org/" target= "_blank">[geneontology.org]</a>. GO data is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target= "_blank">[CC BY 4.0]</a>.
-
-<a id="ref10">(10.)</a> Barrett T, Dowle M, Srinivasan A, Gorecki J, Chirico M, Hocking T, Schwendinger B, Krylov I (2025). data.table: Extension of 'data.frame'. R package version 1.17.99, <a href="https://r-datatable.com" target= "_blank">[r-datatable.com]</a>.
