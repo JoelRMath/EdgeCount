@@ -251,7 +251,7 @@ setGeneric("terms_ecset_statistics",
 setMethod(
   "terms_ecset_statistics",
   "ECTermScoring",
-  function(object, element_set, lambda_method = "optimized") {
+  function(object, element_set, lambda_method = "fast") {
 
     valid_element_set <- unique(element_set[element_set %in% object@elements])
     if (length(valid_element_set) < 1){
@@ -281,15 +281,11 @@ setMethod(
       if (!is.na(lambda) && (lambda + 3/8) > 0 && (observed_edges + 3/8) > 0) {
         log2_Anscombe_ratio <- 0.5 * (log2(observed_edges + 3/8) - log2(lambda + 3/8))
       }
-      log2_relative_change <- NA_real_
-      if (!is.na(lambda) && lambda > 0 && observed_edges > 0) {
-        log2_relative_change <- log2(observed_edges) - log2(lambda)
-      }
       return(list(p_value = p_value,
                   observed_edge_count = observed_edge_count,
                   lambda = lambda,
-                  log2_Anscombe_ratio = log2_Anscombe_ratio,
-                  log2_relative_change = log2_relative_change))
+                  log2_Anscombe_ratio = log2_Anscombe_ratio
+                  ))
     }
 
     vectorized_stats_calculator <- Vectorize(
@@ -314,6 +310,7 @@ setMethod(
           lambda = all_term_scores_list[[term_name]]$lambda,
           observed_edge_count = all_term_scores_list[[term_name]]$observed_edge_count,
           log2_Anscombe_ratio = all_term_scores_list[[term_name]]$log2_Anscombe_ratio,
+          set_size = length(valid_element_set),
           stringsAsFactors = FALSE
         )
       }))
@@ -445,11 +442,16 @@ calculate_empirical_fdr <- function(object, real_results_dt, n_permutations = 10
   }
 
   # --- STEP 1: Setup Inputs ---
-  if (!"max_possible_edges" %in% names(real_results_dt)) {
-    # In single-set scoring, max_possible_edges equals the input set size
-    set_size <- max(real_results_dt$observed_edge_count)
+  if ("set_size" %in% names(real_results_dt)) {
+    # The robust path: use the explicit vertex count
+    set_size <- max(real_results_dt$set_size)
   } else {
-    set_size <- max(real_results_dt$max_possible_edges)
+    stop("Input results must contain a 'set_size' column to define the null model.")
+  }
+
+  if (set_size < 1) {
+    warning("Set size is 0 after filtering. Cannot perform permutations.")
+    return(real_results_dt)
   }
 
   bipartite_edges <- data.table::as.data.table(to_dataframe(object))

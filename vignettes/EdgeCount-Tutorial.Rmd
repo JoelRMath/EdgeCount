@@ -1209,5 +1209,9 @@ ggplot(random_stats_dt, aes(x = p_value)) +
 
 This is of course because only elements connected to at least one term are selected in the random sets. Because the control distribution of `p_value` is not uniform in [0,1], one cannot apply a standard False Discovery Rate (FDR) corrections like Benjamini-Hochberg [@benjamini1995]. Instead, an empirical approach based on simulations is required.
 
+#### FDR correction for connectedness of an element set to terms
+
+
+
 # References
 

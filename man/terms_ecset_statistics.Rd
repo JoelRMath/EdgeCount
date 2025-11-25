@@ -7,7 +7,7 @@
 \usage{
 terms_ecset_statistics(object, element_set, lambda_method = "fast")
 
-\S4method{terms_ecset_statistics}{ECTermScoring}(object, element_set, lambda_method = "optimized")
+\S4method{terms_ecset_statistics}{ECTermScoring}(object, element_set, lambda_method = "fast")
 }
 \arguments{
 \item{object}{An ECTermScoring object.}
