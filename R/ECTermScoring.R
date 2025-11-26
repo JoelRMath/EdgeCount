@@ -545,6 +545,73 @@ calculate_empirical_fdr <- function(object, real_results_dt, n_permutations = 10
   return(real_results_dt)
 }
 
+#' @title Score Terms Against an Element Set with FDR Correction
+#'
+#' @description A convenience wrapper that performs the full enrichment analysis pipeline
+#' for a single set of elements. It calculates raw enrichment statistics and
+#' immediately computes Normalized Enrichment Scores (NES) and Empirical False
+#' Discovery Rates (FDR).
+#'
+#' @details This function enforces the "fast" lambda approximation method for both
+#' the real set and the random simulations. This ensures statistical consistency
+#' between the observed scores and the null distribution, while maintaining
+#' computational efficiency for the permutation steps.
+#'
+#' @param object An \code{\link{ECTermScoring}} object.
+#' @param element_set A character vector of element names.
+#' @param n_permutations Integer. The number of random sets to generate for the
+#' null distribution. Defaults to 1000.
+#' @param seed Integer (Optional). A random seed for reproducibility.
+#'
+#' @return A \code{data.table} containing the enrichment results, including:
+#' \itemize{
+#'   \item \code{term_id}: The term identifier.
+#'   \item \code{observed_edge_count}: Number of edges between the set and the term.
+#'   \item \code{log2_Anscombe_ratio}: The effect size.
+#'   \item \code{p_value}: The raw RGGED p-value (fast approximation).
+#'   \item \code{nes}: Normalized Enrichment Score.
+#'   \item \code{fdr_q_value}: The empirical False Discovery Rate q-value.
+#' }
+#' Returns \code{NULL} if no valid connected terms are found.
+#'
+#' @seealso \code{\link{terms_ecset_statistics}}, \code{\link{calculate_empirical_fdr}}
+#' @export
+#' @examples
+#' data(sample_ects)
+#' target_term <- "GO:0005787"
+#' set_1 <- sample_ects@ecprob@adj[[target_term]]
+#'
+#' # Run full analysis in one step
+#' results <- terms_ecset_statistics_fdr(sample_ects, set_1, n_permutations = 100, seed = 123)
+#' print(head(results))
+#'
+setGeneric("terms_ecset_statistics_fdr",
+           function(object, element_set, n_permutations = 1000, seed = NULL)
+             standardGeneric("terms_ecset_statistics_fdr"))
+
+#' @describeIn terms_ecset_statistics_fdr Method for ECTermScoring objects.
+setMethod("terms_ecset_statistics_fdr",
+          "ECTermScoring",
+          function(object, element_set, n_permutations = 1000, seed = NULL) {
+
+            # 1. Calculate Raw Statistics
+            # Enforce "fast" to match the core engine used in FDR simulations
+            raw_results <- terms_ecset_statistics(object, element_set, lambda_method = "fast")
+
+            # Handle case where no results are found
+            if (is.null(raw_results)) {
+              return(NULL)
+            }
+
+            # 2. Apply Empirical FDR Correction
+            final_results <- calculate_empirical_fdr(object,
+                                                     raw_results,
+                                                     n_permutations = n_permutations,
+                                                     seed = seed)
+
+            return(final_results)
+          })
+
 #' @title Score Terms Against a Ranked List of Elements
 #'
 #' @description Calculates a running enrichment score for terms based on a ranked list of elements.

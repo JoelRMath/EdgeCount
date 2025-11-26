@@ -377,3 +377,39 @@ test_that("run_vsea_analysis correctly finds enrichment", {
 
   expect_lt(nes_TermB, nes_TermA)
 })
+
+test_that("terms_ecset_statistics_fdr works as a wrapper", {
+
+  # 1. Setup a small graph and known set
+  data("sample_ects")
+  target_term <- "GO:0005787"
+  set_1 <- sample_ects@ecprob@adj[[target_term]]
+
+  # 2. Run the wrapper
+  # We use n=50 for speed in testing
+  results <- terms_ecset_statistics_fdr(sample_ects, set_1, n_permutations = 50, seed = 123)
+
+  # 3. Check Return Type
+  expect_true(is.data.table(results))
+
+  # 4. Check Columns
+  expected_cols <- c("term_id", "observed_edge_count", "log2_Anscombe_ratio",
+                     "p_value", "nes", "fdr_q_value")
+  expect_true(all(expected_cols %in% names(results)))
+
+  # 5. Check Signal Logic
+  # The target term itself should be highly significant
+  top_hit <- results[term_id == target_term]
+  expect_equal(nrow(top_hit), 1)
+  expect_lt(top_hit$fdr_q_value, 0.05) # Should be significant
+
+  # 6. Check robustness with empty input
+  # An empty set should return NULL (handled by the wrapper)
+  empty_res <- suppressWarnings(terms_ecset_statistics_fdr(sample_ects, character(0), n_permutations = 10))
+  expect_null(empty_res)
+
+  # 7. Check robustness with disjoint input (no connections)
+  # Create a dummy element that doesn't exist in the graph
+  disjoint_res <- suppressWarnings(terms_ecset_statistics_fdr(sample_ects, c("GHOST_ELEMENT"), n_permutations = 10))
+  expect_null(disjoint_res)
+})
