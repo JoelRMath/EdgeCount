@@ -21,7 +21,7 @@ A data table with edge-count stattistics (`observed_edge_count`, `lambda`, etc.)
 }
 \description{
 Calculates fast within-set statistics for a collection of sets
-using a high-performance, vectorized algorithm.
+using vectorized algorithm.
 }
 \section{Methods (by class)}{
 \itemize{

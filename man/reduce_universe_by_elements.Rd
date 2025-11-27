@@ -22,7 +22,7 @@ Creates a new, smaller ECTermScoring object by restricting it
 to a specified subset of elements.
 }
 \details{
-This is an important helper for ensuring statistical tests are correctly
+This is a helper for ensuring statistical tests are correctly
 conditioned. It takes an ECTermScoring object and a vector of elements, finds
 the intersection, and returns a new object where all properties (degrees, graph
 size, etc.) are recalculated based on this smaller universe. This method is an

@@ -54,9 +54,30 @@ print(ects@elements)
 \seealso{
 Primary analysis functions:
 \itemize{
-  \item \code{\link{terms_ecset_statistics}}: Score terms against a single set of elements.
-  \item \code{\link{terms_ecranks_statistics}}: Score terms against a ranked list of elements.
-  \item \code{\link{table_terms_ecranks_statistics}}: Summarize and rank results from ranked list scoring.
+   \item \code{\link{terms_ecset_statistics}}: Score terms against a single set of elements.
+   \item \code{\link{terms_ecset_statistics_fdr}}: Wrapper for single-set scoring with Empirical FDR correction.
+   \item \code{\link{run_vsea_analysis}}: Perform Vertex Set Enrichment Analysis (VSEA) on a ranked list of elements.
+   \item \code{\link{terms_ecranks_statistics}}: Calculate raw enrichment profiles for ranked lists.
+   \item \code{\link{table_terms_ecranks_statistics}}: Summarize and rank results from ranked list scoring.
 }
+
+FDR and Vectorized functions:
+\itemize{
+   \item \code{\link{calculate_ecset_fdr}}: Calculate Empirical FDR for single-set enrichment results.
+   \item \code{\link{terms_ecset_statistics_vectorized}}: Efficiently score terms against multiple element sets.
+}
+
+Graph management and Utilities:
+\itemize{
+   \item \code{\link{trim_bipartite_terms}}: Trim high-degree terms to improve fast approximation suitability.
+   \item \code{\link{remove_isolated_elements}}: Remove elements with no term connections.
+   \item \code{\link{remove_empty_terms}}: Remove terms with no element connections.
+   \item \code{\link{reduce_universe_by_elements}}: Filter the graph to a specific set of elements.
+   \item \code{\link{reduce_universe_by_terms}}: Filter the graph to a specific set of terms.
+   \item \code{\link{summarize_suitability_bipartite}}: Check graph suitability for fast approximation.
+   \item \code{\link{to_dataframe}}: Convert the bipartite graph to a data frame edge list.
+   \item \code{\link{show}}: Summary display of the object.
+}
+
 Underlying graph classes: \code{\link{ECGraph}}, \code{\link{ECProb}}
 }

@@ -77,7 +77,6 @@ test_that("EC between max fds", {
     expect_equal(get_edge_count_between_max_fds(ec,c("E"),NULL), 0)
     expect_equal(get_edge_count_between_max_fds(ec,c("E"),c("A")), 1)
     expect_equal(get_edge_count_between_max_fds(ec,c("E"),c("D","H")), 2)
-    # Corrected expectation for the last test case
     expect_equal(get_edge_count_between_max_fds(ec,c("E","F"),c("D","G","H","B","C")), 6)
   }
 })
@@ -95,14 +94,3 @@ test_that("ECG to_dataframe", {
   }
 })
 
-test_that("ECG trimming", {
-
-  toggle <- TRUE
-  if (toggle){
-    ecg <- sample_ecg
-    time_start <- Sys.time()
-    ecg <- trim_ecgraph(ecg, 0.1)
-    time_end <- Sys.time() - time_start
-    # print(time_end)
-  }
-})

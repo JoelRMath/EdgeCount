@@ -83,13 +83,3 @@ vsea_results <- run_vsea_analysis(
 # View the results
 print(vsea_results$max_score_summary)
 }
-\references{
-1. Subramanian, A., et al. (2005). Gene set enrichment analysis: a knowledge-based
-approach for interpreting genome-wide expression profiles. PNAS.
-\url{https://www.pnas.org/doi/10.1073/pnas.0506580102}
-
-#' 2. Pradines et al. (2005). Analyzing Protein Lists with Large Networks:
-Edge-Count Probabilities in Random Graphs with Given Expected Degrees.
-J. Comp. Biol. 12(2):113-28.
-\url{https://www.liebertpub.com/doi/10.1089/cmb.2005.12.113}
-}

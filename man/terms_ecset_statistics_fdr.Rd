@@ -42,16 +42,14 @@ A \code{data.table} containing the enrichment results, including:
 Returns \code{NULL} if no valid connected terms are found.
 }
 \description{
-A convenience wrapper that performs the full enrichment analysis pipeline
-for a single set of elements. It calculates raw enrichment statistics and
-immediately computes Normalized Enrichment Scores (NES) and Empirical False
+A convenience wrapper that performs enrichment analysis
+for a single set of elements. It calculates raw enrichment statistics AND
+computes Normalized Enrichment Scores (NES) and Empirical False
 Discovery Rates (FDR).
 }
 \details{
 This function enforces the "fast" lambda approximation method for both
-the real set and the random simulations. This ensures statistical consistency
-between the observed scores and the null distribution, while maintaining
-computational efficiency for the permutation steps.
+the real set and the random simulations.
 }
 \section{Methods (by class)}{
 \itemize{
@@ -69,5 +67,5 @@ print(head(results))
 
 }
 \seealso{
-\code{\link{terms_ecset_statistics}}, \code{\link{calculate_empirical_fdr}}
+\code{\link{terms_ecset_statistics}}, \code{\link{calculate_ecset_fdr}}
 }

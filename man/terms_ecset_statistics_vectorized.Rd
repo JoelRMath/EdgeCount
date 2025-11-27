@@ -19,7 +19,7 @@ terms_ecset_statistics_vectorized(object, input_sets, lambda_method = "fast")
     vectors of elements.
 }}
 
-\item{lambda_method}{The method for lambda calculation. Currently, only "fast"
+\item{lambda_method}{The method for lambda calculation. Only "fast"
 is supported for this vectorized function.}
 }
 \value{
@@ -33,9 +33,7 @@ statistics for all terms against a collection of input element sets.
 }
 \details{
 This function is designed for efficiency when testing many input sets
-(e.g., multiple experimental signatures) against the term database at once.
-It uses a join-based approach to first identify all relevant `(input_set, term)`
-pairs and then calculates statistics in a fully vectorized manner.
+against the term database at once.
 }
 \section{Methods (by class)}{
 \itemize{

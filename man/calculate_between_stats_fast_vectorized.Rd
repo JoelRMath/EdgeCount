@@ -25,7 +25,7 @@ A final `data.table` with the original pairs and columns for all
 }
 \description{
 Calculates fast between statistics for a collection of set pairs
-using a high-performance, vectorized algorithm.
+using vectorized algorithm.
 }
 \details{
 This function is designed for efficiency when processing many term

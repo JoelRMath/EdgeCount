@@ -29,7 +29,7 @@ Finds all pairs of sets (terms) that have at least one edge
 connecting their *disjoint* parts in the interaction network (\code{ECProb}).
 This method uses fast anti-joins on the observed edge list to filter out connections
 that only exist due to overlapping elements (intersections), returning only pairs
-with true disjoint connectivity.
+with disjoint connectivity.
 }
 \section{Methods (by class)}{
 \itemize{

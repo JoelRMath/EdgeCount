@@ -70,13 +70,16 @@ unlink(temp_file)
 \seealso{
 Functions that operate on ECGraph objects:
 \itemize{
-  \item \code{\link{to_dataframe}}: Convert an ECGraph to a data frame edge list.
-  \item \code{\link{get_neighbors}}: Retrieve all neighbors for a set of vertices.
-  \item \code{\link{get_edge_count_in}}: Count edges within a set of vertices.
-  \item \code{\link{get_edge_count_between}}: Count edges between two sets of vertices.
-  \item \code{\link{get_edge_count_in_max}}: Maximum possible edge count within a set (complete graph).
-  \item \code{\link{get_edge_count_between_max}}: Maximum possible edge count between two sets (complete graph).
-  \item \code{\link{get_edge_count_in_max_fds}}: Maximum possible edge count within a set (fixed degree sequence).
-  \item \code{\link{get_edge_count_between_max_fds}}: Maximum possible edge count between two sets (fixed degree sequence).
+   \item \code{\link{to_dataframe}}: Convert an ECGraph to a data frame edge list.
+   \item \code{\link{get_neighbors}}: Retrieve all neighbors for a set of vertices.
+   \item \code{\link{get_edge_count_in}}: Count edges within a set of vertices.
+   \item \code{\link{get_edge_count_between}}: Count edges between two sets of vertices.
+   \item \code{\link{get_edge_count_in_max}}: Maximum possible edge count within a set (complete graph).
+   \item \code{\link{get_edge_count_between_max}}: Maximum possible edge count between two sets (complete graph).
+   \item \code{\link{get_edge_count_in_max_fds}}: Maximum possible edge count within a set (fixed degree sequence).
+   \item \code{\link{get_edge_count_between_max_fds}}: Maximum possible edge count between two sets (fixed degree sequence).
+   \item \code{\link{trim_ecgraph}}: Trim high-degree vertices (hubs) to improve fast approximation suitability.
+   \item \code{\link{remove_isolated_vertices}}: Remove vertices with zero degree from the graph.
+   \item \code{\link{show}}: Summary display of the object.
 }
 }

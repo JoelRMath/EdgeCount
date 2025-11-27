@@ -290,38 +290,9 @@ test_that("ECProb fast suitability", {
   ecgraph <- sample_ecg
   ecprob <- ECProb(ecgraph)
   res <- summarize_suitability_fast(ecprob)
-  # print(res)
+  expect_equal(res$pij_over_1, 0)
 })
 
-test_that("ECProb lambda_expected", {
-
-  ecgraph <- sample_ecg
-  ecprob <- ECProb(ecgraph)
-  M <- ecprob@graph_size
-  N <- ecprob@graph_order
-  m <- c(2, 3, 4, 5, 10, 20, 50, 100)
-  sim <- FALSE
-  if (sim){
-    nsim <- 10
-    m_lambda <- NULL
-    sd_lambda <- NULL
-    e_lambda <- NULL
-    for (i in 1:length(m)){
-      print(m[i])
-      lambda <- numeric(nsim)
-      for (j in 1:nsim){
-        vset <- sample(ecprob@names, m[i])
-        lambda[j] <- calculate_lambda_in_fast(ecprob, vset)
-      }
-      m_lambda <- c(m_lambda, mean(lambda))
-      sd_lambda <- c(sd_lambda, sd(lambda))
-      e_lambda <- c(e_lambda, m[i]*(m[i]-1)*M/(N*N))
-    }
-    df <- data.frame(m = m, m_lambda = m_lambda, e_lambda = e_lambda, sd_lambda = sd_lambda)
-    write.table(df, test_path("res/TestExpectedLambdaIn.txt"), quote = F, sep = "\t", row.names = F)
-  }
-  # print(df)
-})
 
 test_that("ECProb get_disjoint_sets", {
 
@@ -364,26 +335,6 @@ test_that("ECProb get_disjoint_sets", {
   }
 })
 
-test_that("ECProb calculate_between_stats_fast_vectorized", {
-
-
-  pairs_dt <- data.table(
-    set1 = c("SA", "SA", "SC"),
-    set2 = c("SB", "SC", "SD")
-  )
-  set_membership_dt <- data.table(
-    set_id = c("SA", "SA", "SA", "SB", "SB", "SC", "SC", "SD", "SC"),
-    element = c("E1", "E2", "E3", "E2", "E3", "E3", "E4", "E5", "E6")
-  )
-  edges_dt <- data.table(
-    col1 = c("E1", "E1", "E1", "E1", "E3", "E3", "E3", "E6"),
-    col2 = c("E2", "E3", "E4", "E5", "E4", "E5", "E2", "E1")
-  )
-  ecg <- ECGraph(edges_dt)
-  ecp <- ECProb(ecg)
-
-  calculate_between_stats_fast_vectorized(ecp, pairs_dt, set_membership_dt)
-})
 
 test_that("calculate_in_stats_fast_vectorized", {
 
@@ -439,10 +390,7 @@ test_that("calculate_in_stats_fast_vectorized", {
 })
 
 test_that("get_disjoint_connected_pairs works correctly", {
-  # Case 1: Intersection-only connection (Should be filtered out)
-  # Term1={A, B}, Term2={B, C}. Graph has A-B and B-C.
-  # Intersection is {B}. Disjoint sets are {A} and {C}.
-  # There is NO edge between {A} and {C}.
+
   edge_df_toy <- data.frame(p1 = c("A", "B"), p2 = c("B", "C"), stringsAsFactors = FALSE)
   ecp_toy <- ECProb(ECGraph(edge_df_toy))
 
@@ -455,8 +403,6 @@ test_that("get_disjoint_connected_pairs works correctly", {
   toy_res <- get_disjoint_connected_pairs(ecp_toy, term_dt_toy)
   expect_equal(nrow(toy_res), 0)
 
-  # Case 2: True disjoint connection
-  # Add edge A-C. Now {A} and {C} are connected.
   edge_df_conn <- data.frame(p1 = c("A", "B", "A"), p2 = c("B", "C", "C"), stringsAsFactors = FALSE)
   ecp_conn <- ECProb(ECGraph(edge_df_conn))
 

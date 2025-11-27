@@ -28,14 +28,17 @@
 #' @seealso
 #' Functions that operate on ECGraph objects:
 #' \itemize{
-#'   \item \code{\link{to_dataframe}}: Convert an ECGraph to a data frame edge list.
-#'   \item \code{\link{get_neighbors}}: Retrieve all neighbors for a set of vertices.
-#'   \item \code{\link{get_edge_count_in}}: Count edges within a set of vertices.
-#'   \item \code{\link{get_edge_count_between}}: Count edges between two sets of vertices.
-#'   \item \code{\link{get_edge_count_in_max}}: Maximum possible edge count within a set (complete graph).
-#'   \item \code{\link{get_edge_count_between_max}}: Maximum possible edge count between two sets (complete graph).
-#'   \item \code{\link{get_edge_count_in_max_fds}}: Maximum possible edge count within a set (fixed degree sequence).
-#'   \item \code{\link{get_edge_count_between_max_fds}}: Maximum possible edge count between two sets (fixed degree sequence).
+#'    \item \code{\link{to_dataframe}}: Convert an ECGraph to a data frame edge list.
+#'    \item \code{\link{get_neighbors}}: Retrieve all neighbors for a set of vertices.
+#'    \item \code{\link{get_edge_count_in}}: Count edges within a set of vertices.
+#'    \item \code{\link{get_edge_count_between}}: Count edges between two sets of vertices.
+#'    \item \code{\link{get_edge_count_in_max}}: Maximum possible edge count within a set (complete graph).
+#'    \item \code{\link{get_edge_count_between_max}}: Maximum possible edge count between two sets (complete graph).
+#'    \item \code{\link{get_edge_count_in_max_fds}}: Maximum possible edge count within a set (fixed degree sequence).
+#'    \item \code{\link{get_edge_count_between_max_fds}}: Maximum possible edge count between two sets (fixed degree sequence).
+#'    \item \code{\link{trim_ecgraph}}: Trim high-degree vertices (hubs) to improve fast approximation suitability.
+#'    \item \code{\link{remove_isolated_vertices}}: Remove vertices with zero degree from the graph.
+#'    \item \code{\link{show}}: Summary display of the object.
 #' }
 #'
 #' @exportClass ECGraph
@@ -265,7 +268,6 @@ setGeneric("get_neighbors",
 setMethod("get_neighbors",
           "ECGraph",
           function(object, vertices) {
-            # Filter for vertices that exist in the graph
             valid_vertices <- vertices[vertices %in% object@names]
             if (length(valid_vertices) == 0) return(character(0))
 
@@ -296,7 +298,6 @@ setGeneric("get_edge_count_in",
 setMethod("get_edge_count_in",
           "ECGraph",
           function(object, vertices) {
-            # Filter for vertices that exist in the graph
             valid_vertices <- vertices[vertices %in% object@names]
             if (length(valid_vertices) == 0) return(0)
 
@@ -305,7 +306,6 @@ setMethod("get_edge_count_in",
                                             function(neighbors) {
                                               sum(neighbors %in% valid_vertices)
                                             })))
-            # Each edge is counted twice (once from each direction), so divide by 2
             edge_count / 2
           })
 
@@ -334,7 +334,6 @@ setGeneric("get_edge_count_between",
 setMethod("get_edge_count_between",
           "ECGraph",
           function(object, set1, set2) {
-            # Filter for vertices that exist in the graph
             valid_set1 <- set1[set1 %in% object@names]
             valid_set2 <- set2[set2 %in% object@names]
 
@@ -375,7 +374,6 @@ setGeneric("get_edge_count_in_max",
 setMethod("get_edge_count_in_max",
           "ECGraph",
           function(object, vertices) {
-            # FIX: Only consider vertices that are actually in the graph
             valid_vertices <- vertices[vertices %in% object@names]
             n <- length(valid_vertices)
             if (n <= 1) {
@@ -410,7 +408,6 @@ setGeneric("get_edge_count_between_max",
 setMethod("get_edge_count_between_max",
           "ECGraph",
           function(object, set1, set2) {
-            # FIX: Only consider vertices that are actually in the graph
             valid_set1 <- set1[set1 %in% object@names]
             valid_set2 <- set2[set2 %in% object@names]
             length(valid_set1) * length(valid_set2)
@@ -438,7 +435,6 @@ setGeneric("get_edge_count_in_max_fds",
 setMethod("get_edge_count_in_max_fds",
           "ECGraph",
           function(object, vertices) {
-            # Filter for valid vertices and get their degrees
             valid_vertices <- vertices[vertices %in% object@names]
             if (length(valid_vertices) < 2) return(0)
 
@@ -488,7 +484,6 @@ setGeneric("get_edge_count_between_max_fds",
 setMethod("get_edge_count_between_max_fds",
           "ECGraph",
           function(object, set1, set2) {
-            # Filter for valid vertices
             valid_set1 <- set1[set1 %in% object@names]
             valid_set2 <- set2[set2 %in% object@names]
 

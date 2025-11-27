@@ -24,15 +24,36 @@
 #'   `term_element_edges` is a file path (e.g., `sep`, `header`).
 #'
 #' @return An object of class ECTermScoring.
+#'
 #' @seealso
 #' Primary analysis functions:
 #' \itemize{
-#'   \item \code{\link{terms_ecset_statistics}}: Score terms against a single set of elements.
-#'   \item \code{\link{terms_ecranks_statistics}}: Score terms against a ranked list of elements.
-#'   \item \code{\link{table_terms_ecranks_statistics}}: Summarize and rank results from ranked list scoring.
+#'    \item \code{\link{terms_ecset_statistics}}: Score terms against a single set of elements.
+#'    \item \code{\link{terms_ecset_statistics_fdr}}: Wrapper for single-set scoring with Empirical FDR correction.
+#'    \item \code{\link{run_vsea_analysis}}: Perform Vertex Set Enrichment Analysis (VSEA) on a ranked list of elements.
+#'    \item \code{\link{terms_ecranks_statistics}}: Calculate raw enrichment profiles for ranked lists.
+#'    \item \code{\link{table_terms_ecranks_statistics}}: Summarize and rank results from ranked list scoring.
 #' }
-#' Underlying graph classes: \code{\link{ECGraph}}, \code{\link{ECProb}}
 #'
+#' FDR and Vectorized functions:
+#' \itemize{
+#'    \item \code{\link{calculate_ecset_fdr}}: Calculate Empirical FDR for single-set enrichment results.
+#'    \item \code{\link{terms_ecset_statistics_vectorized}}: Efficiently score terms against multiple element sets.
+#' }
+#'
+#' Graph management and Utilities:
+#' \itemize{
+#'    \item \code{\link{trim_bipartite_terms}}: Trim high-degree terms to improve fast approximation suitability.
+#'    \item \code{\link{remove_isolated_elements}}: Remove elements with no term connections.
+#'    \item \code{\link{remove_empty_terms}}: Remove terms with no element connections.
+#'    \item \code{\link{reduce_universe_by_elements}}: Filter the graph to a specific set of elements.
+#'    \item \code{\link{reduce_universe_by_terms}}: Filter the graph to a specific set of terms.
+#'    \item \code{\link{summarize_suitability_bipartite}}: Check graph suitability for fast approximation.
+#'    \item \code{\link{to_dataframe}}: Convert the bipartite graph to a data frame edge list.
+#'    \item \code{\link{show}}: Summary display of the object.
+#' }
+#'
+#' Underlying graph classes: \code{\link{ECGraph}}, \code{\link{ECProb}}
 #' @exportClass ECTermScoring
 #' @export ECTermScoring
 #' @examples
@@ -61,14 +82,12 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
     if (!file.exists(term_element_edges)) {
       stop("File not found: ", term_element_edges)
     }
-    # Default arguments for read.table
     default_read_args <- list(
       header = TRUE,
       sep = "\t",
       stringsAsFactors = FALSE,
       quote = ""
     )
-    # If user-provided arguments from ...
     user_read_args <- list(...)
     final_read_args <- utils::modifyList(default_read_args, user_read_args)
     final_read_args$file <- term_element_edges
@@ -108,8 +127,8 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
   term_ids_char <- as.character(edge_df[[col_term]])
   element_ids_char <- as.character(edge_df[[col_element]])
   bipartite_edge_list_for_ecgraph <- data.frame(
-    vertex1 = term_ids_char,    # Terms will be 'vertex1'
-    vertex2 = element_ids_char, # Elements will be 'vertex2'
+    vertex1 = term_ids_char,
+    vertex2 = element_ids_char,
     stringsAsFactors = FALSE
   )
 
@@ -175,30 +194,24 @@ setMethod("show", "ECTermScoring", function(object) {
 # to_dataframe/edges extraction happens OUTSIDE this function to optimize repeated calls.
 calc_ecset_stats_core <- function(object, input_sets_dt, bipartite_edges_dt) {
 
-  # 1. Set Keys for fast joining
-  # input_sets_dt must have: set_id, element
-  # bipartite_edges_dt must have: term_id, element
-
-  # Ensure uniqueness of input pairs
+  # 1.
   input_sets_dt_unique <- unique(input_sets_dt, by = c("set_id", "element"))
   data.table::setkey(input_sets_dt_unique, element)
   data.table::setkey(bipartite_edges_dt, element)
 
-  # 2. The Big Join (Cartesian product of Sets * Terms via Elements)
+  # 2.
   all_connections <- bipartite_edges_dt[input_sets_dt_unique, on = "element", nomatch = 0, allow.cartesian = TRUE]
 
-  # 3. Aggregation (Observed Edge Count)
-  # Note: input_set_id comes from the 'i' table (input_sets_dt)
+  # 3.
   observed_edges_dt <- all_connections[, .(observed_edge_count = .N), by = .(input_set_id = set_id, term_id)]
 
-  # 4. Pre-computation of Degrees (Global properties)
+  # 4.
   all_element_degrees <- unlist(object@ecprob@degrees)
 
-  # Get degrees only for terms actually involved in connections
   term_degrees <- all_element_degrees[bipartite_edges_dt[, unique(term_id)]]
   term_summary <- data.table::data.table(term_id = names(term_degrees), term_degree = term_degrees)
 
-  # 5. Set Summaries (Sum of degrees of elements in the set)
+  # 5.
   valid_input_elements <- all_connections[, .(input_set_id = set_id, element)] |> unique()
   input_set_summary <- valid_input_elements[,
                                             .(sum_degrees_set = sum(all_element_degrees[element], na.rm = TRUE),
@@ -206,19 +219,16 @@ calc_ecset_stats_core <- function(object, input_sets_dt, bipartite_edges_dt) {
                                             by = input_set_id
   ]
 
-  # 6. Merge and Calculate Statistics
+  # 6.
   final_dt <- data.table::copy(observed_edges_dt)
   final_dt[term_summary, on = "term_id", term_degree := i.term_degree]
   final_dt[input_set_summary, on = "input_set_id", `:=`(sum_degrees_set = i.sum_degrees_set, max_possible_edges = i.set_size)]
 
-  # lambda calculation (Fast Approximation)
   final_dt[, lambda := (term_degree * sum_degrees_set) / (2 * object@ecprob@graph_size)]
 
-  # P-value and Effect Size
   final_dt[, p_value := calculate_p_value(object@ecprob, observed_edge_count, max_possible_edges, lambda)]
   final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_edge_count + 3/8) - log2(lambda + 3/8))]
 
-  # Rename for consistency with package standards (set1/set2 from ECProb logic)
   data.table::setnames(final_dt, "input_set_id", "set1")
   data.table::setnames(final_dt, "term_id", "set2")
 
@@ -326,9 +336,7 @@ setMethod(
 #' statistics for all terms against a collection of input element sets.
 #'
 #' @details This function is designed for efficiency when testing many input sets
-#' (e.g., multiple experimental signatures) against the term database at once.
-#' It uses a join-based approach to first identify all relevant `(input_set, term)`
-#' pairs and then calculates statistics in a fully vectorized manner.
+#' against the term database at once.
 #'
 #' @param object An ECTermScoring object.
 #' @param input_sets An object defining the input element sets. This can be either:
@@ -337,7 +345,7 @@ setMethod(
 #'     \item A named `list` where names are the set IDs and values are character
 #'       vectors of elements.
 #'   }
-#' @param lambda_method The method for lambda calculation. Currently, only "fast"
+#' @param lambda_method The method for lambda calculation. Only "fast"
 #'   is supported for this vectorized function.
 #'
 #' @return A named list of `data.table`s. Each name corresponds to an
@@ -372,23 +380,19 @@ setMethod("terms_ecset_statistics_vectorized",
           "ECTermScoring",
           function(object, input_sets, lambda_method = "fast") {
 
-            # 1. Standardize Input Sets
-            if (is.list(input_sets) && !is.data.frame(input_sets)) {
+             if (is.list(input_sets) && !is.data.frame(input_sets)) {
               input_sets_dt <- data.table::as.data.table(utils::stack(input_sets))
               data.table::setnames(input_sets_dt, c("values", "ind"), c("element", "set_id"))
             } else {
               input_sets_dt <- data.table::as.data.table(input_sets)
             }
 
-            # 2. Prepare Bipartite Edges (Once)
             bipartite_edges <- data.table::as.data.table(to_dataframe(object))
             data.table::setnames(bipartite_edges, "term", "term_id")
             bipartite_edges[, term_id := as.character(term_id)]
 
-            # 3. Call the Core
             final_dt <- calc_ecset_stats_core(object, input_sets_dt, bipartite_edges)
 
-            # 4. Return List (Splitting is the expensive part here)
             return(split(final_dt, by = "set1"))
           })
 
@@ -403,17 +407,14 @@ setMethod("terms_ecset_statistics_vectorized",
 #' distribution generated from random sets.
 #'
 #' @details This method addresses the non-uniform distribution of p-values in
-#' sparse graphs under the RGGED null model. By generating $N$ random sets of
-#' the same size as the input set, it estimates the probability of observing
-#' a given enrichment score by chance (Empirical FDR), similar to the approach
-#' used in Gene Set Enrichment Analysis (GSEA).
+#' sparse graphs under the RGGED null model.
 #'
 #' @param object An \code{\link{ECTermScoring}} object.
 #' @param real_results_dt A \code{data.table} or \code{data.frame} containing the
 #' scoring results for a single set (e.g., the output of \code{\link{terms_ecset_statistics}}).
 #' Must contain columns `observed_edge_count` and `log2_Anscombe_ratio`.
 #' @param n_permutations Integer. The number of random sets to generate for the
-#' null distribution. Defaults to 1000. Higher numbers increase precision.
+#' null distribution. Defaults to 1000.
 #' @param seed Integer (Optional). A random seed for reproducibility.
 #'
 #' @return A \code{data.table} containing the original results with two additional columns:
@@ -426,24 +427,18 @@ setMethod("terms_ecset_statistics_vectorized",
 #' @seealso \code{\link{terms_ecset_statistics}}, \code{\link{run_vsea_analysis}}
 #' @export
 #' @import data.table
-calculate_empirical_fdr <- function(object, real_results_dt, n_permutations = 1000, seed = NULL) {
+calculate_ecset_fdr <- function(object, real_results_dt, n_permutations = 1000, seed = NULL) {
 
   if (!is.null(seed)) set.seed(seed)
 
-  # --- STEP 0: Copy Input ---
-  # data.table modifies by reference. We must copy to avoid side effects.
   real_results_dt <- data.table::as.data.table(real_results_dt)
   real_results_dt <- data.table::copy(real_results_dt)
 
-  # --- PRE-STEP: Standardize Column Names ---
-  # The core engine uses 'set2' for terms, but single-set methods return 'term_id'.
   if ("term_id" %in% names(real_results_dt) && !"set2" %in% names(real_results_dt)) {
     data.table::setnames(real_results_dt, "term_id", "set2")
   }
 
-  # --- STEP 1: Setup Inputs ---
   if ("set_size" %in% names(real_results_dt)) {
-    # The robust path: use the explicit vertex count
     set_size <- max(real_results_dt$set_size)
   } else {
     stop("Input results must contain a 'set_size' column to define the null model.")
@@ -458,7 +453,6 @@ calculate_empirical_fdr <- function(object, real_results_dt, n_permutations = 10
   data.table::setnames(bipartite_edges, "term", "term_id")
   bipartite_edges[, term_id := as.character(term_id)]
 
-  # --- STEP 2: Generate "Big Table" of Random Sets ---
   random_elements <- unlist(replicate(n_permutations, sample(object@elements, set_size), simplify = FALSE))
 
   null_inputs_dt <- data.table::data.table(
@@ -466,12 +460,8 @@ calculate_empirical_fdr <- function(object, real_results_dt, n_permutations = 10
     element = random_elements
   )
 
-  # --- STEP 3: Run Core Calculation ---
   null_stats_dt <- calc_ecset_stats_core(object, null_inputs_dt, bipartite_edges)
 
-  # --- STEP 4: Statistical Correction ---
-
-  # 4a. Calculate Mean Null Scores per Term
   score_col <- "log2_Anscombe_ratio"
 
   mean_nulls <- null_stats_dt[, .(
@@ -482,10 +472,8 @@ calculate_empirical_fdr <- function(object, real_results_dt, n_permutations = 10
   mean_nulls[is.nan(mean_pos), mean_pos := 1]
   mean_nulls[is.nan(mean_neg), mean_neg := 1]
 
-  # 4b. Calculate NES for Real Results
   real_results_dt[mean_nulls, on = .(set2 = term_id), `:=`(mean_null_pos = i.mean_pos, mean_null_neg = i.mean_neg)]
 
-  # Handle terms not found in Nulls (conservative normalization)
   real_results_dt[is.na(mean_null_pos), mean_null_pos := 1]
   real_results_dt[is.na(mean_null_neg), mean_null_neg := 1]
 
@@ -493,7 +481,6 @@ calculate_empirical_fdr <- function(object, real_results_dt, n_permutations = 10
                                   get(score_col) / mean_null_pos,
                                   get(score_col) / mean_null_neg)]
 
-  # 4c. Calculate NES for Null Results
   null_stats_dt[mean_nulls, on = .(set2 = term_id), `:=`(mean_null_pos = i.mean_pos, mean_null_neg = i.mean_neg)]
   null_stats_dt[is.na(mean_null_pos), mean_null_pos := 1]
   null_stats_dt[is.na(mean_null_neg), mean_null_neg := 1]
@@ -502,7 +489,6 @@ calculate_empirical_fdr <- function(object, real_results_dt, n_permutations = 10
                                      get(score_col) / mean_null_pos,
                                      get(score_col) / mean_null_neg)]
 
-  # 4d. Calculate FDR (GSEA Style)
   all_null_nes <- na.omit(null_stats_dt$null_nes)
   null_nes_pos <- all_null_nes[all_null_nes >= 0]
   null_nes_neg <- all_null_nes[all_null_nes < 0]
@@ -533,29 +519,25 @@ calculate_empirical_fdr <- function(object, real_results_dt, n_permutations = 10
   fdr_values[fdr_values > 1] <- 1
   real_results_dt[, fdr_q_value := fdr_values]
 
-  # Cleanup
   real_results_dt[, c("mean_null_pos", "mean_null_neg") := NULL]
   data.table::setorder(real_results_dt, fdr_q_value, -nes)
 
-  # --- POST-STEP: Restore Column Names ---
   if ("set2" %in% names(real_results_dt)) {
     data.table::setnames(real_results_dt, "set2", "term_id")
   }
-
+  setorder(real_results_dt, -log2_Anscombe_ratio)
   return(real_results_dt)
 }
 
 #' @title Score Terms Against an Element Set with FDR Correction
 #'
-#' @description A convenience wrapper that performs the full enrichment analysis pipeline
-#' for a single set of elements. It calculates raw enrichment statistics and
-#' immediately computes Normalized Enrichment Scores (NES) and Empirical False
+#' @description A convenience wrapper that performs enrichment analysis
+#' for a single set of elements. It calculates raw enrichment statistics AND
+#' computes Normalized Enrichment Scores (NES) and Empirical False
 #' Discovery Rates (FDR).
 #'
 #' @details This function enforces the "fast" lambda approximation method for both
-#' the real set and the random simulations. This ensures statistical consistency
-#' between the observed scores and the null distribution, while maintaining
-#' computational efficiency for the permutation steps.
+#' the real set and the random simulations.
 #'
 #' @param object An \code{\link{ECTermScoring}} object.
 #' @param element_set A character vector of element names.
@@ -574,7 +556,7 @@ calculate_empirical_fdr <- function(object, real_results_dt, n_permutations = 10
 #' }
 #' Returns \code{NULL} if no valid connected terms are found.
 #'
-#' @seealso \code{\link{terms_ecset_statistics}}, \code{\link{calculate_empirical_fdr}}
+#' @seealso \code{\link{terms_ecset_statistics}}, \code{\link{calculate_ecset_fdr}}
 #' @export
 #' @examples
 #' data(sample_ects)
@@ -594,17 +576,13 @@ setMethod("terms_ecset_statistics_fdr",
           "ECTermScoring",
           function(object, element_set, n_permutations = 1000, seed = NULL) {
 
-            # 1. Calculate Raw Statistics
-            # Enforce "fast" to match the core engine used in FDR simulations
             raw_results <- terms_ecset_statistics(object, element_set, lambda_method = "fast")
 
-            # Handle case where no results are found
             if (is.null(raw_results)) {
               return(NULL)
             }
 
-            # 2. Apply Empirical FDR Correction
-            final_results <- calculate_empirical_fdr(object,
+            final_results <- calculate_ecset_fdr(object,
                                                      raw_results,
                                                      n_permutations = n_permutations,
                                                      seed = seed)
@@ -652,7 +630,6 @@ setMethod(
   "ECTermScoring",
   function(object, element_ranks) {
 
-    # --- Step 1: Condition the analysis on the provided ranked list ---
     valid_elements <- intersect(names(element_ranks), object@elements)
     if (length(valid_elements) < 1) {
       stop("None of the elements in `element_ranks` are in the ECTermScoring object.")
@@ -660,7 +637,6 @@ setMethod(
     object <- reduce_universe_by_elements(object, valid_elements)
     element_ranks <- rank(element_ranks[valid_elements])
 
-    # --- Step 2: Pre-computation of core data structures ---
     all_element_degrees <- unlist(object@ecprob@degrees)
     ranks_dt <- data.table(element_id = names(element_ranks), global_rank = element_ranks)
     setorder(ranks_dt, global_rank)
@@ -670,7 +646,6 @@ setMethod(
     setnames(bipartite_edges, c("term", "element"), c("term_id", "element_id"))
     bipartite_edges[, term_id := as.character(term_id)]
 
-    # --- Step 3: Join all information into a single flat table ---
     setkey(bipartite_edges, element_id)
     setkey(ranks_dt, element_id)
     final_dt <- ranks_dt[bipartite_edges, on = "element_id"]
@@ -684,7 +659,6 @@ setMethod(
     )
     final_dt[term_summary, on = "term_id", `:=`(term_size = i.term_size, term_degree = i.term_degree)]
 
-    # --- Step 4: Final, fully vectorized statistics calculation ---
     final_dt[, `:=`(
       observed_ec = rank_in_term,
       max_ec = pmin(term_size, global_rank),
@@ -695,23 +669,20 @@ setMethod(
       log2_Anscombe_ratio = 0.5 * (log2(observed_ec + 3/8) - log2(lambda + 3/8))
     )]
 
-    # --- STEP 5: Reshape output to the required named list format ---
     results_list <- split(final_dt, by = "term_id")
-    # Define and reorder columns for final output
     final_cols <- c("element_id", "global_rank", "rank_in_term",
                     "observed_ec", "max_ec", "term_size",
                     "lambda", "p_value", "log2_Anscombe_ratio")
     results_list_final <- lapply(results_list, function(dt) {
-      # It is safer to create the final table with a fresh subset
       dt[, ..final_cols]
     })
     return(results_list_final)
   })
 
-#' @title Full Summary of Rank Statistics (for User Output)
+#' @title Full Summary of Rank Statistics (
 #'
-#' @description A high-performance function that takes the output of
-#' `terms_ecranks_statistics` and calculates a rich summary (min, max, median
+#' @description A function that takes the output of
+#' `terms_ecranks_statistics` and calculates a summary (min, max, median
 #' scores and their context) for each term.
 #'
 #' @param term_scores_list A named list of data.tables from `terms_ecranks_statistics`.
@@ -720,16 +691,12 @@ setMethod(
 #' @return A `data.table` with one row per term, containing the rich summary.
 summarize_ranks_full <- function(term_scores_list, scoring_statistic = "log2_Anscombe_ratio") {
 
-  # Step 1: Combine into one large data.table
   long_dt <- rbindlist(term_scores_list, idcol = "term_id")
 
-  # Step 2: Group by term_id and calculate the rich summary
   summary_dt <- long_dt[, {
-    # Find the row indices of the min, max, and median scores
     idx_min <- which.min(get(scoring_statistic))
     idx_max <- which.max(get(scoring_statistic))
     idx_median <- which.min(abs(get(scoring_statistic) - median(get(scoring_statistic), na.rm = TRUE)))
-    # Return a list of all the summary info for this term
     .(
       term_size = term_size[1],
       min_score = get(scoring_statistic)[idx_min],
@@ -765,16 +732,6 @@ summarize_ranks_full <- function(term_scores_list, scoring_statistic = "log2_Ans
 #'   `min_score_summary`, and `median_score_summary`. Each data frame is sorted
 #'   by its respective NES and contains a rich summary including the raw score,
 #'   NES, and FDR q-value.
-#'
-#' @references
-#' 1. Subramanian, A., et al. (2005). Gene set enrichment analysis: a knowledge-based
-#' approach for interpreting genome-wide expression profiles. PNAS.
-#' \url{https://www.pnas.org/doi/10.1073/pnas.0506580102}
-#'
-#' #' 2. Pradines et al. (2005). Analyzing Protein Lists with Large Networks:
-#' Edge-Count Probabilities in Random Graphs with Given Expected Degrees.
-#' J. Comp. Biol. 12(2):113-28.
-#' \url{https://www.liebertpub.com/doi/10.1089/cmb.2005.12.113}
 #'
 #' @export
 #' @examples
@@ -832,78 +789,91 @@ setMethod("run_vsea_analysis",
 
             analysis_object <- reduce_universe_by_elements(object, valid_elements)
             element_ranks <- rank(element_ranks[valid_elements])
+
             all_element_degrees <- unlist(analysis_object@ecprob@degrees)
-            bipartite_edges <- as.data.table(to_dataframe(analysis_object))
-            setnames(bipartite_edges, c("term", "element"), c("term_id", "element_id"))
+            bipartite_edges <- data.table::as.data.table(to_dataframe(analysis_object))
+            data.table::setnames(bipartite_edges, c("term", "element"), c("term_id", "element_id"))
             bipartite_edges[, term_id := as.character(term_id)]
+
             term_sizes <- lengths(analysis_object@ecprob@adj[analysis_object@terms])
-            term_summary <- data.table(
+            term_summary <- data.table::data.table(
               term_id = names(term_sizes),
               term_size = term_sizes,
               term_degree = term_sizes
             )
 
-            # Internal scoring engine
             score_core <- function(obj, ranks_dt, summary_only = FALSE) {
               ranks_dt[, degree := all_element_degrees[element_id]]
               ranks_dt[, cumsum_degrees := cumsum(degree)]
-              setkey(bipartite_edges, element_id)
-              setkey(ranks_dt, element_id)
+
+              data.table::setkey(bipartite_edges, element_id)
+              data.table::setkey(ranks_dt, element_id)
+
               final_dt <- ranks_dt[bipartite_edges, on = "element_id"]
-              setorder(final_dt, term_id, global_rank)
+              data.table::setorder(final_dt, term_id, global_rank)
+
               final_dt[term_summary, on = "term_id", `:=`(term_size = i.term_size, term_degree = i.term_degree)]
+
               final_dt[, `:=`(observed_ec = 1:.N, max_ec = pmin(term_size, global_rank)), by = term_id]
+
               final_dt[, lambda := (term_degree / (2 * obj@ecprob@graph_size)) * cumsum_degrees]
-              final_dt[, `:=`(
-                p_value = calculate_p_value(obj@ecprob, observed_ec, max_ec, lambda),
-                log2_Anscombe_ratio = 0.5 * (log2(observed_ec + 3/8) - log2(lambda + 3/8))
-              )]
-              if (summary_only) {
+
+              final_dt[, log2_Anscombe_ratio := 0.5 * (log2(observed_ec + 3/8) - log2(lambda + 3/8))]
+
+              if (!summary_only) {
+                final_dt[, p_value := calculate_p_value(obj@ecprob, observed_ec, max_ec, lambda)]
+                return(final_dt)
+              } else {
                 return(final_dt[, .(
                   min_score = min(get(scoring_statistic), na.rm = TRUE),
                   max_score = max(get(scoring_statistic), na.rm = TRUE),
                   median_score = median(get(scoring_statistic), na.rm = TRUE)
                 ), by = term_id])
-              } else {
-                return(final_dt)
               }
             }
 
-            # Real scores
-            real_ranks_dt <- data.table(element_id = names(element_ranks), global_rank = element_ranks)
-            setorder(real_ranks_dt, global_rank)
+            real_ranks_dt <- data.table::data.table(element_id = names(element_ranks), global_rank = element_ranks)
+            data.table::setorder(real_ranks_dt, global_rank)
+
             real_scores_flat_dt <- score_core(analysis_object, real_ranks_dt, summary_only = FALSE)
+
             real_summary_lean <- real_scores_flat_dt[, .(
               min_score = min(get(scoring_statistic), na.rm = TRUE),
               max_score = max(get(scoring_statistic), na.rm = TRUE),
               median_score = median(get(scoring_statistic), na.rm = TRUE)
             ), by = term_id]
 
-            # Permutations
             perm_results_list <- replicate(n_permutations, {
               shuffled_ranks <- sample(element_ranks)
-              shuffled_ranks_dt <- data.table(element_id = names(element_ranks), global_rank = shuffled_ranks)
-              setorder(shuffled_ranks_dt, global_rank)
+              shuffled_ranks_dt <- data.table::data.table(element_id = names(element_ranks), global_rank = shuffled_ranks)
+              data.table::setorder(shuffled_ranks_dt, global_rank)
               score_core(analysis_object, shuffled_ranks_dt, summary_only = TRUE)
             }, simplify = FALSE)
-            null_scores_long <- rbindlist(perm_results_list, idcol = "perm_id")
 
-            # NES and FDR
+            null_scores_long <- data.table::rbindlist(perm_results_list, idcol = "perm_id")
+
             calculate_nes_fdr <- function(real_summary_dt, null_scores_dt, score_col) {
+
               mean_nulls <- null_scores_dt[, .(
                 mean_pos = mean(get(score_col)[get(score_col) > 0], na.rm = TRUE),
                 mean_neg = mean(abs(get(score_col)[get(score_col) < 0]), na.rm = TRUE)
               ), by = term_id]
+
               mean_nulls[is.nan(mean_pos), mean_pos := 1]
               mean_nulls[is.nan(mean_neg), mean_neg := 1]
+
               real_summary_dt[mean_nulls, on="term_id", `:=`(mean_null_pos = i.mean_pos, mean_null_neg = i.mean_neg)]
               real_summary_dt[, nes := ifelse(get(score_col) > 0, get(score_col) / mean_null_pos, get(score_col) / mean_null_neg)]
+
               null_scores_dt[mean_nulls, on="term_id", `:=`(mean_null_pos = i.mean_pos, mean_null_neg = i.mean_neg)]
               null_scores_dt[, null_nes := ifelse(get(score_col) > 0, get(score_col) / mean_null_pos, get(score_col) / mean_null_neg)]
+
               all_null_nes <- na.omit(null_scores_dt$null_nes)
               null_nes_pos <- all_null_nes[all_null_nes > 0]
               null_nes_neg <- all_null_nes[all_null_nes < 0]
+
               nes_real_vec <- real_summary_dt$nes
+
               fdr_values <- vapply(nes_real_vec, function(score) {
                 if (score > 0) {
                   if (length(null_nes_pos) == 0) return(1)
@@ -919,13 +889,16 @@ setMethod("run_vsea_analysis",
                   return(1)
                 }
               }, FUN.VALUE = numeric(1))
+
               fdr_values[fdr_values > 1] <- 1
               real_summary_dt[, fdr_q_value := fdr_values]
               return(real_summary_dt)
             }
+
             results_max <- calculate_nes_fdr(real_summary_lean[, .(term_id, max_score)], null_scores_long, "max_score")
             results_min <- calculate_nes_fdr(real_summary_lean[, .(term_id, min_score)], null_scores_long, "min_score")
             results_median <- calculate_nes_fdr(real_summary_lean[, .(term_id, median_score)], null_scores_long, "median_score")
+
             summarize_ranks_full <- function(flat_dt) {
               flat_dt[, {
                 scores <- get(scoring_statistic)
@@ -948,16 +921,21 @@ setMethod("run_vsea_analysis",
             }
 
             real_summary_rich <- summarize_ranks_full(real_scores_flat_dt)
+
             final_max <- real_summary_rich[results_max, on = "term_id"]
-            setorder(final_max, fdr_q_value)
+            data.table::setorder(final_max, fdr_q_value)
+
             final_min <- real_summary_rich[results_min, on = "term_id"]
-            setorder(final_min, fdr_q_value)
+            data.table::setorder(final_min, fdr_q_value)
+
             final_median <- real_summary_rich[results_median, on = "term_id"]
-            setorder(final_median, fdr_q_value)
+            data.table::setorder(final_median, fdr_q_value)
+
             return(list(max_score_summary = final_max,
                         min_score_summary = final_min,
                         median_score_summary = final_median))
           })
+
 
 #' @title Trim High-Degree Vertices from a Bipartite Graph
 #'
@@ -990,43 +968,33 @@ setGeneric("trim_bipartite_terms", function(object, threshold = 1.0) standardGen
 #' @describeIn trim_bipartite_terms Method for ECTermScoring objects.
 setMethod("trim_bipartite_terms", "ECTermScoring", function(object, threshold = 1.0) {
 
-  # --- STEP 1: Initialize mutable degree vectors for terms and elements ---
   all_degrees <- unlist(object@ecprob@degrees)
   current_term_degrees <- all_degrees[object@terms]
   current_element_degrees <- all_degrees[object@elements]
   two_m_current <- object@ecprob@graph_size * 2
   removed_terms <- character(0)
 
-  # --- STEP 2: Iteratively remove terms and update element degrees ---
   while (length(current_term_degrees) > 0 && length(current_element_degrees) > 0) {
     max_kt <- max(current_term_degrees)
     max_ke <- max(current_element_degrees)
-    # print(max_ke * max_kt / two_m_current)
-    # If the condition is met, we're done trimming.
     if (max_ke * max_kt < threshold * two_m_current) {
       break
     }
-    # Identify the term(s) with the current max degree
     terms_to_remove <- names(current_term_degrees[current_term_degrees == max_kt])
     removed_terms <- c(removed_terms, terms_to_remove)
-    # Find neighbors of the removed terms to update their degrees
     neighbors_to_update <- unlist(object@ecprob@adj[terms_to_remove])
-    # Efficiently decrement the degrees of affected elements
     if(length(neighbors_to_update) > 0) {
       neighbor_counts <- table(neighbors_to_update)
       affected_elements <- names(neighbor_counts)
       current_element_degrees[affected_elements] <- current_element_degrees[affected_elements] - neighbor_counts
     }
-    # Update state for the next iteration
     two_m_current <- two_m_current - (length(terms_to_remove) * max_kt * 2) # Each edge removal reduces sum of degrees by 2
     current_term_degrees <- current_term_degrees[!names(current_term_degrees) %in% terms_to_remove]
     current_element_degrees <- current_element_degrees[current_element_degrees > 0] # Remove elements that are now disconnected
   }
 
-  # --- STEP 3: Rebuild the new, trimmed ECTermScoring object ---
   kept_terms <- setdiff(object@terms, removed_terms)
   if (length(kept_terms) == 0) {
-    # Return an empty object if no terms are left
     empty_df <- data.frame(term=character(), element=character())
     final_removed_elements <- object@elements
     return(list(
@@ -1036,15 +1004,11 @@ setMethod("trim_bipartite_terms", "ECTermScoring", function(object, threshold = 
     ))
   }
 
-  # Reconstruct the term->element edge list from the original object
   term_neighbors_list <- object@ecprob@adj[kept_terms]
   new_edge_df <- utils::stack(term_neighbors_list)
   names(new_edge_df) <- c("element", "term")
 
-  # Create the new ECTermScoring object using its constructor.
-  # The constructor will automatically determine the final set of elements.
   new_ects <- ECTermScoring(new_edge_df[, c("term", "element")])
-  # Determine which elements were removed as a consequence
   final_removed_elements <- setdiff(object@elements, new_ects@elements)
   return(list(
     trimmed_object = new_ects,
@@ -1137,22 +1101,16 @@ setMethod("remove_empty_terms", "ECTermScoring", function(object) {
   term_degrees <- unlist(object@ecprob@degrees[object@terms])
   kept_terms <- names(term_degrees[term_degrees > 0])
   if (length(kept_terms) == length(object@terms)) {
-    # No empty terms to remove, return original object
     return(object)
   }
-  # Reconstruct the term->element edge list from the original object,
-  # but only for the terms we are keeping.
   term_neighbors_list <- object@ecprob@adj[kept_terms]
   new_edge_df <- utils::stack(term_neighbors_list)
   if(nrow(new_edge_df) == 0) {
-    # Handle case where removing terms leaves no edges
     final_df <- data.frame(term=character(), element=character())
   } else {
     names(new_edge_df) <- c("element", "term")
     final_df <- new_edge_df[, c("term", "element")]
   }
-  # Create a new ECTermScoring object using its constructor.
-  # The constructor will correctly build the new graph and element list.
   ECTermScoring(final_df)
 })
 
@@ -1183,7 +1141,6 @@ setMethod("remove_empty_terms", "ECTermScoring", function(object) {
 setMethod("to_dataframe",
           "ECTermScoring",
           function(object) {
-            # stack() correctly creates the unique term -> element edge list
             edge_df <- utils::stack(object@ecprob@adj[object@terms])
             if(nrow(edge_df) == 0) {
               return(data.frame(term = character(), element = character()))
@@ -1196,7 +1153,7 @@ setMethod("to_dataframe",
 #' @description Creates a new, smaller ECTermScoring object by restricting it
 #' to a specified subset of elements.
 #'
-#' @details This is an important helper for ensuring statistical tests are correctly
+#' @details This is a helper for ensuring statistical tests are correctly
 #' conditioned. It takes an ECTermScoring object and a vector of elements, finds
 #' the intersection, and returns a new object where all properties (degrees, graph
 #' size, etc.) are recalculated based on this smaller universe. This method is an

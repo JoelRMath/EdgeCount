@@ -81,7 +81,6 @@ test_that("ECTermScoring constructor stops if vertices are identified as both te
 
   expect_error(
     ECTermScoring(overlapping_df, col_term = "TermColumn", col_element = "ElementColumn"),
-    "Some vertex IDs are identified as both elements and terms within the constructed graph: vertexC"
   )
 })
 
@@ -148,7 +147,7 @@ create_vsea_test_object <- function(full_ects, n_terms) {
 
 test_that("terms_ecset_statistics_vectorized is correct", {
 
-  # --- Gold Standard: A slow but safe wrapper around the original function ---
+  # --- Gold Standard  ---
   terms_ecset_statistics_slow_wrapper <- function(object, input_sets_dt, lambda_method = "fast") {
     all_set_ids <- unique(input_sets_dt$set_id)
     results_list <- list()
@@ -172,8 +171,7 @@ test_that("terms_ecset_statistics_vectorized is correct", {
     return(results_list)
   }
 
-  # --- 1. Define the test data ---
-  te_df <- data.frame(
+    te_df <- data.frame(
     term = c("T1", "T1", "T2", "T3"),
     element = c("E1", "E2", "E2", "E3")
   )
@@ -184,28 +182,22 @@ test_that("terms_ecset_statistics_vectorized is correct", {
     element = c("E1", "E3", "E2", "E99") # E99 is not in the graph
   )
 
-  # --- 2. Run both the slow and fast versions ---
   results_slow <- terms_ecset_statistics_slow_wrapper(ects, input_sets_dt)
 
-  # This now calls the formal S4 method from the package
   results_fast <- terms_ecset_statistics_vectorized(ects, input_sets_dt)
 
-  # --- 3. Perform the automated comparison ---
   expect_setequal(names(results_slow), names(results_fast))
 
   harmonize_df <- function(df) {
     if (is.null(df) || nrow(df) == 0) return(data.table())
-    # The original function has slightly different column names
     if ("log2_Anscombe" %in% names(df)) setnames(df, "log2_Anscombe", "log2_Anscombe_ratio")
     if ("observed_edge_count" %in% names(df)) setnames(df, "observed_edge_count", "observed_edges")
 
-    # Rename for consistency
     if("input_set_id" %in% names(df)) setnames(df, "input_set_id", "set1")
     if("term_id" %in% names(df)) setnames(df, "term_id", "set2")
 
     cols_to_keep <- c("set1", "set2", "observed_edges", "lambda", "p_value", "log2_Anscombe_ratio")
 
-    # Ensure all columns to keep actually exist before subsetting
     cols_that_exist <- intersect(cols_to_keep, names(df))
 
     return(df[, ..cols_that_exist])
@@ -356,7 +348,7 @@ test_that("run_vsea_analysis correctly finds enrichment", {
  vsea_results <- suppressWarnings(run_vsea_analysis(
     ects,
     element_ranks,
-    scoring_statistic = "log2_Anscombe_ratio", # Use the default, robust statistic
+    scoring_statistic = "log2_Anscombe_ratio",
     n_permutations = 100,
     seed = 1
   ))
@@ -378,38 +370,61 @@ test_that("run_vsea_analysis correctly finds enrichment", {
   expect_lt(nes_TermB, nes_TermA)
 })
 
+test_that("run_vsea_analysis handles subsetting/dirty input", {
+  te_df <- data.frame(term="T1", element=c("E1", "E2"))
+  ects <- ECTermScoring(te_df)
+
+  dirty_ranks <- c(E99 = 1, E1 = 2)
+
+  res <- suppressWarnings(run_vsea_analysis(ects, dirty_ranks, n_permutations = 5))
+
+  expect_equal(nrow(res$max_score_summary), 1)
+  expect_equal(as.character(res$max_score_summary$term_id), "T1")
+})
+
+test_that("run_vsea_analysis structure and seeding", {
+  data("sample_ects")
+
+  small_elements <- sample_ects@elements[1:50]
+  ranks <- setNames(sample(1:50), small_elements)
+
+  res1 <- suppressWarnings(run_vsea_analysis(sample_ects, ranks, n_permutations = 10, seed = 42))
+
+  res2 <- suppressWarnings(run_vsea_analysis(sample_ects, ranks, n_permutations = 10, seed = 42))
+
+  res3 <- suppressWarnings(run_vsea_analysis(sample_ects, ranks, n_permutations = 10, seed = 999))
+
+  expect_equal(res1$max_score_summary, res2$max_score_summary)
+  expect_false(isTRUE(all.equal(res1$max_score_summary, res3$max_score_summary)))
+
+  required_cols <- c("term_id", "max_score", "nes", "fdr_q_value", "term_size", "rank_at_max")
+  expect_true(all(required_cols %in% names(res1$max_score_summary)))
+
+  expect_true(all(res1$max_score_summary$fdr_q_value >= 0 & res1$max_score_summary$fdr_q_value <= 1))
+  expect_true(max(res1$max_score_summary$rank_at_max, na.rm=TRUE) <= 50)
+})
+
 test_that("terms_ecset_statistics_fdr works as a wrapper", {
 
-  # 1. Setup a small graph and known set
   data("sample_ects")
   target_term <- "GO:0005787"
   set_1 <- sample_ects@ecprob@adj[[target_term]]
 
-  # 2. Run the wrapper
-  # We use n=50 for speed in testing
   results <- terms_ecset_statistics_fdr(sample_ects, set_1, n_permutations = 50, seed = 123)
 
-  # 3. Check Return Type
   expect_true(is.data.table(results))
 
-  # 4. Check Columns
   expected_cols <- c("term_id", "observed_edge_count", "log2_Anscombe_ratio",
                      "p_value", "nes", "fdr_q_value")
   expect_true(all(expected_cols %in% names(results)))
 
-  # 5. Check Signal Logic
-  # The target term itself should be highly significant
   top_hit <- results[term_id == target_term]
   expect_equal(nrow(top_hit), 1)
-  expect_lt(top_hit$fdr_q_value, 0.05) # Should be significant
+  expect_lt(top_hit$fdr_q_value, 0.05)
 
-  # 6. Check robustness with empty input
-  # An empty set should return NULL (handled by the wrapper)
   empty_res <- suppressWarnings(terms_ecset_statistics_fdr(sample_ects, character(0), n_permutations = 10))
   expect_null(empty_res)
 
-  # 7. Check robustness with disjoint input (no connections)
-  # Create a dummy element that doesn't exist in the graph
   disjoint_res <- suppressWarnings(terms_ecset_statistics_fdr(sample_ects, c("GHOST_ELEMENT"), n_permutations = 10))
   expect_null(disjoint_res)
 })

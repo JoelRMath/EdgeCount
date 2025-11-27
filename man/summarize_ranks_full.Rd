@@ -2,7 +2,7 @@
 % Please edit documentation in R/ECTermScoring.R
 \name{summarize_ranks_full}
 \alias{summarize_ranks_full}
-\title{Full Summary of Rank Statistics (for User Output)}
+\title{Full Summary of Rank Statistics (}
 \usage{
 summarize_ranks_full(
   term_scores_list,
@@ -18,7 +18,7 @@ summarize_ranks_full(
 A `data.table` with one row per term, containing the rich summary.
 }
 \description{
-A high-performance function that takes the output of
-`terms_ecranks_statistics` and calculates a rich summary (min, max, median
+A function that takes the output of
+`terms_ecranks_statistics` and calculates a summary (min, max, median
 scores and their context) for each term.
 }

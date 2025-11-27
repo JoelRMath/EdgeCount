@@ -40,4 +40,37 @@ ecp@graph_size # 3
 }
 \seealso{
 The base class for graph representation: \code{\link{ECGraph}}
+
+Core statistical functions:
+\itemize{
+  \item \code{\link{edge_count_statistics}}: Calculate full statistics (lambda, p-value, effect size) for a set or pair of sets.
+  \item \code{\link{summarize_suitability_fast}}: Check if the graph is suitable for fast lambda approximations.
+}
+
+Lambda calculation methods (Between sets):
+\itemize{
+  \item \code{\link{calculate_lambda_between}}: Recommended optimized method.
+  \item \code{\link{calculate_lambda_between_fast}}: Fast approximation (O(n+m)).
+  \item \code{\link{calculate_lambda_between_naive}}: Naive summation (slow, for validation).
+}
+
+Lambda calculation methods (Within a set):
+\itemize{
+  \item \code{\link{calculate_lambda_in}}: Recommended optimized method.
+  \item \code{\link{calculate_lambda_in_fast}}: Fast approximation (O(n)).
+  \item \code{\link{calculate_lambda_in_naive}}: Naive summation (slow, for validation).
+}
+
+Vectorized methods:
+\itemize{
+  \item \code{\link{calculate_between_stats_fast_vectorized}}: Compute stats for many pairs of sets.
+  \item \code{\link{calculate_in_stats_fast_vectorized}}: Compute stats for many individual sets.
+  \item \code{\link{get_disjoint_connected_pairs}}: Efficiently find connected pairs in a bipartite context.
+}
+
+Low-level utilities:
+\itemize{
+  \item \code{\link{calculate_p_value}}: Compute the p-value for an observed count and lambda.
+  \item \code{\link{show}}: Summary display of the object.
+}
 }
