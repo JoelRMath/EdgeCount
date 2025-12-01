@@ -41,5 +41,5 @@ This method addresses the non-uniform distribution of p-values in
 sparse graphs under the RGGED null model.
 }
 \seealso{
-\code{\link{terms_ecset_statistics}}, \code{\link{run_vsea_analysis}}
+\code{\link{terms_ecset_statistics}}, \code{\link{run_vsea}}
 }

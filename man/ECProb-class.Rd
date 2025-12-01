@@ -4,7 +4,11 @@
 \name{ECProb}
 \alias{ECProb}
 \alias{ECProb-class}
+\alias{show,ECProb-method}
 \title{ECProb S4 Class and Constructor}
+\usage{
+\S4method{show}{ECProb}(object)
+}
 \arguments{
 \item{ecgraph}{An ECGraph object.}
 }
@@ -15,6 +19,11 @@ An object of class ECProb.
 Extends the ECGraph class to include pre-calculated properties
 necessary for edge-count probability calculations.
 }
+\section{Methods (by generic)}{
+\itemize{
+\item \code{show(ECProb)}: Shows ECGraph statistics plus the pre-calculated graph properties (size, order, average degree).
+
+}}
 \section{Slots}{
 
 \describe{

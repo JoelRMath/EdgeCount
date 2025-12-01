@@ -6,6 +6,7 @@
 #' methods for scoring terms against sets or ranked lists of elements.
 #'
 #' @name ECTermScoring
+#' @rdname ECTermScoring-class
 #' @aliases ECTermScoring-class
 #'
 #' @slot ecprob An object of class ECProb, representing the underlying
@@ -30,7 +31,7 @@
 #' \itemize{
 #'    \item \code{\link{terms_ecset_statistics}}: Score terms against a single set of elements.
 #'    \item \code{\link{terms_ecset_statistics_fdr}}: Wrapper for single-set scoring with Empirical FDR correction.
-#'    \item \code{\link{run_vsea_analysis}}: Perform Vertex Set Enrichment Analysis (VSEA) on a ranked list of elements.
+#'    \item \code{\link{run_vsea}}: Perform Vertex Set Enrichment Analysis (VSEA) on a ranked list of elements.
 #'    \item \code{\link{terms_ecranks_statistics}}: Calculate raw enrichment profiles for ranked lists.
 #'    \item \code{\link{table_terms_ecranks_statistics}}: Summarize and rank results from ranked list scoring.
 #' }
@@ -424,7 +425,7 @@ setMethod("terms_ecset_statistics_vectorized",
 #' }
 #' The table is sorted by \code{fdr_q_value} (ascending) and \code{nes} (descending).
 #'
-#' @seealso \code{\link{terms_ecset_statistics}}, \code{\link{run_vsea_analysis}}
+#' @seealso \code{\link{terms_ecset_statistics}}, \code{\link{run_vsea}}
 #' @export
 #' @import data.table
 calculate_ecset_fdr <- function(object, real_results_dt, n_permutations = 1000, seed = NULL) {
@@ -713,127 +714,102 @@ summarize_ranks_full <- function(term_scores_list, scoring_statistic = "log2_Ans
   return(summary_dt)
 }
 
-#' @title Perform Full VSEA-style Permutation Analysis for Multiple Metrics
+#' @title Perform Vertex Set Enrichment Analysis
 #'
-#' @description Runs a complete ranked-list enrichment analysis, calculating a
-#' Normalized Enrichment Score (NES) and a False Discovery Rate (FDR) q-value
-#' for each term using a permutation-based null distribution. This function
-#' efficiently calculates results for the **max**, **min**, and **median** summary
-#' scores from a single set of permutations.
+#' @description Runs a ranked-list enrichment analysis (Vertex Set Enrichment Analysis),
+#' calculating a Normalized Enrichment Score (NES) and a False Discovery Rate (FDR) q-value
+#' for each term using a permutation-based null distribution.
 #'
-#' @param ects_object An ECTermScoring object.
+#' @details This version focuses solely on identifying positive enrichment,
+#' i.e., the maximum score for each term
+#'
+#' @param object An ECTermScoring object.
 #' @param element_ranks A named list or vector of element ranks.
 #' @param scoring_statistic The score to use for enrichment (e.g., "log2_Anscombe_ratio").
 #' @param n_permutations The number of permutations to generate the null
-#'   distribution. 1000 is a common choice for publication.
+#'   distribution, 1000 by default.
 #' @param seed An optional random seed for reproducibility.
 #'
-#' @return A named list of three data frames: `max_score_summary`,
-#'   `min_score_summary`, and `median_score_summary`. Each data frame is sorted
-#'   by its respective NES and contains a rich summary including the raw score,
-#'   NES, and FDR q-value.
+#' @return A list containing a single data frame: \code{max_score_summary}.
+#'   The data frame is sorted by \code{fdr_q_value} and contains:
+#'   \itemize{
+#'     \item \code{term_id}: The term identifier.
+#'     \item \code{max_score}: The maximum running enrichment score observed.
+#'     \item \code{nes}: Normalized Enrichment Score.
+#'     \item \code{fdr_q_value}: Empirical False Discovery Rate.
+#'     \item \code{term_size}: Number of elements in the term.
+#'     \item \code{rank_at_max}: The element rank at which the score peaked.
+#'     \item \code{observed_ec}: The number of observed edges at the peak.
+#'   }
 #'
 #' @export
-#' @importFrom dqrng dqsample.int
-#' @importFrom matrixStats colCumsums
-#' @importFrom parallel mclapply detectCores
-#' @import data.table
-#'
 #' @examples
 #' library(EdgeCount)
 #' library(data.table)
 #'
-#' start_time <- Sys.time()
 #' # Load data
 #' data(sample_ects)
-#' # Reduction to a small object with 3 terms of size 5 and 3 of size 10
-#' set.seed(1)
-#' term_sizes <- lengths(sample_ects@ecprob@adj[sample_ects@terms])
-#' terms_size_5 <- names(term_sizes[term_sizes == 5])
-#' terms_size_10 <- names(term_sizes[term_sizes == 10])
-#' selected_terms <- c(
-#'   sample(terms_size_5, 3),
-#'   sample(terms_size_10, 3)
-#' )
-#' ects_example <- reduce_universe_by_terms(sample_ects, selected_terms)
-#' # Random uniform ranking of element
+#'
+#' # Random uniform ranking
 #' element_ranks <- setNames(
-#'   sample(seq_along(ects_example@elements)),
-#'   ects_example@elements
+#'   sample(seq_along(sample_ects@elements)),
+#'   sample_ects@elements
 #' )
+#'
 #' # VSEA analysis
-#' vsea_results <- run_vsea_analysis(
-#'   ects_example,
+#' vsea_results <- run_vsea(
+#'   sample_ects,
 #'   element_ranks,
-#   scoring_statistic = "log2_Anscombe_ratio",
-#'   n_permutations = 100,
+#'   n_permutations = 10, # Low for speed
 #'   seed = 1
 #' )
-#' # View the results
-#' print(vsea_results$max_score_summary)
-setGeneric("run_vsea_analysis",
+#'
+#' print(head(vsea_results$max_score_summary))
+setGeneric("run_vsea",
            function(object, element_ranks, scoring_statistic = "log2_Anscombe_ratio", n_permutations = 1000, seed = NULL)
-             standardGeneric("run_vsea_analysis"))
-#' @describeIn run_vsea_analysis Method for ECTermScoring objects.
-setMethod("run_vsea_analysis",
+             standardGeneric("run_vsea"))
+#' @describeIn run_vsea Method for ECTermScoring objects.
+setMethod("run_vsea",
           "ECTermScoring",
           function(object,
                    element_ranks,
-                   scoring_statistic = "log2_Anscombe_ratio", # Kept for API compatibility
+                   scoring_statistic = "log2_Anscombe_ratio", # Kept for signature compatibility
                    n_permutations = 1000,
                    seed = NULL) {
 
-            # Force single-threaded data.table to avoid conflict with mclapply
             old_threads <- data.table::getDTthreads()
             data.table::setDTthreads(1)
             on.exit(data.table::setDTthreads(old_threads))
+            if (!is.null(seed)) set.seed(seed)
+            n_cores <- parallel::detectCores() - 1
+            if (n_cores < 1) n_cores <- 1
+            if (.Platform$OS.type == "windows") n_cores <- 1
 
-            if (!is.null(seed)) {
-              set.seed(seed)
-            }
-
-            # --- 1. Setup & Data Validation ---
             if (!is.null(names(element_ranks))) {
-              element_ranking <- names(element_ranks)
+              element_ranking <- names(sort(element_ranks))
             } else {
-              element_ranking <- as.character(element_ranks)
+               element_ranking <- as.character(element_ranks)
             }
 
             elements_char <- as.character(object@elements)
             valid_elements <- intersect(element_ranking, elements_char)
-
             if (length(valid_elements) < 1) {
               stop("No valid elements found in the ECTermScoring object.")
             }
 
-            # --- 2. Reduce Universe (Optimized) ---
-            # Optimization: Only rebuild the object if we are actually subsetting.
-            # If the input ranks cover the entire graph universe, use the object as-is
-            # to save memory and processing time.
+            # reduce universe, if necessary
             if (length(valid_elements) < length(elements_char)) {
-              analysis_object <- reduce_universe_by_elements(object, valid_elements)
-            } else {
-              analysis_object <- object
+              object <- reduce_universe_by_elements(object, valid_elements)
             }
-
-            # Update local variables based on the (potentially reduced) object
-            elements <- analysis_object@elements
-            terms    <- analysis_object@terms
-
+            elements <- object@elements
+            terms    <- object@terms
             Ne <- length(elements)
             Nt <- length(terms)
+            degrees <- unlist(object@ecprob@degrees[elements], use.names = FALSE)
 
-            # Create Map: Name -> Internal Index (1..Ne)
             element_name_to_idx <- setNames(seq_len(Ne), elements)
-
-            # --- 3. Prepare Graph Structures (Internal Indices) ---
-            degrees <- unlist(analysis_object@ecprob@degrees[elements], use.names = FALSE)
-
             term_map <- setNames(seq_len(Nt), terms)
-
-            # Adjacency: Element Index -> Vector of Term Indices
-            aligned_adj <- analysis_object@ecprob@adj[elements]
-
+            aligned_adj <- object@ecprob@adj[elements]
             adj_int <- lapply(aligned_adj, function(x) {
               if (is.null(x) || length(x) == 0) return(integer(0))
               unname(term_map[as.character(x)])
@@ -843,29 +819,29 @@ setMethod("run_vsea_analysis",
             u_terms <- unlist(adj_int, use.names = FALSE)
             global_kt <- tabulate(u_terms, nbins = Nt)
 
-            # --- 4. Build Null Model (Pooled Permutations) ---
+            # simulations
             total_len <- as.numeric(Ne) * n_permutations
             sim_vector <- integer(total_len)
-
             for (i in 1:n_permutations) {
               start_idx <- (i - 1) * Ne + 1
               end_idx   <- start_idx + Ne - 1
               sim_vector[start_idx:end_idx] <- dqrng::dqsample.int(Ne)
             }
 
+            # cumulative degree matrix
             sim_degrees <- degrees[sim_vector]
             dim(sim_degrees) <- c(Ne, n_permutations)
             sim_cum_degrees <- matrixStats::colCumsums(sim_degrees)
             rm(sim_degrees); gc()
 
-            # Scoring Function
+            # scoring function
             score_simulation <- function(sim_idx) {
+
               start_idx <- (sim_idx - 1) * Ne + 1
               end_idx   <- start_idx + Ne - 1
               perm_elements <- sim_vector[start_idx:end_idx]
 
               terms_in_rank_order <- adj_int[perm_elements]
-
               edge_terms <- unlist(terms_in_rank_order, use.names = FALSE)
               edge_ranks <- rep(seq_len(Ne), lengths(terms_in_rank_order))
 
@@ -884,26 +860,18 @@ setMethod("run_vsea_analysis",
               return(dt[, max(sc), by = tm]$V1)
             }
 
-            # Run Parallel
-            n_cores <- parallel::detectCores() - 1
-            if (is.na(n_cores) || n_cores < 1) n_cores <- 1
-            if (.Platform$OS.type == "windows") n_cores <- 1
-
+            # score simulations
             results_list <- parallel::mclapply(1:n_permutations, score_simulation, mc.cores = n_cores)
-
             null_scores_pool <- unlist(results_list, use.names = FALSE)
             null_dist_sorted <- sort(null_scores_pool)
 
-            # --- 5. Calculate Observed Scores ---
-            obs_indices <- element_name_to_idx[valid_elements]
-
+            obs_indices <- element_name_to_idx[element_ranking]
             obs_degrees <- degrees[obs_indices]
             real_cum_degrees <- cumsum(obs_degrees)
 
             terms_in_rank_order <- adj_int[obs_indices]
-
             edge_terms <- unlist(terms_in_rank_order, use.names = FALSE)
-            edge_ranks <- rep(seq_len(length(obs_indices)), lengths(terms_in_rank_order))
+            edge_ranks <- rep(seq_len(Ne), lengths(terms_in_rank_order))
 
             ord <- order(edge_terms, method = "radix")
             sorted_terms <- edge_terms[ord]
@@ -916,18 +884,17 @@ setMethod("run_vsea_analysis",
             lambdas <- (real_cum_degrees[sorted_ranks] * term_kt_subset) / (2 * M)
             scores <- 0.5 * (log2(x_vals + 0.375) - log2(lambdas + 0.375))
 
-            # Aggregate
-            dt_obs <- data.table::data.table(tm = sorted_terms, sc = scores, rk = sorted_ranks)
+            dt_obs <- data.table::data.table(tm = sorted_terms, sc = scores, ec = x_vals, rk = sorted_ranks)
 
-            # Capture Rank at Max
             obs_agg <- dt_obs[, .(
               max_score = max(sc),
+              observed_ec = ec[which.max(sc)],
               rank_at_max = rk[which.max(sc)]
             ), by = tm]
 
             data.table::setorder(obs_agg, -max_score)
 
-            # --- 6. FDR Calculation ---
+            # fdr
             n_null_total <- length(null_dist_sorted)
             n_null_ge <- n_null_total - findInterval(obs_agg$max_score - 1e-10, null_dist_sorted)
 
@@ -936,19 +903,15 @@ setMethod("run_vsea_analysis",
             obs_agg[, FDR_raw := E_FalsePos / Rank]
             obs_agg[FDR_raw > 1, FDR_raw := 1]
             obs_agg[, fdr_q_value := rev(cummin(rev(FDR_raw)))]
-
             obs_agg[, term_id := terms[tm]]
 
-            # Calculate NES
-            mean_null_pos <- mean(null_dist_sorted[null_dist_sorted > 0])
-            if (is.na(mean_null_pos)) mean_null_pos <- 1
-            obs_agg[, nes := max_score / mean_null_pos]
+            null_pos_mean <- mean(null_dist_sorted[null_dist_sorted > 0])
+            if (is.na(null_pos_mean)) null_pos_mean <- 1
+            obs_agg[, nes := max_score / null_pos_mean]
 
-            # Term sizes
-            term_sizes <- lengths(analysis_object@ecprob@adj[terms])
-            obs_agg[, term_size := term_sizes[tm]]
+            obs_agg[, term_size := global_kt[tm]]
 
-            final_cols <- c("term_id", "max_score", "nes", "fdr_q_value", "term_size", "rank_at_max")
+            final_cols <- c("term_id", "max_score", "nes", "fdr_q_value", "term_size", "rank_at_max", "observed_ec")
 
             return(list(
               max_score_summary = obs_agg[, ..final_cols]

@@ -1280,73 +1280,78 @@ The full process and its associated random experiment are described below:
     - $$lAR_i = \frac{1}{2}\log_2 \frac{x_i+3/8}{\lambda_i+3/8}$$
 - **Degree Penalization**: A unique property of this profile—unlike standard GSEA—is that it accounts for element degrees. If the top ranks contain "hubs" (elements with high degrees), the expected count $\lambda_i$ increases significantly. This acts as a penalty on the effect size ($lAR$), preventing the identification of enrichment driven solely by promiscuous elements.
 - **Null Model**: A control distribution of scores is built by repeating the above process for $N_{perms}$ permutations, where the element ranks, in the reduced universe of elements, are shuffled uniformly at random.
-- **Significance**: For each term, estimates of the max (positive enrichment), min (negative enrichment), and median values of the Normalized Enrichment Score (NES) are computed. FDR q-values are theb estimated by comparing the observed NES against the simulated control distribution.
+- **Significance**: For each term, estimates of the max (positive enrichment) are computed. FDR q-values are then estimated by comparing the observed NES against the simulated control distribution.
 
-Sorting the results by ascending FDR q-values enables the user to detect significantly connected terms, i.e., below a desired false discovery rate .
+Sorting the results by ascending FDR q-values enables the user to detect terms significantly connected to top ranks (without defining a rank threshold) and below a desired false discovery rate.
 
-```{r test}
-# 1. Identify a Hub Gene dynamically
+Here is a first trivial positive control for method `run_vsea`. Elements of a term of size 5 are given the top ranks.
+
+```{r vsea_pos1}
+term_id <- "GO:0000347"
+term_elements <- sample_ects@ecprob@adj[[term_id]]
+element_ranks <- c(sample(term_elements), sample(setdiff(sample_ects@elements, term_elements)))
+system.time(
+  vsea_results <- run_vsea(sample_ects, element_ranks = element_ranks, n_permutations = 1000, seed = 1)
+)
+max_summary <- vsea_results$max_score_summary
+max_summary$term_name <- sample_term_lookup[max_summary$term_id]
+setorder(max_summary, fdr_q_value)
+num_cols <- names(max_summary)[sapply(max_summary, is.numeric)]
+max_summary[, (num_cols) := lapply(.SD, signif, digits = 3), .SDcols = num_cols]
+head(max_summary, 5)
+```
+
+Using `run_vsea` correctly identifies the selected term `GO:0000347` based on its element ranks, as well as two related terms which have common elements.
+
+
+Next is the obvious negative control of using random element ranks.
+
+```{r vsea_neg}
+element_ranks <- sample(sample_ects@elements)
+vsea_results <- run_vsea(sample_ects, element_ranks, 1000, seed = 1)
+max_summary <- vsea_results$max_score_summary
+max_summary$term_name <- sample_term_lookup[max_summary$term_id]
+setorder(max_summary, fdr_q_value)
+num_cols <- names(max_summary)[sapply(max_summary, is.numeric)]
+max_summary[, (num_cols) := lapply(.SD, signif, digits = 3), .SDcols = num_cols]
+head(max_summary, 5)
+```
+
+This time, no term obtains a small fdr q-value.
+
+Last is a more complex positive control based on both `sample_ects` (term-element network) and `sample_ecg` (element interaction network). The element of highest degree in the interaction network is identified and its set of neighbors is retrieved. These neighbors, not containing the hub itself to avoid trivial enrichment, are then assigned the top ranks.
+
+```{r vsea}
+# finds the sample_ecg hub 
 data("sample_ecg") 
 data("sample_gene_symbol_lookup")
-
 all_degrees <- unlist(sample_ecg@degrees)
 gene_id <- names(all_degrees)[which.max(all_degrees)]
 gene_symbol <- sample_gene_symbol_lookup[gene_id]
-
-print(paste0("Selected Hub Gene: ", gene_symbol, " (Entrez: ", gene_id, ")"))
-
-# 2. Define the "Neighborhood" ranking
+paste0("Hub : ", gene_symbol, " (Entrez: ", gene_id, ")")
+# neighborhood ranking
 all_elements <- sample_ects@elements
-
-# Get direct neighbors in the PPI network
-# Note: Neighbors are returned as character IDs
 neighbors <- get_neighbors(sample_ecg, gene_id)
 valid_neighbors <- intersect(neighbors, all_elements)
-
-# 3. Assign Ranks (Rank 1 = Top of list)
-# We construct the vector logically:
-# - Rank 1: The Hub itself
-# - Rank 2 to (K+1): The Neighbors (randomly shuffled among themselves)
-# - Rank (K+2) to N: The Background (randomly shuffled)
-
-# Create the ordered list of IDs
-ordered_ids <- c(                                     
-  sample(valid_neighbors),                      # The Neighbors
-  sample(setdiff(all_elements, c(gene_id, valid_neighbors))),# The Rest
-  gene_id # The hub at the end to only highlight the neighborhood
+ordered_ids <- c(        
+  sample(valid_neighbors),                      # neighbors, without hub
+  sample(setdiff(all_elements, valid_neighbors)) # the rest
 )
-
-# Create the named rank vector
-# The first element in 'ordered_ids' gets rank 1, the second gets rank 2, etc.
 element_ranks <- setNames(seq_along(ordered_ids), ordered_ids)
-
-# Verify the top of the list
-# We sort to see the smallest ranks (should be Hub + Neighbors)
-top <- head(sort(element_ranks), all_degrees[gene_id]+1)
-top
-valid_neighbors
-length(intersect(names(top), valid_neighbors))/(all_degrees[gene_id])
-```
-
-```{r vsea_example}
-# Run VSEA
-# We use 100 permutations for a robust result
+# run VSEA, 1000 permutations
 system.time(
-  vsea_results <- run_vsea_analysis(
-    sample_ects, 
-    element_ranks = element_ranks, 
-    n_permutations = 1000, 
-    seed = 123
-  )
+  vsea_results <- run_vsea(sample_ects, element_ranks = element_ranks, n_permutations = 1000, seed = 1)
 )
-
-# Extract Max Score Summary (Positive Enrichment at top of list)
+# results
 max_summary <- vsea_results$max_score_summary
 max_summary$term_name <- sample_term_lookup[max_summary$term_id]
-
 setorder(max_summary, fdr_q_value)
-head(max_summary, 10)
+num_cols <- names(max_summary)[sapply(max_summary, is.numeric)]
+max_summary[, (num_cols) := lapply(.SD, signif, digits = 3), .SDcols = num_cols]
+head(max_summary, 8)
 ```
+
+Using `run_vsea` yields significantly-scoring terms that are related to known functions of the hub 'Vasoactive Intestinal Peptide' (VIP).
 
 # References
 

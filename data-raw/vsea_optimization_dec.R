@@ -138,8 +138,6 @@ run_vsea <- function(ects, element_ranking, n_sim = 1000, n_cores = NULL) {
 
   # A. Map User Ranking to Internal Indices
   # CRITICAL: Force character lookup.
-  # If element_ranking is numeric (Entrez IDs), x[c(500, 501)] gets indices 500 & 501.
-  # x[as.character(c(500, 501))] gets elements NAMED "500" and "501".
   obs_indices <- element_name_to_idx[as.character(element_ranking)]
 
   # B. Prepare Data in Observed Order
@@ -164,8 +162,11 @@ run_vsea <- function(ects, element_ranking, n_sim = 1000, n_cores = NULL) {
   scores <- 0.5 * (log2(x_vals + 0.375) - log2(lambdas + 0.375))
 
   # D. Aggregate & FDR
-  dt_obs <- data.table::data.table(tm = sorted_terms, sc = scores)
-  obs_agg <- dt_obs[, .(max_score = max(sc)), by = tm]
+  # Added ec = x_vals to track the observed edge count (1, 2, ... k) corresponding to each score
+  dt_obs <- data.table::data.table(tm = sorted_terms, sc = scores, ec = x_vals)
+
+  # Extract max score AND the observed edge count where that max occurred
+  obs_agg <- dt_obs[, .(max_score = max(sc), observed_ec = ec[which.max(sc)]), by = tm]
 
   setorder(obs_agg, -max_score)
 

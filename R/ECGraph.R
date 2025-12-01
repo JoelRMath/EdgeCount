@@ -5,6 +5,7 @@
 #' The constructor accepts a file path, a data frame, or an igraph object.
 #'
 #' @name ECGraph
+#' @rdname ECGraph-class
 #' @aliases ECGraph-class
 #'
 #' @slot adj list. An adjacency list where names are vertex IDs and values are

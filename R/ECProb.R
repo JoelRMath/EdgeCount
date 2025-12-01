@@ -4,6 +4,7 @@
 #' necessary for edge-count probability calculations.
 #'
 #' @name ECProb
+#' @rdname ECProb-class
 #' @aliases ECProb-class
 #'
 #' @slot graph_size numeric. The total number of edges in the graph (M).

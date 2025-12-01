@@ -4,7 +4,11 @@
 \name{ECTermScoring}
 \alias{ECTermScoring}
 \alias{ECTermScoring-class}
+\alias{show,ECTermScoring-method}
 \title{ECTermScoring S4 Class and Constructor}
+\usage{
+\S4method{show}{ECTermScoring}(object)
+}
 \arguments{
 \item{term_element_edges}{A data frame or path to a file. Needs two columns:
 one for term IDs and one for element IDs, representing membership.
@@ -27,6 +31,11 @@ The main class for EdgeCount analysis, representing a bipartite
 graph of term-element memberships. It extends the ECProb class and provides
 methods for scoring terms against sets or ranked lists of elements.
 }
+\section{Methods (by generic)}{
+\itemize{
+\item \code{show(ECTermScoring)}: Show method for ECTermScoring objects.
+
+}}
 \section{Slots}{
 
 \describe{
@@ -56,7 +65,7 @@ Primary analysis functions:
 \itemize{
    \item \code{\link{terms_ecset_statistics}}: Score terms against a single set of elements.
    \item \code{\link{terms_ecset_statistics_fdr}}: Wrapper for single-set scoring with Empirical FDR correction.
-   \item \code{\link{run_vsea_analysis}}: Perform Vertex Set Enrichment Analysis (VSEA) on a ranked list of elements.
+   \item \code{\link{run_vsea}}: Perform Vertex Set Enrichment Analysis (VSEA) on a ranked list of elements.
    \item \code{\link{terms_ecranks_statistics}}: Calculate raw enrichment profiles for ranked lists.
    \item \code{\link{table_terms_ecranks_statistics}}: Summarize and rank results from ranked list scoring.
 }

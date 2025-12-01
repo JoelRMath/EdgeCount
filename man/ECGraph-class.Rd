@@ -4,7 +4,11 @@
 \name{ECGraph}
 \alias{ECGraph}
 \alias{ECGraph-class}
+\alias{show,ECGraph-method}
 \title{ECGraph S4 Class and Constructor}
+\usage{
+\S4method{show}{ECGraph}(object)
+}
 \arguments{
 \item{edges_input}{A character string specifying the path to a file,
 a data frame with two columns representing edges, or an \code{igraph} graph object.
@@ -28,6 +32,11 @@ Represents an undirected graph and provides a constructor to create it.
 The ECGraph object stores the graph's adjacency list, vertex degrees, and names.
 The constructor accepts a file path, a data frame, or an igraph object.
 }
+\section{Methods (by generic)}{
+\itemize{
+\item \code{show(ECGraph)}: Custom show method to display basic graph statistics (N, M) and slot summary.
+
+}}
 \section{Slots}{
 
 \describe{

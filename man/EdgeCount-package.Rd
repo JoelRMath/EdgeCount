@@ -45,7 +45,7 @@ Useful links:
 }
 }
 \author{
-\strong{Maintainer}: J.R. Pradines \email{joel.pradines@gmail.com}
+\strong{Maintainer}: J.R. Pradines \email{tbd@example.com}
 
 }
 \keyword{internal}
