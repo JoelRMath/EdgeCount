@@ -249,3 +249,5 @@ if (isTRUE(is_identical)) {
 # We want to see if Perm 0 (Real) scores differ from Perm 1 (Null)
 print("--- Scores for T1 across Permutations ---")
 print(full_out[t_idx == 1, .(perm_id, rank, score)])
+
+
