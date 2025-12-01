@@ -239,8 +239,11 @@ negative_control <- function(){
 }
 
 print("********* NEGATIVE CONTROL *****************")
-negative_control()
+print(system.time(
+  negative_control()
+))
 print("************ POSITIVE CONTROL *********************")
-positive_control()
-
+print(system.time(
+  positive_control()
+))
 

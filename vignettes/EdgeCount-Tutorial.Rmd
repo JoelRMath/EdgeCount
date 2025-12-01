@@ -1335,7 +1335,7 @@ system.time(
   vsea_results <- run_vsea_analysis(
     sample_ects, 
     element_ranks = element_ranks, 
-    n_permutations = 100, 
+    n_permutations = 1000, 
     seed = 123
   )
 )
