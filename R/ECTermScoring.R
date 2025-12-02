@@ -1,31 +1,42 @@
 #' @include ECProb.R
-#' @title ECTermScoring S4 Class and Constructor
+#' @title ECTermScoring S4 Class
 #'
 #' @description The main class for EdgeCount analysis, representing a bipartite
-#' graph of term-element memberships. It extends the ECProb class and provides
-#' methods for scoring terms against sets or ranked lists of elements.
-#'
-#' @name ECTermScoring
-#' @rdname ECTermScoring-class
-#' @aliases ECTermScoring-class
+#' graph of term-element memberships. It extends the ECProb class.
 #'
 #' @slot ecprob An object of class ECProb, representing the underlying
-#'   undirected version of the bipartite graph.
+#'    undirected version of the bipartite graph.
 #' @slot elements A character vector of all unique vertex IDs identified as elements.
 #' @slot terms A character vector of all unique vertex IDs identified as terms.
 #'
+#' @name ECTermScoring-class
+#' @rdname ECTermScoring-class
+#' @aliases ECTermScoring-class
+#' @exportClass ECTermScoring
+#' @seealso \code{\link{ECTermScoring}} for the constructor.
+setClass("ECTermScoring",
+         slots = list(
+           ecprob    = "ECProb",
+           elements  = "character",
+           terms     = "character"
+         )
+)
+
+#' @title Constructor for ECTermScoring Objects
+#'
+#' @description Creates an \code{\linkS4class{ECTermScoring}} object from a data frame or file.
+#'
 #' @param term_element_edges A data frame or path to a file. Needs two columns:
-#'   one for term IDs and one for element IDs, representing membership.
-#'   If a file path, it's assumed to be tab-separated with a header by default.
+#'    one for term IDs and one for element IDs, representing membership.
+#'    If a file path, it's assumed to be tab-separated with a header by default.
 #' @param col_term The name or index of the column containing term IDs
-#'   (in `term_element_edges`). Defaults to 1.
+#'    (in `term_element_edges`). Defaults to 1.
 #' @param col_element The name or index of the column containing element IDs
-#'   (in `term_element_edges`). Defaults to 2.
+#'    (in `term_element_edges`). Defaults to 2.
 #' @param ... Additional arguments passed to `utils::read.table` if
-#'   `term_element_edges` is a file path (e.g., `sep`, `header`).
+#'    `term_element_edges` is a file path (e.g., `sep`, `header`).
 #'
-#' @return An object of class ECTermScoring.
-#'
+#' @return An object of class \code{\linkS4class{ECTermScoring}}.
 #' @seealso
 #' Primary analysis functions:
 #' \itemize{
@@ -33,7 +44,6 @@
 #'    \item \code{\link{terms_ecset_statistics_fdr}}: Wrapper for single-set scoring with Empirical FDR correction.
 #'    \item \code{\link{run_vsea}}: Perform Vertex Set Enrichment Analysis (VSEA) on a ranked list of elements.
 #'    \item \code{\link{terms_ecranks_statistics}}: Calculate raw enrichment profiles for ranked lists.
-#'    \item \code{\link{table_terms_ecranks_statistics}}: Summarize and rank results from ranked list scoring.
 #' }
 #'
 #' FDR and Vectorized functions:
@@ -55,13 +65,12 @@
 #' }
 #'
 #' Underlying graph classes: \code{\link{ECGraph}}, \code{\link{ECProb}}
-#' @exportClass ECTermScoring
-#' @export ECTermScoring
+#' @export
 #' @examples
 #' # Create a sample term-element membership data frame
 #' te_df <- data.frame(
-#'   term = c("TermA", "TermA", "TermB", "TermC", "TermC"),
-#'   element = c("Elem1", "Elem2", "Elem2", "Elem3", "Elem4")
+#'    term = c("TermA", "TermA", "TermB", "TermC", "TermC"),
+#'    element = c("Elem1", "Elem2", "Elem2", "Elem3", "Elem4")
 #' )
 #'
 #' # Create an ECTermScoring object
@@ -69,13 +78,6 @@
 #' print(ects@terms)
 #' print(ects@elements)
 #'
-setClass("ECTermScoring",
-         slots = list(
-           ecprob    = "ECProb",
-           elements  = "character",
-           terms     = "character"
-         )
-)
 ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...) {
 
   if (is.character(term_element_edges) && length(term_element_edges) == 1) {
@@ -162,6 +164,7 @@ ECTermScoring <- function(term_element_edges, col_term = 1, col_element = 2, ...
 }
 
 #' @describeIn ECTermScoring Show method for ECTermScoring objects.
+#' @param object An ECTermScoring object
 setMethod("show", "ECTermScoring", function(object) {
   n_terms <- length(object@terms)
   n_elems <- length(object@elements)
@@ -355,6 +358,7 @@ setMethod(
 #' @export
 #' @examples
 #' # Load sample data included with the package
+#' library(data.table)
 #' data(sample_ects)
 #'
 #' # --- Example 1: Using a data.table as input ---
@@ -729,6 +733,8 @@ summarize_ranks_full <- function(term_scores_list, scoring_statistic = "log2_Ans
 #' @param n_permutations The number of permutations to generate the null
 #'   distribution, 1000 by default.
 #' @param seed An optional random seed for reproducibility.
+#' @param n_cores Number of cores to use for parallel processing. Defaults to
+#'   detectCores() - 1. Set to 1 for serial execution (or on Windows).
 #'
 #' @return A list containing a single data frame: \code{max_score_summary}.
 #'   The data frame is sorted by \code{fdr_q_value} and contains:
@@ -761,12 +767,13 @@ summarize_ranks_full <- function(term_scores_list, scoring_statistic = "log2_Ans
 #'   sample_ects,
 #'   element_ranks,
 #'   n_permutations = 10, # Low for speed
+#'   n_cores = 2,
 #'   seed = 1
 #' )
 #'
 #' print(head(vsea_results$max_score_summary))
 setGeneric("run_vsea",
-           function(object, element_ranks, scoring_statistic = "log2_Anscombe_ratio", n_permutations = 1000, seed = NULL)
+           function(object, element_ranks, scoring_statistic = "log2_Anscombe_ratio", n_permutations = 1000, n_cores = NULL, seed = NULL)
              standardGeneric("run_vsea"))
 #' @describeIn run_vsea Method for ECTermScoring objects.
 setMethod("run_vsea",
@@ -775,13 +782,17 @@ setMethod("run_vsea",
                    element_ranks,
                    scoring_statistic = "log2_Anscombe_ratio", # Kept for signature compatibility
                    n_permutations = 1000,
+                   n_cores = NULL,
                    seed = NULL) {
 
             old_threads <- data.table::getDTthreads()
             data.table::setDTthreads(1)
             on.exit(data.table::setDTthreads(old_threads))
             if (!is.null(seed)) set.seed(seed)
-            n_cores <- parallel::detectCores() - 1
+            if (is.null(n_cores)){
+              n_cores <- parallel::detectCores() - 1
+              if (is.na(n_cores) || n_cores < 1) n_cores <- 1
+            }
             if (n_cores < 1) n_cores <- 1
             if (.Platform$OS.type == "windows") n_cores <- 1
 

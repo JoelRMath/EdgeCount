@@ -7,7 +7,7 @@
 \title{EdgeCount: A package for Edge-Count based analyses}
 \description{
 The EdgeCount package provides S4 classes and methods for performing
-two types of analyses: - 1) connectedness within or between sets of vertices based on 
+two types of analyses: - 1) connectedness within or between sets of vertices based on
 a null model of random graph with given expected degrees (RGGED) - 2) scoring of ranked
 lists of elements based on a bipartite graph of element-term memberships and the RGGED.
 }
@@ -21,31 +21,32 @@ The main components of the package are:
   \item \code{\link{ECTermScoring}}: The main class for term-enrichment analyses based
   on term-element bipartite graphs and probabilistic methods (RGGED).
   \itemize{
-   \item \code{\link{terms_ecranks_statistics}}: The primary function for scoring ranked lists.
-   \item \code{\link{table_terms_ecranks_statistics}}: A utility to summarize scoring results.
+  \item \code{\link{terms_ecset_statistics}}
+   \item \code{\link{terms_ecranks_statistics}}
+   \item \code{\link{run_vsea}}
   }
 }
 }
 
 \references{
-1. Chung & Lu (2002). The average distances in random graphs with given 
-expected degrees. PNAS, 99 (25) 15879-15882. 
+1. Chung & Lu (2002). The average distances in random graphs with given
+expected degrees. PNAS, 99 (25) 15879-15882.
 \url{https://www.pnas.org/doi/10.1073/pnas.252631999}
 
-2. Pradines et al. (2005). Analyzing Protein Lists with Large Networks: 
-Edge-Count Probabilities in Random Graphs with Given Expected Degrees. 
-J. Comp. Biol. 12(2):113-28. 
+2. Pradines et al. (2005). Analyzing Protein Lists with Large Networks:
+Edge-Count Probabilities in Random Graphs with Given Expected Degrees.
+J. Comp. Biol. 12(2):113-28.
 \url{https://www.liebertpub.com/doi/10.1089/cmb.2005.12.113}
 }
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/your-username/EdgeCount}
-  \item Report bugs at \url{https://github.com/your-username/EdgeCount/issues}
+  \item \url{https://github.com/joelRMath/EdgeCount}
+  \item Report bugs at \url{https://github.com/joelRMath/EdgeCount/issues}
 }
 }
 \author{
-\strong{Maintainer}: J.R. Pradines \email{tbd@example.com}
+\strong{Maintainer}: J.R. Pradines \email{joelrmath@gmail.com}
 
 }
 \keyword{internal}

@@ -42,6 +42,7 @@ against the term database at once.
 }}
 \examples{
 # Load sample data included with the package
+library(data.table)
 data(sample_ects)
 
 # --- Example 1: Using a data.table as input ---

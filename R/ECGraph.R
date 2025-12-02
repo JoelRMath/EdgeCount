@@ -1,31 +1,44 @@
-#' @title ECGraph S4 Class and Constructor
+#' @title ECGraph S4 Class
 #'
-#' @description Represents an undirected graph and provides a constructor to create it.
-#' The ECGraph object stores the graph's adjacency list, vertex degrees, and names.
-#' The constructor accepts a file path, a data frame, or an igraph object.
-#'
-#' @name ECGraph
-#' @rdname ECGraph-class
-#' @aliases ECGraph-class
+#' @description Represents an undirected graph structure. The ECGraph object stores
+#' the graph's adjacency list, vertex degrees, and names.
 #'
 #' @slot adj list. An adjacency list where names are vertex IDs and values are
-#'   character vectors of neighboring vertex IDs.
+#'    character vectors of neighboring vertex IDs.
 #' @slot degrees list. A named list where names are vertex IDs and values are
-#'   the integer degrees of vertices.
+#'    the integer degrees of vertices.
 #' @slot names character. A character vector of all unique vertex names in the graph.
 #'
-#' @param edges_input A character string specifying the path to a file,
-#'   a data frame with two columns representing edges, or an \code{igraph} graph object.
-#'   Vertex IDs will be coerced to character.
-#' @param col1 The name or index of the first column if `edges_input` is a
-#'   data frame or file. Defaults to 1.
-#' @param col2 The name or index of the second column if `edges_input` is a
-#'   data frame or file. Defaults to 2.
-#' @param header A logical value for reading from a file. Defaults to TRUE.
-#' @param sep The field separator character for reading from a file. Defaults to "\t".
+#' @name ECGraph-class
+#' @rdname ECGraph-class
+#' @aliases ECGraph-class
+#' @exportClass ECGraph
+#' @seealso \code{\link{ECGraph}} for the constructor.
+setClass("ECGraph",
+         slots = list(
+           adj = "list",
+           degrees = "list",
+           names = "character"
+         )
+)
+
+#' @title Constructor for ECGraph Objects
 #'
-#' @return An object of class ECGraph.
+#' @description Creates an \code{\linkS4class{ECGraph}} object from a file, data frame, or igraph object.
+#'
+#' @param edges_input A character string specifying the path to a file,
+#'    a data frame with two columns representing edges, or an \code{igraph} graph object.
+#'    Vertex IDs will be coerced to character.
+#' @param col1 The name or index of the first column if `edges_input` is a
+#'    data frame or file. Defaults to 1.
+#' @param col2 The name or index of the second column if `edges_input` is a
+#'    data frame or file. Defaults to 2.
+#' @param header A logical value for reading from a file. Defaults to TRUE.
+#' @param sep The field separator character for reading from a file. Defaults to "\\t".
+#'
+#' @return An object of class \code{\linkS4class{ECGraph}}.
 #' @importFrom igraph is_igraph as_data_frame as.undirected
+#'
 #' @seealso
 #' Functions that operate on ECGraph objects:
 #' \itemize{
@@ -37,47 +50,28 @@
 #'    \item \code{\link{get_edge_count_between_max}}: Maximum possible edge count between two sets (complete graph).
 #'    \item \code{\link{get_edge_count_in_max_fds}}: Maximum possible edge count within a set (fixed degree sequence).
 #'    \item \code{\link{get_edge_count_between_max_fds}}: Maximum possible edge count between two sets (fixed degree sequence).
-#'    \item \code{\link{trim_ecgraph}}: Trim high-degree vertices (hubs) to improve fast approximation suitability.
-#'    \item \code{\link{remove_isolated_vertices}}: Remove vertices with zero degree from the graph.
+#'    \item \code{\link{trim_ecgraph}}: Trim high-degree vertices (hubs).
+#'    \item \code{\link{remove_isolated_vertices}}: Remove isolated vertices.
 #'    \item \code{\link{show}}: Summary display of the object.
 #' }
-#'
-#' @exportClass ECGraph
-#' @export ECGraph
+#' @export
 #' @examples
 #' # --- Data ---
 #' edge_df <- data.frame(
-#'   vertex1 = c("A", "A", "B", "C", "E"), # E is an isolated vertex
-#'   vertex2 = c("B", "C", "C", "D", "E"), # E is connected only to itself (self-loop)
-#'   stringsAsFactors = FALSE
+#'    vertex1 = c("A", "A", "B", "C", "E"),
+#'    vertex2 = c("B", "C", "C", "D", "E"),
+#'    stringsAsFactors = FALSE
 #' )
 #' temp_file <- tempfile(fileext = ".tsv")
 #' write.table(edge_df, temp_file, sep = "\t", row.names = FALSE, quote = FALSE)
 #'
 #' # --- ECGraph from a data frame ---
 #' graph_from_df <- ECGraph(edge_df)
-#' print("Adjacency list from data frame:")
-#' print(graph_from_df@adj)
 #'
 #' # --- ECGraph from a file path ---
 #' graph_from_file <- ECGraph(temp_file)
 #'
-#' # --- ECGraph from an igraph object ---
-#' if (requireNamespace("igraph", quietly = TRUE)) {
-#'   ig <- igraph::graph_from_data_frame(edge_df, directed = FALSE)
-#'   graph_from_ig <- ECGraph(ig)
-#' }
-#'
 #' unlink(temp_file)
-#'
-setClass("ECGraph",
-         slots = list(
-           adj = "list",
-           degrees = "list",
-           names = "character"
-         )
-)
-
 ECGraph <- function(edges_input,
                     col1 = 1,
                     col2 = 2,
@@ -178,6 +172,7 @@ ECGraph <- function(edges_input,
 }
 
 #' @describeIn ECGraph Custom show method to display basic graph statistics (N, M) and slot summary.
+#' @param object An ECGraph object
 #' @export
 setMethod("show", "ECGraph", function(object) {
 

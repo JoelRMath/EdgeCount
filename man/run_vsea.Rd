@@ -10,6 +10,7 @@ run_vsea(
   element_ranks,
   scoring_statistic = "log2_Anscombe_ratio",
   n_permutations = 1000,
+  n_cores = NULL,
   seed = NULL
 )
 
@@ -18,6 +19,7 @@ run_vsea(
   element_ranks,
   scoring_statistic = "log2_Anscombe_ratio",
   n_permutations = 1000,
+  n_cores = NULL,
   seed = NULL
 )
 }
@@ -30,6 +32,9 @@ run_vsea(
 
 \item{n_permutations}{The number of permutations to generate the null
 distribution, 1000 by default.}
+
+\item{n_cores}{Number of cores to use for parallel processing. Defaults to
+detectCores() - 1. Set to 1 for serial execution (or on Windows).}
 
 \item{seed}{An optional random seed for reproducibility.}
 }
@@ -78,6 +83,7 @@ vsea_results <- run_vsea(
   sample_ects,
   element_ranks,
   n_permutations = 10, # Low for speed
+  n_cores = 2,
   seed = 1
 )
 

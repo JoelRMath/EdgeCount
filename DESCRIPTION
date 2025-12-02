@@ -5,16 +5,10 @@ Version: 0.1.0
 Authors@R: 
   person(
       "J.R.", "Pradines",
-      email = "tbd@example.com",
+      email = "joelrmath@gmail.com",
       role = c("aut", "cre")
   )
-Description: Statistics based on edge counts in large and sparse graphs
-    The underlying model is a random Random Graph with Given Expected Degrees (RGGED)
-    The package provide functionality to
-      - Estimate connectedness within or between vertex sets
-      - Calculate associated p-values and other statistics
-      - Perform enrichment analysis based on bipartite graphs of terms and their elements
-    Functions are optimized for time complexity
+Description: Description: Estimates edge-count based statistics in large and sparse graphs. The underlying model is a Random Graph with Given Expected Degrees (RGGED). Functionality includes estimating connectedness within or between vertex sets, calculating associated p-values and other statistics, and performing enrichment analysis based on bipartite graphs of terms and their elements. Functions are optimized for time complexity.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

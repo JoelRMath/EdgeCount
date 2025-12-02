@@ -1,3 +1,15 @@
+#' Sample Gene Symbols Lookup
+#'
+#' A named character vector mapping Entrez IDs to Gene Symbols.
+#' @format A named character vector.
+"sample_gene_symbols"
+
+#' Sample Term Names Lookup
+#'
+#' A named character vector mapping Term IDs (GO IDs) to descriptive names.
+#' @format A named character vector.
+"sample_term_names"
+
 #' Sample Protein Interaction Network
 #'
 #' A curated subset of the human STRING network (version 12.0) with interaction

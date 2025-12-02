@@ -1,11 +1,7 @@
-#' @title ECProb S4 Class and Constructor
+#' @title ECProb S4 Class
 #'
 #' @description Extends the ECGraph class to include pre-calculated properties
 #' necessary for edge-count probability calculations.
-#'
-#' @name ECProb
-#' @rdname ECProb-class
-#' @aliases ECProb-class
 #'
 #' @slot graph_size numeric. The total number of edges in the graph (M).
 #' @slot graph_order numeric. The total number of vertices in the graph (N).
@@ -14,9 +10,28 @@
 #' @slot degrees list. (Inherited from ECGraph) The degree of each vertex.
 #' @slot names character. (Inherited from ECGraph) The names of all vertices.
 #'
+#' @name ECProb-class
+#' @rdname ECProb-class
+#' @aliases ECProb-class
+#' @exportClass ECProb
+#' @seealso \code{\link{ECProb}} for the constructor.
+setClass("ECProb",
+         slots = list(
+           graph_size = "numeric",
+           graph_order = "numeric",
+           average_degree = "numeric"
+         ),
+         contains = "ECGraph"
+)
+
+#' @title Constructor for ECProb Objects
+#'
+#' @description Creates an \code{\linkS4class{ECProb}} object from an \code{\linkS4class{ECGraph}} object.
+#'
 #' @param ecgraph An ECGraph object.
 #'
-#' @return An object of class ECProb.
+#' @return An object of class \code{\linkS4class{ECProb}}.
+#'
 #' @seealso
 #' The base class for graph representation: \code{\link{ECGraph}}
 #'
@@ -40,7 +55,7 @@
 #'   \item \code{\link{calculate_lambda_in_naive}}: Naive summation (slow, for validation).
 #' }
 #'
-#' Vectorized methods:
+#' Vectorized (High-performance) methods:
 #' \itemize{
 #'   \item \code{\link{calculate_between_stats_fast_vectorized}}: Compute stats for many pairs of sets.
 #'   \item \code{\link{calculate_in_stats_fast_vectorized}}: Compute stats for many individual sets.
@@ -52,23 +67,13 @@
 #'   \item \code{\link{calculate_p_value}}: Compute the p-value for an observed count and lambda.
 #'   \item \code{\link{show}}: Summary display of the object.
 #' }
-#' @exportClass ECProb
-#' @export ECProb
+#' @export
 #' @examples
+#' library(data.table)
 #' edge_df <- data.frame(p1 = c("A", "B", "C"), p2 = c("B", "C", "D"))
 #' ecg <- ECGraph(edge_df)
 #' ecp <- ECProb(ecg)
 #' ecp@graph_size # 3
-#'
-setClass("ECProb",
-         slots = list(
-           graph_size = "numeric",
-           graph_order = "numeric",
-           average_degree = "numeric"
-         ),
-         contains = "ECGraph"
-)
-
 ECProb <- function(ecgraph) {
 
   graph_size <- sum(unlist(ecgraph@degrees))/2
@@ -81,6 +86,7 @@ ECProb <- function(ecgraph) {
 
 
 #' @describeIn ECProb Shows ECGraph statistics plus the pre-calculated graph properties (size, order, average degree).
+#' @param object An ECProb object
 #' @export
 setMethod("show", "ECProb", function(object) {
   cat("An object of class \"", class(object), "\"\n", sep = "")
@@ -616,6 +622,7 @@ setMethod("calculate_between_stats_fast_vectorized",
 #' @export
 #' @examples
 #' # Create sample data
+#' library(data.table)
 #' ecg <- ECGraph(data.frame(p1=c("E1","E3"), p2=c("E2","E4")))
 #' ecp <- ECProb(ecg)
 #' sets <- data.table(set_id = c("SA", "SB"))

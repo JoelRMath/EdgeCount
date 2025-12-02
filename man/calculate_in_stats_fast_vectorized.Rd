@@ -30,6 +30,7 @@ using vectorized algorithm.
 }}
 \examples{
 # Create sample data
+library(data.table)
 ecg <- ECGraph(data.frame(p1=c("E1","E3"), p2=c("E2","E4")))
 ecp <- ECProb(ecg)
 sets <- data.table(set_id = c("SA", "SB"))

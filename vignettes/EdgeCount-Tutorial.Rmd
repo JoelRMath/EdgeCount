@@ -1,6 +1,6 @@
 ---
 title: "EdgeCount Package Tutorial"  
-author: "Joël R. Pradines"
+author: "Joel R Pradines"
 date: "`r Sys.Date()`"
 output:
   rmarkdown::html_vignette:
@@ -1291,7 +1291,7 @@ term_id <- "GO:0000347"
 term_elements <- sample_ects@ecprob@adj[[term_id]]
 element_ranks <- c(sample(term_elements), sample(setdiff(sample_ects@elements, term_elements)))
 system.time(
-  vsea_results <- run_vsea(sample_ects, element_ranks = element_ranks, n_permutations = 1000, seed = 1)
+  vsea_results <- run_vsea(sample_ects, element_ranks = element_ranks, n_permutations = 1000, n_cores = 2, seed = 1)
 )
 max_summary <- vsea_results$max_score_summary
 max_summary$term_name <- sample_term_lookup[max_summary$term_id]
@@ -1308,7 +1308,7 @@ Next is the obvious negative control of using random element ranks.
 
 ```{r vsea_neg}
 element_ranks <- sample(sample_ects@elements)
-vsea_results <- run_vsea(sample_ects, element_ranks, 1000, seed = 1)
+vsea_results <- run_vsea(sample_ects, element_ranks = element_ranks, n_permutations = 1000, n_cores = 2, seed = 1)
 max_summary <- vsea_results$max_score_summary
 max_summary$term_name <- sample_term_lookup[max_summary$term_id]
 setorder(max_summary, fdr_q_value)
@@ -1340,7 +1340,7 @@ ordered_ids <- c(
 element_ranks <- setNames(seq_along(ordered_ids), ordered_ids)
 # run VSEA, 1000 permutations
 system.time(
-  vsea_results <- run_vsea(sample_ects, element_ranks = element_ranks, n_permutations = 1000, seed = 1)
+  vsea_results <- run_vsea(sample_ects, element_ranks = element_ranks, n_permutations = 1000, n_cores = 2, seed = 1)
 )
 # results
 max_summary <- vsea_results$max_score_summary
