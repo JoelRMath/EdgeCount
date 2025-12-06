@@ -1,0 +1,146 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[round]{natbib}
+\usepackage{url}
+\usepackage{geometry}
+\geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+
+% \sloppy allows LaTeX to be less strict about line breaking.
+% This prevents the "Overfull \hbox" errors caused by your long function names.
+\sloppy
+
+%\VignetteIndexEntry{EdgeCount: Statistical Theory and Algorithmic Efficiency}
+%\VignetteEngine{knitr::knitr}
+%\VignetteEncoding{UTF-8}
+
+\title{EdgeCount: Statistical Theory and Algorithmic Efficiency}
+\author{Joel R. Pradines}
+\date{\today}
+
+\usepackage{Sweave}
+\begin{document}
+\input{ECTheory-concordance}
+
+\maketitle
+
+\begin{abstract}
+This vignette details the statistical framework underlying the \texttt{EdgeCount} package. We describe the Random Graph with Given Expected Degrees (RGGED) model, the derivation of edge-count probabilities, and the algebraic optimizations that allow the package to calculate connectedness statistics with linear time complexity $O(N)$.
+\end{abstract}
+
+\section{Introduction}
+
+The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing protein-protein interaction networks or bipartite term-element graphs, the fundamental question remains: \textit{Is the observed number of edges within a set (or between two sets) significantly higher than expected by chance?}
+
+To answer this, \texttt{EdgeCount} utilizes a null model based on random graphs that preserve the expected degrees of vertices \citep{RGGED2}. The analytical expressions for the likelihoods of edge-count variables in this model were derived by \cite{JCB}.
+
+\section{The Random Graph Model}
+
+Let $G(V, E)$ be an undirected graph with no loops and no multiple edges.
+\begin{itemize}
+    \item Let $N = |V|$ be the order of the graph (number of vertices).
+    \item Let $M = |E|$ be the size of the graph (number of edges).
+    \item Let $k_i$ be the degree of vertex $v_i$.
+\end{itemize}
+
+To determine statistical significance, we compare observed edge counts in $G$ to a null model: the ensemble of random graphs that preserve the expected degree sequence of $G$. In the Random Graph with Given Expected Degrees (RGGED) model, edges are treated as independent Bernoulli random variables.
+
+The probability $p_{ij}$ of observing an edge between vertices $v_i$ and $v_j$ is given by \cite{JCB}:
+\begin{equation}
+p_{ij} = \min\left(1, \frac{k_i k_j}{2M}\right)
+\end{equation}
+
+\subsection{Fast Approximation for Sparse Graphs}
+For sparse graphs where $\max(k_i k_j) \ll 2M$, this approximates the probability of edge formation in random graphs with fixed degrees. When the graph is sufficiently sparse (as determined by the package function \texttt{summarize\_suitability\_fast}), we can use the approximation:
+\begin{equation} \label{eq:fast_pij}
+p_{ij} \approx \frac{k_i k_j}{2M}
+\end{equation}
+This approximation is central to the algorithmic efficiency of the package, as it allows for the factorization of degree sums.
+
+\section{Edge Count Probabilities}
+
+Let $Z$ be a random variable representing the count of edges in a specific subgraph configuration (e.g., edges within a set). $Z$ is the sum of independent Bernoulli trials. While the exact distribution of $Z$ is a Poisson-Binomial distribution, it is well-approximated by a Poisson distribution (or a truncated Poisson distribution) when probabilities $p_{ij}$ are small \citep{JCB}.
+
+The probability of observing $z$ edges is approximated by:
+\begin{equation}
+P(Z = z) = \frac{e^{-\lambda}}{\alpha} \frac{\lambda^z}{z!}
+\end{equation}
+where:
+\begin{itemize}
+    \item $\lambda = \mathbb{E}[Z] = \sum p_{ij}$ is the expected number of edges.
+    \item $\alpha = e^{-\lambda} \sum_{h=0}^{m} \frac{\lambda^h}{h!}$ is the normalization factor accounting for the maximum possible number of edges $m$ in the subgraph.
+\end{itemize}
+
+The p-value, or the likelihood of observing $x$ or more edges, is:
+\begin{equation}
+\text{p-value} = P(Z \geq x) = \frac{e^{-\lambda}}{\alpha} \sum_{h=x}^{m} \frac{\lambda^h}{h!}
+\end{equation}
+
+\section{Algorithmic Optimization}
+
+A key feature of \texttt{EdgeCount} is its speed. Calculating $\lambda$ involves summing probabilities over pairs of vertices. A naive implementation requires iterating over all pairs, resulting in quadratic time complexity. However, by utilizing the "Fast" approximation (Equation \ref{eq:fast_pij}), we can factorize these sums to achieve linear time complexity.
+
+\subsection{Within-Set Connectedness}
+
+Consider a set of vertices $S \subseteq V$ with size $n = |S|$. We wish to calculate the expected number of edges $\lambda_{in}$ existing internally among members of $S$.
+\begin{equation}
+\lambda_{in} = \sum_{\{i,j\} \subseteq S, i < j} p_{ij} \approx \sum_{i < j} \frac{k_i k_j}{2M}
+\end{equation}
+A naive summation requires $O(n^2)$ operations. To optimize this, we recall the algebraic identity for the square of a sum:
+\begin{equation}
+\left( \sum_{i \in S} k_i \right)^2 = \sum_{i \in S} k_i^2 + 2 \sum_{i < j} k_i k_j
+\end{equation}
+Rearranging for the cross-terms:
+\begin{equation}
+\sum_{i < j} k_i k_j = \frac{1}{2} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right]
+\end{equation}
+Substituting this into the expression for $\lambda_{in}$:
+\begin{equation}
+\lambda_{in} \approx \frac{1}{2M} \cdot \frac{1}{2} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right] = \frac{1}{4M} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right]
+\end{equation}
+\textbf{Complexity:} We now only need to compute $\sum k_i$ and $\sum k_i^2$. This requires iterating through $S$ once, reducing the complexity to $O(n)$. This optimization is implemented in the package function \texttt{calculate\_in\_stats\_fast\_vectorized}.
+
+\subsection{Between-Set Connectedness}
+
+Consider two disjoint sets of vertices $S_1$ and $S_2$. We wish to calculate the expected number of edges $\lambda_{bt}$ bridging these two sets.
+\begin{equation}
+\lambda_{bt} = \sum_{i \in S_1} \sum_{j \in S_2} p_{ij} \approx \sum_{i \in S_1} \sum_{j \in S_2} \frac{k_i k_j}{2M}
+\end{equation}
+A naive summation requires $O(|S_1| \cdot |S_2|)$ operations. Because the terms $k_i$ and $k_j$ are independent in the product, we can factor the sum:
+\begin{equation}
+\lambda_{bt} \approx \frac{1}{2M} \left( \sum_{i \in S_1} k_i \right) \left( \sum_{j \in S_2} k_j \right)
+\end{equation}
+\textbf{Complexity:} We sum the degrees in $S_1$ ($O(|S_1|)$) and $S_2$ ($O(|S_2|)$) separately and multiply the results. The total complexity is $O(|S_1| + |S_2|)$, which is linear relative to the input size. This optimization is implemented in \texttt{calculate\_between\_stats\_fast\_vectorized}.
+
+\section{Effect Size: The Anscombe Ratio}
+
+While the p-value indicates significance, it is dependent on sample size. To measure the magnitude of connectedness, \texttt{EdgeCount} employs the log Anscombe Ratio ($lAr$), which stabilizes the variance of Poisson-distributed variables.
+
+\begin{equation}
+lAr = \frac{1}{2} \log_2 \left( \frac{x + 3/8}{\lambda + 3/8} \right)
+\end{equation}
+where $x$ is the observed edge count and $\lambda$ is the expected edge count.
+\begin{itemize}
+    \item $lAr > 0$: The set is more connected than expected (enrichment).
+    \item $lAr < 0$: The set is less connected than expected (depletion).
+\end{itemize}
+The addition of $3/8$ is an optimal correction for bias in the log transformation of Poisson variables \citep{WAP}.
+
+\section{Vertex Set Enrichment Analysis (VSEA)}
+
+The VSEA method implemented in \texttt{run\_vsea} adapts the principles of Gene Set Enrichment Analysis \citep{subramanian2005} to graph topology.
+
+Standard GSEA uses a Kolmogorov-Smirnov-like running sum statistic. In VSEA, the "local" correlation at rank $i$ is replaced by the edge-count probability framework derived by \cite{JCB}. As we traverse the ranked list of elements, at step $i$ (considering the top $i$ elements as set $S_i$), we calculate:
+\begin{enumerate}
+    \item The observed edges $x_i$ between $S_i$ and a target Term $T$.
+    \item The expected edges $\lambda_i$ using the RGGED model.
+    \item The running score based on the Log Anscombe Ratio.
+\end{enumerate}
+
+Crucially, because $\lambda_i$ accounts for the degrees of the elements in $S_i$, \textbf{VSEA inherently penalizes hubs}. If the top-ranked elements are merely "sticky" (high degree) but not specifically connected to Term $T$, $\lambda_i$ will be very high, reducing the $lAr$ score. This distinguishes VSEA from standard hypergeometric enrichment which only counts overlaps, ignoring the varying likelihood of connections for high-degree elements.
+
+\bibliographystyle{plainnat}
+\bibliography{theory}
+
+\end{document}
