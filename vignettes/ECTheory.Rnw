@@ -25,14 +25,14 @@
 \maketitle
 
 \begin{abstract}
-This vignette details the statistical framework underlying the \texttt{EdgeCount} package. We describe the Random Graph with Given Expected Degrees (RGGED) model, the derivation of edge-count probabilities, and the algebraic optimizations that allow the package to calculate connectedness statistics with linear time complexity $O(N)$.
+This vignette details the statistical framework underlying the \texttt{EdgeCount} package. First, the Random Graph with Given Expected Degrees (RGGED) model is described. Second, the derivation of edge-count statistics is presented. Third, the algebraic optimizations that allow the package to calculate connectedness statistics with linear time complexity $O(N)$ are explained. Last, the implementation of vectorized functions contained in the package is discussed, and it is shown that they have optimal time complexity.
 \end{abstract}
 
 \section{Introduction}
 
-The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing protein-protein interaction networks or bipartite term-element graphs, the fundamental question remains: \textit{Is the observed number of edges within a set (or between two sets) significantly higher than expected by chance?}
+The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing protein-protein interaction networks or bipartite term-element graphs, the fundamental question is: \textit{Is the observed number of edges, called an edge count, within a set (or between two sets) significantly higher than expected by \it{chance}?}
 
-To answer this, \texttt{EdgeCount} utilizes a null model based on random graphs that preserve the expected degrees of vertices \citep{RGGED2}. The analytical expressions for the likelihoods of edge-count variables in this model were derived by \cite{JCB}.
+To answer this, the concept of \it{chance} relies on a null model of random graph that preserves the expected degrees of vertices \citep{chung2002connected,RGGED2}; that is, the average degree of a vertex over all random graph realizations is its observed value in the original network. Taking into account vertex degrees is important, because they often vary by orders of magnitude. The analytical expressions for the likelihoods of edge-count variables in this model were derived by \cite{JCB}.
 
 \section{The Random Graph Model}
 

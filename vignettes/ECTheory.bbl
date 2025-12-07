@@ -1,15 +1,23 @@
-\begin{thebibliography}{4}
+\begin{thebibliography}{5}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
 
-\bibitem[Chung and Lu(2002)]{RGGED2}
+\bibitem[Chung and Lu(2002{\natexlab{a}})]{chung2002connected}
+Fan Chung and Linyuan Lu.
+\newblock Connected components in random graphs with given expected degree
+  sequences.
+\newblock \emph{Annals of Combinatorics}, 6\penalty0 (2):\penalty0 125--145,
+  2002{\natexlab{a}}.
+\newblock \doi{10.1007/PL00012580}.
+
+\bibitem[Chung and Lu(2002{\natexlab{b}})]{RGGED2}
 Fan R.~K. Chung and Linyuan Lu.
 \newblock The average distances in random graphs with given expected degrees.
 \newblock \emph{Proceedings of the National Academy of Sciences of the United
-  States of America}, 99:\penalty0 15879--15882, 2002.
+  States of America}, 99:\penalty0 15879--15882, 2002{\natexlab{b}}.
 \newblock URL \url{https://api.semanticscholar.org/CorpusID:17723054}.
 
 \bibitem[Pradines et~al.(2005)Pradines, Farutin, Rowley, and Dancik]{JCB}
