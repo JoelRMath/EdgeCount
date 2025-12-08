@@ -6,14 +6,9 @@
 \usepackage{geometry}
 \geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
 \usepackage{parskip}
+\usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
 
-% \sloppy allows LaTeX to be less strict about line breaking.
-% This prevents the "Overfull \hbox" errors caused by your long function names.
 \sloppy
-
-%\VignetteIndexEntry{EdgeCount: Statistical Theory and Algorithmic Efficiency}
-%\VignetteEngine{knitr::knitr}
-%\VignetteEncoding{UTF-8}
 
 \title{EdgeCount: Statistical Theory and Algorithmic Efficiency}
 \author{Joel R. Pradines}
@@ -26,39 +21,116 @@
 \maketitle
 
 \begin{abstract}
-\noindent This vignette details the statistical framework underlying the \texttt{EdgeCount} package. First, the Random Graph with Given Expected Degrees (RGGED) model is described. Second, the derivation of edge-count statistics is presented. Third, the algebraic optimizations that allow the package to calculate connectedness statistics with linear time complexity $O(N)$ are explained. Last, the implementation of vectorized functions contained in the package is discussed, and it is shown that they have optimal time complexity.
+\noindent This vignette details the statistical framework underlying the \texttt{EdgeCount} package. First, the Random Graph with Given Expected Degrees (RGGED) model is described. Second, the derivation of edge-count statistics is presented. Third, the algebraic optimizations that allow the package to calculate connectedness statistics with linear time complexity are explained. Last, the implementation of vectorized functions contained in the package is discussed, and it is shown that they have optimal time complexity.
 \end{abstract}
 
 \section{Introduction}
 
-The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing interaction networks or bipartite group-element graphs, the fundamental question is:
+The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing interaction networks or bipartite group-element graphs, the question is:
 
-\textit{Is the observed number of edges, called edge count, within a set (or between two sets) significantly higher than expected by chance?}
+\textit{Is an observed number of edges, called edge count, within a set (or between two sets) significantly higher than expected by chance?}
 
-To answer this, the concept of \textit{chance} is based on a null model of random graph that preserves the expected degrees of vertices \cite{chung2002connected,RGGED2}. Namely, the average degree of a vertex over all random graph realizations is its observed value in the original network. Taking into account vertex degrees is important, because they often vary by orders of magnitude. The analytical expressions for the likelihoods of edge-count variables in this model were derived in \cite{JCB}.
+To answer this, two components must be implemented.
 
-\section{The Random Graph Model}
+First, the random experiment defining the concept of \textit{chance} must be clearly specified and, in general, simulated to provide a control distribution.
+
+Second, one needs to be able to fairly compare edge-count values to each other. A fair comparison requires accounting for vertex degrees, as these may vary by orders of magnitude. This is achieved here by using a null model of random graphs that preserves the expected degrees of vertices \cite{chung2002connected,RGGED2}. Specifically, the average degree of a vertex over all random graph realizations matches its observed value in the original network. The analytical expressions for the likelihoods of edge-count variables in this model were derived in \cite{JCB}. These expressions enable fair and fast comparisons of edge-count values.
+
+
+\section{Random graph model}
 
 Let $G(V, E)$ be an undirected graph with no loops and no multiple edges.
 \begin{itemize}
     \item Let $N = |V|$ be the order of the graph (number of vertices).
     \item Let $M = |E|$ be the size of the graph (number of edges).
     \item Let $k_i$ be the degree of vertex $v_i$.
+    \item Let $\left< k \right>$ be the the average vertex degree.
 \end{itemize}
 
-Call degree sequence of $G$ the nonincreasing sequence of all vertex degrees. An obvious null model for $G$ is that of a random graph which realizations always preserve the degree sequence. This model is referred to as the Random Graph with Fixed Degree Sequence (RGFDS). However, it is known that the analytical treatment of the RGFDS is a difficult problem \cite{bender1978asymptotic, molloy1995critical, itzkovitz2003subgraphs, park2004statistical}. Namely, deriving simple analytical expressions for the likelihoods of edge-count variable is hard with the RGFDS.
+Call degree sequence of $G$ the nonincreasing sequence of all vertex degrees. An obvious null model for $G$ is that of a random graph whose realizations always preserve the degree sequence. This model is referred to as the Random Graph with Fixed Degree Sequence (RGFDS). However, it is known that the analytical treatment of the RGFDS is a difficult problem \cite{bender1978asymptotic, molloy1995critical, itzkovitz2003subgraphs, park2004statistical}. Namely, deriving simple analytical expressions for the likelihoods of edge-count variables is in general hard with the RGFDS. This implies that slow numerical methods based on simulations must be used \cite{maslov2002specificity, milo2002network, milo2003uniform}.
 
-A less constrained random graph model is the Random Graph with Given Expected Degrees (RGGED) \cite{chung2002connected,RGGED2}.  While an individual realization of the RGGED might not preserve a vertex degree, it is preserved in average over all realizations. The key feature of the RGGED is that edges are treated as independent random variables, enabling the derivation of
-analytical expressions for the likelihoods of edge-count variables \cite{JCB}.
+A less constrained random graph model than the RGFDS is the Random Graph with Given Expected Degrees (RGGED) \cite{chung2002connected,RGGED2}.  While an individual realization of the RGGED might not preserve a vertex degree, it is preserved on average over all realizations. The key feature of the RGGED is that edges are treated as independent random variables, enabling the derivation of analytical expressions for the distributions of edge-count variables \cite{JCB}.
 
-To determine statistical significance, we compare observed edge counts in $G$ to a null model: the ensemble of random graphs that preserve the expected degree sequence of $G$. In the Random Graph with Given Expected Degrees (RGGED) model, edges are treated as independent Bernoulli random variables.
-
-The probability $p_{ij}$ of observing an edge between vertices $v_i$ and $v_j$ is given by \cite{JCB}:
+In the RGGED model, edges are treated as independent Bernoulli random variables: an edge $v_iv_j$ exists with probability $p_{ij}$ (Bernoulli parameter) and does not exist with probability $1-p_{ij}$. When the graph is large and sparse on average over its vertices ($\left< k \right>^2 \ll 2M$), the probability $p_{ij}$ of observing an edge between vertices $v_i$ and $v_j$ is given by \cite{JCB}:
 \begin{equation}
-p_{ij} = \min\left(1, \frac{k_i k_j}{2M}\right)
+p_{ij} \simeq 1 - \exp\left(-k_i k_j/(2M)\right).
+\end{equation}
+Useful upper bounds for $p_{ij}$ are
+\begin{equation}
+p_{ij} \leq \min\left( 1, \frac{k_ik_j}{2M}\right) \leq \frac{k_ik_j}{2M}.
 \end{equation}
 
-\subsection{Fast Approximation for Sparse Graphs}
+\subsection{Edge-count distributions}
+
+Edge-count random variables in the RGGED model of a large and sparse graph have approximate Poisson distribution. This is because they are the sum of independent Bernoulli random variables with small parameters $p_{ij} \ll 1$ \cite{lecam1960approximation, kerstan1964verallgemeinerung, JCB}.
+
+Call $Z$ an edge-count random variable defined by the sum of $m$ potential edges, each edge corresponding to a pair $v_iv_j$ of vertices:
+\begin{equation}
+Z = \sum_{u=1}^m B_u \quad \text{with} \quad B_u \sim \text{Bernoulli} \left(p_u = p_{ij} \right).
+\end{equation}
+
+Then we have $Z \sim \text{Poisson} \left(\lambda, m\right)$ as defined by
+
+\begin{equation}
+\Pr \left( Z = z \right) = \frac{e^{-\lambda}}{\alpha}\frac{\lambda^z}{z!} \quad \text{with} \quad \lambda = \sum_{u=1}^m p_u \quad \text{and} \quad
+\alpha = e^{-\lambda} \sum_{x=0}^m \frac{\lambda^x}{x!}.
+\end{equation}
+
+The normalization factor $\alpha$ is utilized because an observed number $z$ of edges is bounded by the maximum number $m$ of edges. This said, we have $\alpha \simeq 1$ when $p_{ij} \ll 1$.
+
+
+\begin{Schunk}
+\begin{Sinput}
+> # Function to calculate alpha and its complement
+> get_alpha_stats <- function(m, pij_avg) {
++   lambda <- m * pij_avg
++   alpha <- ppois(m, lambda)
++   alpha_comp <- ppois(m, lambda, lower.tail = FALSE)
++   return(c(alpha, alpha_comp))
++ }
+> # Parameters
+> pij_values <- c(0.001, 0.01, 0.05, 0.1)
+> m_values <- c(1:29,seq(30, 1000, by = 10))
+> colors <- c("red", "blue", "green", "black")
+> # Plots
+> par(mfrow=c(1, 2), mar=c(5, 5, 4, 2) + 0.1, cex.lab=1.25,
++     cex.axis=1.25, cex.main=1.25)
+> plot(1, type="n", xlab="Maximum possible edges (m)",
++      ylab=expression(alpha),
++      xlim=c(1, 1000), ylim=c(0.99, 1.00),
++      log="x",
++      main=expression(paste("Value of ", alpha, " (Linear)")))
+> for(i in seq_along(pij_values)) {
++   lambdas <- m_values * pij_values[i]
++   y_vals <- ppois(m_values, lambdas)
++   lines(m_values, y_vals, col=colors[i], lwd=2)
++ }
+> legend("bottomright", legend=paste("pij =", pij_values),
++        col=colors, lwd=2, bty="n", cex=1)
+> epsilon <- 1e-16
+> plot(1, type="n", xlab="Maximum possible edges (m)",
++      ylab=expression(1 - alpha),
++      xlim=c(1, 1000), ylim=c(epsilon, 1),
++      log="xy",
++      main=expression(paste("Error ", 1 - alpha, " (Log Scale)")))
+> for(i in seq_along(pij_values)) {
++   lambdas <- m_values * pij_values[i]
++   y_vals <- ppois(m_values, lambdas, lower.tail = FALSE)
++   y_vals <- pmax(y_vals, epsilon)
++   lines(m_values, y_vals, col=colors[i], lwd=2)
++ }
+> legend("topright", legend=paste("pij =", pij_values),
++        col=colors, lwd=2, bty="n", cex=1)
+\end{Sinput}
+\end{Schunk}
+\includegraphics{ECTheory-alpha_simulation_side_by_side}
+
+\subsection{Edge-count p-values}
+
+\subsection{Edge-count effect sizes}
+
+\section{Fast approximations for sparse graphs}
+
 For sparse graphs where $\max(k_i k_j) \ll 2M$, this approximates the probability of edge formation in random graphs with fixed degrees. When the graph is sufficiently sparse (as determined by the package function \texttt{summarize\_suitability\_fast}), we can use the approximation:
 \begin{equation} \label{eq:fast_pij}
 p_{ij} \approx \frac{k_i k_j}{2M}
@@ -83,6 +155,9 @@ The p-value, or the likelihood of observing $x$ or more edges, is:
 \begin{equation}
 \text{p-value} = P(Z \geq x) = \frac{e^{-\lambda}}{\alpha} \sum_{h=x}^{m} \frac{\lambda^h}{h!}
 \end{equation}
+
+
+The addition of 3/8 stems from the work of \cite{anscombe1948}, who showed that $\sqrt{X + 3/8}$ is the optimal variance-stabilizing transformation for Poisson data. The $lAr$ metric is effectively the log-ratio of these variance-stabilized values.
 
 \section{Algorithmic Optimization}
 

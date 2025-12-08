@@ -1,4 +1,9 @@
-\begin{thebibliography}{1}
+\begin{thebibliography}{10}
+
+\bibitem{anscombe1948}
+Francis~J. Anscombe.
+\newblock The transformation of poisson, binomial and negative-binomial data.
+\newblock {\em Biometrika}, 35(3/4):246--254, 1948.
 
 \bibitem{bender1978asymptotic}
 Edward~A Bender and E~Rodney Canfield.
@@ -22,6 +27,33 @@ Fan R.~K. Chung and Linyuan Lu.
 S~Itzkovitz, R~Milo, N~Kashtan, G~Ziv, and U~Alon.
 \newblock Subgraphs in random networks.
 \newblock {\em Physical Review E}, 68(2):026127, 2003.
+
+\bibitem{kerstan1964verallgemeinerung}
+Johannes Kerstan.
+\newblock Verallgemeinerung eines satzes von prochorow und le cam.
+\newblock {\em Zeitschrift f{\"u}r Wahrscheinlichkeitstheorie und verwandte
+  Gebiete}, 2(3):173--179, 1964.
+
+\bibitem{lecam1960approximation}
+Lucien Le~Cam.
+\newblock An approximation theorem for the poisson binomial distribution.
+\newblock {\em Pacific Journal of Mathematics}, 10(4):1181--1197, 1960.
+
+\bibitem{maslov2002specificity}
+Sergei Maslov and Kim Sneppen.
+\newblock Specificity and stability in topology of protein networks.
+\newblock {\em Science}, 296(5569):910--913, 2002.
+
+\bibitem{milo2003uniform}
+R~Milo, N~Kashtan, S~Itzkovitz, MEJ Newman, and U~Alon.
+\newblock Uniform generation of random graphs with arbitrary degree sequences.
+\newblock {\em arXiv preprint cond-mat/0312028}, 2003.
+
+\bibitem{milo2002network}
+Ron Milo, Shai Shen-Orr, Shalev Itzkovitz, Nadav Kashtan, Dmitri Chklovskii,
+  and Uri Alon.
+\newblock Network motifs: simple building blocks of complex networks.
+\newblock {\em Science}, 298(5594):824--827, 2002.
 
 \bibitem{molloy1995critical}
 Michael Molloy and Bruce Reed.
