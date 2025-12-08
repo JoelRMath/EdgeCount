@@ -2,10 +2,10 @@
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage[round]{natbib}
 \usepackage{url}
 \usepackage{geometry}
 \geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+\usepackage{parskip}
 
 % \sloppy allows LaTeX to be less strict about line breaking.
 % This prevents the "Overfull \hbox" errors caused by your long function names.
@@ -26,14 +26,16 @@
 \maketitle
 
 \begin{abstract}
-This vignette details the statistical framework underlying the \texttt{EdgeCount} package. First, the Random Graph with Given Expected Degrees (RGGED) model is described. Second, the derivation of edge-count statistics is presented. Third, the algebraic optimizations that allow the package to calculate connectedness statistics with linear time complexity $O(N)$ are explained. Last, the implementation of vectorized functions contained in the package is discussed, and it is shown that they have optimal time complexity.
+\noindent This vignette details the statistical framework underlying the \texttt{EdgeCount} package. First, the Random Graph with Given Expected Degrees (RGGED) model is described. Second, the derivation of edge-count statistics is presented. Third, the algebraic optimizations that allow the package to calculate connectedness statistics with linear time complexity $O(N)$ are explained. Last, the implementation of vectorized functions contained in the package is discussed, and it is shown that they have optimal time complexity.
 \end{abstract}
 
 \section{Introduction}
 
-The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing protein-protein interaction networks or bipartite term-element graphs, the fundamental question is: \textit{Is the observed number of edges, called an edge count, within a set (or between two sets) significantly higher than expected by \it{chance}?}
+The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing interaction networks or bipartite group-element graphs, the fundamental question is:
 
-To answer this, the concept of \it{chance} relies on a null model of random graph that preservse the expected degrees of vertices \citep{chung2002connected,RGGED2}; that is, the average degree of a vertex over all random graph realizations is its observed value in the original network. Taking into account vertex degrees is important, because they often vary by orders of magnitude. The analytical expressions for the likelihoods of edge-count variables in this model were derived by \cite{JCB}.
+\textit{Is the observed number of edges, called edge count, within a set (or between two sets) significantly higher than expected by chance?}
+
+To answer this, the concept of \textit{chance} is based on a null model of random graph that preserves the expected degrees of vertices \cite{chung2002connected,RGGED2}. Namely, the average degree of a vertex over all random graph realizations is its observed value in the original network. Taking into account vertex degrees is important, because they often vary by orders of magnitude. The analytical expressions for the likelihoods of edge-count variables in this model were derived in \cite{JCB}.
 
 \section{The Random Graph Model}
 
@@ -43,6 +45,11 @@ Let $G(V, E)$ be an undirected graph with no loops and no multiple edges.
     \item Let $M = |E|$ be the size of the graph (number of edges).
     \item Let $k_i$ be the degree of vertex $v_i$.
 \end{itemize}
+
+Call degree sequence of $G$ the nonincreasing sequence of all vertex degrees. An obvious null model for $G$ is that of a random graph which realizations always preserve the degree sequence. This model is referred to as the Random Graph with Fixed Degree Sequence (RGFDS). However, it is known that the analytical treatment of the RGFDS is a difficult problem \cite{bender1978asymptotic, molloy1995critical, itzkovitz2003subgraphs, park2004statistical}. Namely, deriving simple analytical expressions for the likelihoods of edge-count variable is hard with the RGFDS.
+
+A less constrained random graph model is the Random Graph with Given Expected Degrees (RGGED) \cite{chung2002connected,RGGED2}.  While an individual realization of the RGGED might not preserve a vertex degree, it is preserved in average over all realizations. The key feature of the RGGED is that edges are treated as independent random variables, enabling the derivation of
+analytical expressions for the likelihoods of edge-count variables \cite{JCB}.
 
 To determine statistical significance, we compare observed edge counts in $G$ to a null model: the ensemble of random graphs that preserve the expected degree sequence of $G$. In the Random Graph with Given Expected Degrees (RGGED) model, edges are treated as independent Bernoulli random variables.
 
@@ -60,7 +67,7 @@ This approximation is central to the algorithmic efficiency of the package, as i
 
 \section{Edge Count Probabilities}
 
-Let $Z$ be a random variable representing the count of edges in a specific subgraph configuration (e.g., edges within a set). $Z$ is the sum of independent Bernoulli trials. While the exact distribution of $Z$ is a Poisson-Binomial distribution, it is well-approximated by a Poisson distribution (or a truncated Poisson distribution) when probabilities $p_{ij}$ are small \citep{JCB}.
+Let $Z$ be a random variable representing the count of edges in a specific subgraph configuration (e.g., edges within a set). $Z$ is the sum of independent Bernoulli trials. While the exact distribution of $Z$ is a Poisson-Binomial distribution, it is well-approximated by a Poisson distribution (or a truncated Poisson distribution) when probabilities $p_{ij}$ are small \cite{JCB}.
 
 The probability of observing $z$ edges is approximated by:
 \begin{equation}
@@ -125,11 +132,11 @@ where $x$ is the observed edge count and $\lambda$ is the expected edge count.
     \item $lAr > 0$: The set is more connected than expected (enrichment).
     \item $lAr < 0$: The set is less connected than expected (depletion).
 \end{itemize}
-The addition of $3/8$ is an optimal correction for bias in the log transformation of Poisson variables \citep{WAP}.
+The addition of $3/8$ is an optimal correction for bias in the log transformation of Poisson variables \cite{WAP}.
 
 \section{Vertex Set Enrichment Analysis (VSEA)}
 
-The VSEA method implemented in \texttt{run\_vsea} adapts the principles of Gene Set Enrichment Analysis \citep{subramanian2005} to graph topology.
+The VSEA method implemented in \texttt{run\_vsea} adapts the principles of Gene Set Enrichment Analysis \cite{subramanian2005} to graph topology.
 
 Standard GSEA uses a Kolmogorov-Smirnov-like running sum statistic. In VSEA, the "local" correlation at rank $i$ is replaced by the edge-count probability framework derived by \cite{JCB}. As we traverse the ranked list of elements, at step $i$ (considering the top $i$ elements as set $S_i$), we calculate:
 \begin{enumerate}
@@ -140,7 +147,7 @@ Standard GSEA uses a Kolmogorov-Smirnov-like running sum statistic. In VSEA, the
 
 Crucially, because $\lambda_i$ accounts for the degrees of the elements in $S_i$, \textbf{VSEA inherently penalizes hubs}. If the top-ranked elements are merely "sticky" (high degree) but not specifically connected to Term $T$, $\lambda_i$ will be very high, reducing the $lAr$ score. This distinguishes VSEA from standard hypergeometric enrichment which only counts overlaps, ignoring the varying likelihood of connections for high-degree elements.
 
-\bibliographystyle{plainnat}
+\bibliographystyle{plain}
 \bibliography{theory}
 
 \end{document}
