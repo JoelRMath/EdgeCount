@@ -23,6 +23,8 @@
 \noindent This vignette details the statistical framework underlying the \texttt{EdgeCount} package. First, the Random Graph with Given Expected Degrees (RGGED) model is described. Second, the derivation of edge-count statistics is presented. Third, the algebraic optimizations that allow the package to calculate connectedness statistics with linear time complexity are explained. Last, the implementation of vectorized functions contained in the package is discussed, and it is shown that they have optimal time complexity.
 \end{abstract}
 
+\tableofcontents
+
 \section{Introduction}
 
 The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing interaction networks or bipartite group-element graphs, the question is:
@@ -59,23 +61,32 @@ Useful upper bounds for $p_{ij}$ are
 p_{ij} \leq \min\left( 1, \frac{k_ik_j}{2M}\right) \leq \frac{k_ik_j}{2M}.
 \end{equation}
 
+\subsection{Within and between variables}
+
+The \texttt{EdgeCount} package considers two types of edge-count variables:
+\begin{itemize}
+\item "within" for the number $z$ of edges observed in a given set $S$ of vertices
+\item "between" for the number $z$ of edges observed between two sets $S_1$ and $S_2$ of vertices
+\end{itemize}
+Observed values $z$ are obviously dependent of set sizes, but they should also be made conditional to degrees of the vertices in the set(s). Hence, to an observed value $z$ is associated a corresponding random variable $Z$ in the RGGED.
+
 \subsection{Edge-count distributions}
 
-Edge-count random variables in the RGGED model of a large and sparse graph have approximate Poisson distribution. This is because they are the sum of independent Bernoulli random variables with small parameters $p_{ij} \ll 1$ \cite{lecam1960approximation, kerstan1964verallgemeinerung, JCB}.
+Edge-count random variables in the RGGED model of a large and sparse graph have approximate Poisson distribution. This is because they are the sum of independent Bernoulli random variables with small parameters $p_{ij} \ll 1$, even when these parameters have different values \cite{lecam1960approximation, kerstan1964verallgemeinerung, JCB}.
 
 Call $Z$ an edge-count random variable defined by the sum of $m$ potential edges, each edge corresponding to a pair $v_iv_j$ of vertices:
 \begin{equation}
 Z = \sum_{u=1}^m B_u \quad \text{with} \quad B_u \sim \text{Bernoulli} \left(p_u = p_{ij} \right).
 \end{equation}
 
-Then we have $Z \sim \text{Poisson} \left(\lambda, m\right)$ as defined by
+Then, we have $Z \sim \text{Poisson} \left(\lambda, m\right)$ as defined by
 
 \begin{equation}
 \Pr \left( Z = z \right) = \frac{e^{-\lambda}}{\alpha}\frac{\lambda^z}{z!} \quad \text{with} \quad \lambda = \sum_{u=1}^m p_u \quad \text{and} \quad
 \alpha = e^{-\lambda} \sum_{x=0}^m \frac{\lambda^x}{x!}.
 \end{equation}
 
-The normalization factor $\alpha$ is utilized because an observed number $z$ of edges is bounded by the maximum number $m$ of edges. This said, we have $\alpha \simeq 1$ when $p_{ij} \ll 1$.
+The normalization factor $\alpha$ is utilized because an observed number $z$ of edges is bounded by a maximum number $m$ of edges. This said, we have $\alpha \simeq 1$ when $p_{ij} \ll 1$. This is numerically illustrated next.
 
 
 <<alpha_simulation_side_by_side, echo=TRUE, fig=TRUE, height=5, width=10>>=
@@ -121,6 +132,16 @@ legend("topright", legend=paste("pij =", pij_values),
        col=colors, lwd=2, bty="n", cex=1)
 @
 
+For a within variable associated to a set $S$ we have
+\begin{equation}
+m = \left| S \right| \left(\left| S \right| -1 \right)/2 \quad \text{and} \quad \lambda = \sum_{i < j, \in S} p_{ij}.
+\end{equation}
+For a between variable associated to two sets $S_1$ and $S_2$ we have
+\begin{equation}
+m = \left| S_1 \right| \left| S_2 \right|  \quad \text{and} \quad \lambda = \sum_{i \in S_1 j, \in S_2} p_{ij}.
+\end{equation}
+
+
 \subsection{Edge-count p-values}
 
 \subsection{Edge-count effect sizes}
@@ -153,7 +174,7 @@ The p-value, or the likelihood of observing $x$ or more edges, is:
 \end{equation}
 
 
-The addition of 3/8 stems from the work of \cite{anscombe1948}, who showed that $\sqrt{X + 3/8}$ is the optimal variance-stabilizing transformation for Poisson data. The $lAr$ metric is effectively the log-ratio of these variance-stabilized values.
+The addition of 3/8 stems from the work of \cite{anscombe1948}, who showed that $\sqrt{X + 3/8}$ is the optimal variance-stabilizing transformation for Poisson data. The $lAr$ metric is effectively the log2-ratio of these variance-stabilized values.
 
 \section{Algorithmic Optimization}
 
