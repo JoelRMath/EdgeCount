@@ -15,7 +15,19 @@
 \date{\today}
 
 \begin{document}
-\SweaveOpts{concordance=TRUE}
+
+<<setup, include=FALSE>>=
+library(knitr)
+opts_chunk$set(
+  prompt = FALSE,
+  comment = NA,
+  highlight = TRUE,
+  background = '#F7F7F7',
+  tidy = FALSE,
+  fig.align = 'center',
+  out.width = '0.7\\textwidth'
+)
+@
 
 \maketitle
 
@@ -89,7 +101,7 @@ Then, we have $Z \sim \text{Poisson} \left(\lambda, m\right)$ as defined by
 The normalization factor $\alpha$ is utilized because an observed number $z$ of edges is bounded by a maximum number $m$ of edges. This said, we have $\alpha \simeq 1$ when $p_{ij} \ll 1$. This is numerically illustrated next.
 
 
-<<alpha_simulation_side_by_side, echo=TRUE, fig=TRUE, height=5, width=10>>=
+<<alpha_simulation_side_by_side, echo=TRUE, fig=TRUE, fig.height=5, fig.width=10, out.width='1\\textwidth'>>=
 # Function to calculate alpha and its complement
 get_alpha_stats <- function(m, pij_avg) {
   lambda <- m * pij_avg
@@ -149,7 +161,7 @@ Since the distribution of an edge-count variable is easily computed, p-values ar
 
 P-values are calculated with \texttt{R} function \texttt{ppois}.
 
-<<alpha_simulation_side_by_side, echo=TRUE, eval=FALSE>>=
+<<p_value_calculation, echo=TRUE, eval=FALSE>>=
 alpha <- stats::ppois(m, lambda, lower.tail = TRUE)
 p_value <- (stats::ppois(z - 1, lambda, lower.tail = FALSE) -
               stats::ppois(m, lambda, lower.tail = FALSE)) / alpha
@@ -184,16 +196,15 @@ A condition for sparseness in the \texttt{EdgeCount} framework is
 This sparseness condition can be tested with method \texttt{summarize\_suitability\_fast}. For unipartite graphs (interaction networks), the relevant method is that of class \texttt{ECProb}. For bipartite graphs (group-element networks), the appropriate method is that of class \texttt{ECTermScoring}.
 The method returns a list containing the proportion \texttt{pij\_over\_1} of $(k_ik_j)/(2M) \geq 1$. An ideally sparse graph yields \texttt{pij\_over\_1} = 0.
 
-Now, approximate $p_{ij}$ values with $k_ik_j/(2M)$ is a conservative approach with respect to the RGGED. Namely, using this approximation
+Now, approximating $p_{ij}$ values with $k_ik_j/(2M)$ is a conservative approach in the RGGED. Namely, using this approximation
 \begin{itemize}
-\item[-] overestimates $p_ij$ values,
+\item[-] overestimates $p_{ij}$ values,
+\item[-] overestimates lambda values,
 \item[-] overestimates edge-count p-values,
 \item[-] underestimates effect sizes.
 \end{itemize}
 
-Therefore, utilizing this approximation by default is a reasonable approach.
-
-The approximation is called {\bf fast approximation} because it enables faster calculation of edge-count statistics.
+Therefore, utilizing this approximation by default is a reasonable approach. The approximation is called {\bf fast approximation} because it enables faster calculation of edge-count statistics. The speedup is obtained in the computation of lambda parameters.
 
 \subsection{Within set connectedness}
 
@@ -201,21 +212,176 @@ Consider a vertex set $S$ of size $\left| S \right| = n$. With the fast approxim
 \begin{equation}
 \lambda_{in} = \sum_{i < j, \in S} \frac{k_i k_j}{2M}.
 \end{equation}
-A naive implementation would have time complexity $\mathcal{O} \left( n^2 \right)$. Now, recall the expression for the square of a sum
+A naive implementation would have time complexity $\mathcal{O} \left( n^2 \right)$. Recall the expression for the square of a sum
 \begin{equation}
 \left( \sum_{i \in S} k_i \right)^2 = \sum_{i \in S} k_i^2 + 2 \sum_{i < j} k_i k_j.
 \end{equation}
-Rearranging the cross terms yields
+Rearranging the cross terms
 \begin{equation}
-\sum_{i < j} k_i k_j = \frac{1}{2} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right].
+\sum_{i < j} k_i k_j = \frac{1}{2} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right],
 \end{equation}
+and substituting in the expression for lambda yields
+\begin{equation}
+\lambda_{in} = \frac{1}{4M} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right].
+\end{equation}
+
+With this expression the computation of $\lambda_{in}$ has now linear time complexity: $\mathcal{O}\left( n \right)$. Method \texttt{edge\_count\_statistics()} of class \texttt{ECProb} when used with argument \texttt{lambda\_method = "fast"} implements this linear computation. Method \texttt{calculate\_in\_stats\_fast\_vectorized()} is an implementation of "within" edge count statistics for multiple sets provided as input. This method is fully vectorized and uses the \texttt{data.table} package \cite{datatable2025}. Here is a numerical illustration that its implementation achieves optimal, linear here, time complexity.
+
+<<complexity_in_simulation, echo=TRUE, fig=TRUE, fig.height=5, fig.width=5>>=
+library(data.table)
+library(EdgeCount)
+data("sample_ecg")
+ecprob <- ECProb(sample_ecg)
+n_sim <- 5
+n_collections <- 10
+collection_size_universe <- seq(10, 1000, length.out = n_collections)
+set_size_universe <- 10:100
+set.seed(1)
+
+get_collection <- function(target_n_sets){
+  n_sets <- round(target_n_sets)
+  sets <- lapply(1:n_sets, function(x){
+    set_size <- sample(set_size_universe, 1)
+    sample(ecprob@names, set_size)
+  })
+  set_membership_dt <- data.table(
+    set_id = rep(seq_along(sets), lengths(sets)),
+    element = unlist(sets)
+  )
+  return(set_membership_dt)
+}
+
+collections <- lapply(collection_size_universe, get_collection)
+results_list <- lapply(collections, function(set_membership_dt){
+  sets_dt <- data.table(set_id = unique(set_membership_dt$set_id))
+  times <- numeric(n_sim)
+  res <- NULL
+  for(k in 1:n_sim){
+    start_time <- Sys.time()
+    capture.output(
+      res <- calculate_in_stats_fast_vectorized(ecprob, sets_dt, set_membership_dt)
+    )
+    end_time <- Sys.time()
+    times[k] <- as.numeric(end_time - start_time, units = "secs")
+  }
+  complexity <- sum(res$set_size, na.rm = TRUE)
+  data.table(complexity = complexity, time = min(times))
+})
+
+results_dt <- rbindlist(results_list)
+
+lm_model <- lm(time ~ complexity, data = results_dt)
+r_sq <- summary(lm_model)$r.squared
+
+plot(results_dt$complexity, results_dt$time, pch=19, cex=1.2,
+     xlab = "Complexity (total vertices processed)",
+     ylab = "Execution time (s)",
+     main = paste("Linear complexity verification\nR-squared =", round(r_sq, 4)))
+abline(lm_model, col = "darkgrey", lwd=2)
+points(results_dt$complexity, results_dt$time, pch=19, cex=1.2)
+@
+
+
+The execution time scales linearly with the optimal time complexity, which is the sum of the set sizes in each set collection used as input.
+
+The fast approximation of $p_{ij}$ also enables optimal computation of "between" connectedness statistics.
+
+\subsection{Between sets connectedness}
+
+Consider two disjoint vertex sets $S_1$ and $S_2$ with sizes $n_1$ and $n_2$. With the fast approximation, the $\lambda$ parameter is
+\begin{equation}
+\lambda_{btw} = \sum_{i \in S_1, j \in S_2} \frac{k_i k_j}{2M}.
+\end{equation}
+A naive implementation summing over all pairs would have time complexity $\mathcal{O} \left( n_1 n_2 \right)$. However, the expression can be factored as the product of two independent sums:
+\begin{equation}
+\lambda_{btw} = \frac{1}{2M} \left( \sum_{i \in S_1} k_i \right) \left( \sum_{j \in S_2} k_j \right).
+\end{equation}
+
+This factorization reduces the calculation to simply summing the degrees within each set and multiplying the results. Consequently, the computation of $\lambda_{btw}$ has linear time complexity: $\mathcal{O}\left( n_1 + n_2 \right)$.
+
+Fast calculation of 'between' edge-count statistics for a single pair of sets is implemented in method \texttt{edge\_count\_statistics()} of class \texttt{ECProb} by setting both arguments \texttt{set1} and \texttt{set2} to non-null vectors and by using \texttt{lambda\_method = "fast"}.
+
+For multiple pairs of sets, the appropriatedmethod is
+\texttt{calculate\_between\_stats\_fast\_vectorized()}. It implements the fast approximation and is fully vectorized in parts by using the \texttt{data.table} package \cite{datatable2025}. The following simulation confirms that it achieves optimal, linear here, time complexity.
+
+<<complexity_between_simulation, echo=TRUE, fig=TRUE, fig.height=5, fig.width=5>>=
+library(data.table)
+library(EdgeCount)
+data("sample_ecg")
+ecprob <- ECProb(sample_ecg)
+
+n_sim <- 10
+n_collections <- 10
+n_pairs_universe <- seq(500, 5000, length.out = n_collections)
+set_size_universe <- 10:50
+set.seed(123)
+
+get_between_collection <- function(n_pairs){
+
+  n_pairs <- round(n_pairs)
+  total_sets <- 2 * n_pairs
+
+  sets <- lapply(1:total_sets, function(x) {
+    sample(ecprob@names, sample(set_size_universe, 1))
+  })
+
+  set_membership_dt <- data.table(
+    set_id = rep(seq_along(sets), lengths(sets)),
+    element = unlist(sets)
+  )
+
+  pairs_dt <- data.table(
+    set1 = seq(1, total_sets, by = 2),
+    set2 = seq(2, total_sets, by = 2)
+  )
+
+  return(list(pairs = pairs_dt, membership = set_membership_dt))
+}
+
+collections_btw <- lapply(n_pairs_universe, get_between_collection)
+
+results_list_btw <- lapply(collections_btw, function(input_data){
+
+  pairs_dt <- input_data$pairs
+  membership_dt <- input_data$membership
+
+  times <- numeric(n_sim)
+  res <- NULL
+
+  for(k in 1:n_sim){
+    start_time <- Sys.time()
+    temp_res <- NULL
+    capture.output(
+      temp_res <- calculate_between_stats_fast_vectorized(ecprob, pairs_dt, membership_dt)
+    )
+    res <- temp_res
+    end_time <- Sys.time()
+    times[k] <- as.numeric(end_time - start_time, units = "secs")
+  }
+
+  complexity <- sum(res$size1, na.rm = TRUE) + sum(res$size2, na.rm = TRUE)
+
+  data.table(complexity = complexity, time = min(times))
+})
+
+results_dt_btw <- rbindlist(results_list_btw)
+
+lm_model_btw <- lm(time ~ complexity, data = results_dt_btw)
+r_sq_btw <- summary(lm_model_btw)$r.squared
+
+plot(results_dt_btw$complexity, results_dt_btw$time, pch=19, cex=1.2,
+     xlab = "Complexity (sum of set sizes)",
+     ylab = "Execution time (s)",
+     main = paste("Between-set linear complexity\nR-squared =", round(r_sq_btw, 4)))
+abline(lm_model_btw, col = "darkgrey", lwd=2)
+points(results_dt_btw$complexity, results_dt_btw$time, pch=19, cex=1.2)
+@
 
 
 \bibliographystyle{plain}
 \bibliography{theory}
 
 \end{document}
-
 
 
 

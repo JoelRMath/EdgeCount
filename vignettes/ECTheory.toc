@@ -5,3 +5,4 @@
 \contentsline {subsection}{\numberline {2.3}Edge-count effect size}{4}{subsection.2.3}%
 \contentsline {section}{\numberline {3}Fast approximations for sparse graphs}{5}{section.3}%
 \contentsline {subsection}{\numberline {3.1}Within set connectedness}{5}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Between sets connectedness}{7}{subsection.3.2}%

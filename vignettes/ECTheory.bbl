@@ -5,6 +5,12 @@ Francis~J. Anscombe.
 \newblock The transformation of poisson, binomial and negative-binomial data.
 \newblock {\em Biometrika}, 35(3/4):246--254, 1948.
 
+\bibitem{datatable2025}
+T~Barrett, M~Dowle, A~Srinivasan, J~Gorecki, M~Chirico, T~Hocking,
+  B~Schwendinger, and I~Krylov.
+\newblock {\em data.table: Extension of 'data.frame'}, 2025.
+\newblock R package version 1.17.99.
+
 \bibitem{bender1978asymptotic}
 Edward~A Bender and E~Rodney Canfield.
 \newblock The asymptotic number of labelled graphs with given degree sequences.
