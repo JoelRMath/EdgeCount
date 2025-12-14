@@ -1,13 +1,7 @@
 \contentsline {section}{\numberline {1}Introduction}{1}{section.1}%
-\contentsline {section}{\numberline {2}Random graph model}{2}{section.2}%
+\contentsline {section}{\numberline {2}Random graph model}{1}{section.2}%
 \contentsline {subsection}{\numberline {2.1}Within and between variables}{2}{subsection.2.1}%
-\contentsline {subsection}{\numberline {2.2}Edge-count distributions}{2}{subsection.2.2}%
-\contentsline {subsection}{\numberline {2.3}Edge-count p-values}{4}{subsection.2.3}%
-\contentsline {subsection}{\numberline {2.4}Edge-count effect sizes}{4}{subsection.2.4}%
-\contentsline {section}{\numberline {3}Fast approximations for sparse graphs}{4}{section.3}%
-\contentsline {section}{\numberline {4}Edge Count Probabilities}{4}{section.4}%
-\contentsline {section}{\numberline {5}Algorithmic Optimization}{5}{section.5}%
-\contentsline {subsection}{\numberline {5.1}Within-Set Connectedness}{5}{subsection.5.1}%
-\contentsline {subsection}{\numberline {5.2}Between-Set Connectedness}{5}{subsection.5.2}%
-\contentsline {section}{\numberline {6}Effect Size: The Anscombe Ratio}{6}{section.6}%
-\contentsline {section}{\numberline {7}Vertex Set Enrichment Analysis (VSEA)}{6}{section.7}%
+\contentsline {subsection}{\numberline {2.2}Edge-count distribution}{2}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Edge-count effect size}{4}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Fast approximations for sparse graphs}{5}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Within set connectedness}{5}{subsection.3.1}%

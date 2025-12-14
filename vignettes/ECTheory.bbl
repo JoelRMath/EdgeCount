@@ -71,19 +71,4 @@ J~Pradines, V~Farutin, S~Rowley, and V~Dancik.
   in random graphs with given expected degrees.
 \newblock {\em Journal of Computational Biology}, 12(2):113--128, 2005.
 
-\bibitem{WAP}
-JR~Pradines, N~Cilfone, A~Ghavami, V~Farutin, E~Kurtagic, J~Guess, A~Manning,
-  and I~Capila.
-\newblock Enhancing reproducibility of gene-expression analysis with known
-  protein functional relationships: the concept of well-associated protein.
-\newblock {\em PLOS Computational Biology}, 16(2):e1007684, 2020.
-
-\bibitem{subramanian2005}
-A~Subramanian, P~Tamayo, VK~Mootha, S~Mukherjee, BL~Ebert, MA~Gillette,
-  A~Paulovich, SL~Pomeroy, TR~Golub, ES~Lander, and JP~Mesirov.
-\newblock Gene set enrichment analysis: a knowledge-based approach for
-  interpreting genome-wide expression profiles.
-\newblock {\em Proceedings of the National Academy of Sciences},
-  102(43):15545--15550, 2005.
-
 \end{thebibliography}

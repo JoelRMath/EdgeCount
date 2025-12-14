@@ -68,9 +68,9 @@ The \texttt{EdgeCount} package considers two types of edge-count variables:
 \item "within" for the number $z$ of edges observed in a given set $S$ of vertices
 \item "between" for the number $z$ of edges observed between two sets $S_1$ and $S_2$ of vertices
 \end{itemize}
-Observed values $z$ are obviously dependent of set sizes, but they should also be made conditional to degrees of the vertices in the set(s). Hence, to an observed value $z$ is associated a corresponding random variable $Z$ in the RGGED.
+Observed values $z$ are obviously dependent on set sizes, but they should also be made conditional to degrees of the vertices in the set(s). Hence, to an observed value $z$ is associated a corresponding random variable $Z$ in the RGGED.
 
-\subsection{Edge-count distributions}
+\subsection{Edge-count distribution}
 
 Edge-count random variables in the RGGED model of a large and sparse graph have approximate Poisson distribution. This is because they are the sum of independent Bernoulli random variables with small parameters $p_{ij} \ll 1$, even when these parameters have different values \cite{lecam1960approximation, kerstan1964verallgemeinerung, JCB}.
 
@@ -93,8 +93,8 @@ The normalization factor $\alpha$ is utilized because an observed number $z$ of 
 # Function to calculate alpha and its complement
 get_alpha_stats <- function(m, pij_avg) {
   lambda <- m * pij_avg
-  alpha <- ppois(m, lambda)
-  alpha_comp <- ppois(m, lambda, lower.tail = FALSE)
+  alpha <- stats::ppois(m, lambda)
+  alpha_comp <- stats::ppois(m, lambda, lower.tail = FALSE)
   return(c(alpha, alpha_comp))
 }
 # Parameters
@@ -132,49 +132,92 @@ legend("topright", legend=paste("pij =", pij_values),
        col=colors, lwd=2, bty="n", cex=1)
 @
 
-For a within variable associated to a set $S$ we have
+For a within variable associated with a set $S$ we have
 \begin{equation}
 m = \left| S \right| \left(\left| S \right| -1 \right)/2 \quad \text{and} \quad \lambda = \sum_{i < j, \in S} p_{ij}.
 \end{equation}
-For a between variable associated to two sets $S_1$ and $S_2$ we have
+For a between variable associated with two sets $S_1$ and $S_2$ we have
 \begin{equation}
-m = \left| S_1 \right| \left| S_2 \right|  \quad \text{and} \quad \lambda = \sum_{i \in S_1 j, \in S_2} p_{ij}.
+m = \left| S_1 \right| \left| S_2 \right|  \quad \text{and} \quad \lambda = \sum_{i \in S_1, j \in S_2} p_{ij}.
 \end{equation}
 
+Since the distribution of an edge-count variable is easily computed, p-values are also calculated.
 
-\subsection{Edge-count p-values}
+\begin{equation}
+\Pr\left( Z \geq z \right) = \sum_{x=z}^{m} \Pr \left( Z = x\right).
+\end{equation}
 
-\subsection{Edge-count effect sizes}
+P-values are calculated with \texttt{R} function \texttt{ppois}.
+
+<<alpha_simulation_side_by_side, echo=TRUE, eval=FALSE>>=
+alpha <- stats::ppois(m, lambda, lower.tail = TRUE)
+p_value <- (stats::ppois(z - 1, lambda, lower.tail = FALSE) -
+              stats::ppois(m, lambda, lower.tail = FALSE)) / alpha
+@
+
+The Poisson distribution enables quantification of the variability on vertex degree introduced by the RGGED. In the model, the degree of a vertex $v_i$ with initial degree $k_i$ is a random variable $K_i$ defined by the edge count between this vertex and all the others:
+\begin{equation}
+\lambda_i = \frac{k_i}{2M}\sum_{j\neq i}k_j \simeq k_i.
+\end{equation}
+That is, $K_i$ has mean $k_i$ and standard deviation $\sqrt{k_i}$. The introduced relative variability on $k_i$ is reasonable: $1/\sqrt{k_i}$.
+
+\subsection{Edge-count effect size}
+
+As explained earlier, the RGGED is not directly utilized as a null model to answer a question. Rather, it is used as an intermediate step that enables fair and fast comparison of diverse observed edge counts. Such a comparison can be between two edge-count variables defined by sets of different sizes. In this case, an effect size is the most appropriate quantity for comparison.
+
+Because edge-count random variables have Poisson distribution, the utilized effect size is
+
+\begin{equation}
+\log_2 \text{Anscombe ratio:} \quad lAr \left(z, \lambda \right) = \frac{1}{2} \log_2 \frac{z + 3/8}{\lambda + 3/8}.
+\end{equation}
+
+The addition of 3/8 stems from the work of Anscombe \cite{anscombe1948}, who showed that $\sqrt{X + 3/8}$ is the optimal variance-stabilizing transformation for a Poisson random variable $X$.
+
 
 \section{Fast approximations for sparse graphs}
 
-For sparse graphs where $\max(k_i k_j) \ll 2M$, this approximates the probability of edge formation in random graphs with fixed degrees. When the graph is sufficiently sparse (as determined by the package function \texttt{summarize\_suitability\_fast}), we can use the approximation:
-\begin{equation} \label{eq:fast_pij}
-p_{ij} \approx \frac{k_i k_j}{2M}
-\end{equation}
-This approximation is central to the algorithmic efficiency of the package, as it allows for the factorization of degree sums.
-
-\section{Edge Count Probabilities}
-
-Let $Z$ be a random variable representing the count of edges in a specific subgraph configuration (e.g., edges within a set). $Z$ is the sum of independent Bernoulli trials. While the exact distribution of $Z$ is a Poisson-Binomial distribution, it is well-approximated by a Poisson distribution (or a truncated Poisson distribution) when probabilities $p_{ij}$ are small \cite{JCB}.
-
-The probability of observing $z$ edges is approximated by:
+A condition for sparseness in the \texttt{EdgeCount} framework is
 \begin{equation}
-P(Z = z) = \frac{e^{-\lambda}}{\alpha} \frac{\lambda^z}{z!}
+\max_{i,j} \frac{k_ik_j}{2M} < 1.
 \end{equation}
-where:
+
+This sparseness condition can be tested with method \texttt{summarize\_suitability\_fast}. For unipartite graphs (interaction networks), the relevant method is that of class \texttt{ECProb}. For bipartite graphs (group-element networks), the appropriate method is that of class \texttt{ECTermScoring}.
+The method returns a list containing the proportion \texttt{pij\_over\_1} of $(k_ik_j)/(2M) \geq 1$. An ideally sparse graph yields \texttt{pij\_over\_1} = 0.
+
+Now, approximate $p_{ij}$ values with $k_ik_j/(2M)$ is a conservative approach with respect to the RGGED. Namely, using this approximation
 \begin{itemize}
-    \item $\lambda = \mathbb{E}[Z] = \sum p_{ij}$ is the expected number of edges.
-    \item $\alpha = e^{-\lambda} \sum_{h=0}^{m} \frac{\lambda^h}{h!}$ is the normalization factor accounting for the maximum possible number of edges $m$ in the subgraph.
+\item[-] overestimates $p_ij$ values,
+\item[-] overestimates edge-count p-values,
+\item[-] underestimates effect sizes.
 \end{itemize}
 
-The p-value, or the likelihood of observing $x$ or more edges, is:
+Therefore, utilizing this approximation by default is a reasonable approach.
+
+The approximation is called {\bf fast approximation} because it enables faster calculation of edge-count statistics.
+
+\subsection{Within set connectedness}
+
+Consider a vertex set $S$ of size $\left| S \right| = n$. With the fast approximation the $\lambda$ parameter is
 \begin{equation}
-\text{p-value} = P(Z \geq x) = \frac{e^{-\lambda}}{\alpha} \sum_{h=x}^{m} \frac{\lambda^h}{h!}
+\lambda_{in} = \sum_{i < j, \in S} \frac{k_i k_j}{2M}.
+\end{equation}
+A naive implementation would have time complexity $\mathcal{O} \left( n^2 \right)$. Now, recall the expression for the square of a sum
+\begin{equation}
+\left( \sum_{i \in S} k_i \right)^2 = \sum_{i \in S} k_i^2 + 2 \sum_{i < j} k_i k_j.
+\end{equation}
+Rearranging the cross terms yields
+\begin{equation}
+\sum_{i < j} k_i k_j = \frac{1}{2} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right].
 \end{equation}
 
 
-The addition of 3/8 stems from the work of \cite{anscombe1948}, who showed that $\sqrt{X + 3/8}$ is the optimal variance-stabilizing transformation for Poisson data. The $lAr$ metric is effectively the log2-ratio of these variance-stabilized values.
+\bibliographystyle{plain}
+\bibliography{theory}
+
+\end{document}
+
+
+
 
 \section{Algorithmic Optimization}
 
@@ -239,7 +282,4 @@ Standard GSEA uses a Kolmogorov-Smirnov-like running sum statistic. In VSEA, the
 
 Crucially, because $\lambda_i$ accounts for the degrees of the elements in $S_i$, \textbf{VSEA inherently penalizes hubs}. If the top-ranked elements are merely "sticky" (high degree) but not specifically connected to Term $T$, $\lambda_i$ will be very high, reducing the $lAr$ score. This distinguishes VSEA from standard hypergeometric enrichment which only counts overlaps, ignoring the varying likelihood of connections for high-degree elements.
 
-\bibliographystyle{plain}
-\bibliography{theory}
 
-\end{document}
