@@ -1,8 +1,8 @@
 #' @include ECProb.R
 #' @title ECTermScoring S4 Class
 #'
-#' @description The main class for EdgeCount analysis, representing a bipartite
-#' graph of term-element memberships. It extends the ECProb class.
+#' @description The main class for EdgeCount analysis with bipartite graphs, representing a bipartite
+#' network of term-element memberships. It extends the ECProb class.
 #'
 #' @slot ecprob An object of class ECProb, representing the underlying
 #'    undirected version of the bipartite graph.
@@ -780,7 +780,7 @@ setMethod("run_vsea",
           "ECTermScoring",
           function(object,
                    element_ranks,
-                   scoring_statistic = "log2_Anscombe_ratio", # Kept for signature compatibility
+                   scoring_statistic = "log2_Anscombe_ratio",
                    n_permutations = 1000,
                    n_cores = NULL,
                    seed = NULL) {

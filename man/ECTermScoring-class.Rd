@@ -12,8 +12,8 @@
 \item{object}{An ECTermScoring object}
 }
 \description{
-The main class for EdgeCount analysis, representing a bipartite
-graph of term-element memberships. It extends the ECProb class.
+The main class for EdgeCount analysis with bipartite graphs, representing a bipartite
+network of term-element memberships. It extends the ECProb class.
 }
 \section{Methods (by generic)}{
 \itemize{

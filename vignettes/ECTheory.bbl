@@ -1,5 +1,13 @@
 \begin{thebibliography}{10}
 
+\bibitem{sample_ecg_data}
+Dataset: sample\_ecg.
+\newblock \texttt{sample\_ecg} is a subset of the human STRING network (version
+  12.0) with interaction scores of 900 or higher. Vertex IDs are Entrez Gene
+  IDs (see Carlson, 2019). The network has been trimmed to create a smaller,
+  more manageable example for the package's vignettes and tests. Source:
+  string-db.org. Data from STRING is licensed under CC BY 4.0., 2025.
+
 \bibitem{anscombe1948}
 Francis~J. Anscombe.
 \newblock The transformation of poisson, binomial and negative-binomial data.
@@ -76,5 +84,12 @@ J~Pradines, V~Farutin, S~Rowley, and V~Dancik.
 \newblock Analyzing protein lists with large networks: edge-count probabilities
   in random graphs with given expected degrees.
 \newblock {\em Journal of Computational Biology}, 12(2):113--128, 2005.
+
+\bibitem{szklarczyk2023}
+D~Szklarczyk, R~Kirsch, M~Koutrouli, K~Nastou, F~Mehryary, R~Hachilif,
+  AL~Gable, T~Fang, N~T Doncheva, S~Pyysalo, et~al.
+\newblock The string database in 2023: protein--protein association networks
+  and functional enrichment analyses for any sequenced genome of interest.
+\newblock {\em Nucleic Acids Research}, 51(D1):D638--D646, 2023.
 
 \end{thebibliography}

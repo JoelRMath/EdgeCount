@@ -60,7 +60,7 @@ Let $G(V, E)$ be an undirected graph with no loops and no multiple edges.
     \item Let $\left< k \right>$ be the the average vertex degree.
 \end{itemize}
 
-Call degree sequence of $G$ the nonincreasing sequence of all vertex degrees. An obvious null model for $G$ is that of a random graph whose realizations always preserve the degree sequence. This model is referred to as the Random Graph with Fixed Degree Sequence (RGFDS). However, it is known that the analytical treatment of the RGFDS is a difficult problem \cite{bender1978asymptotic, molloy1995critical, itzkovitz2003subgraphs, park2004statistical}. Namely, deriving simple analytical expressions for the likelihoods of edge-count variables is in general hard with the RGFDS. This implies that slow numerical methods based on simulations must be used \cite{maslov2002specificity, milo2002network, milo2003uniform}.
+Call the degree sequence of $G$ the nonincreasing sequence of all its vertex degrees. An obvious null model for $G$ is that of a random graph whose realizations always preserve the degree sequence. This model is referred to as the Random Graph with Fixed Degree Sequence (RGFDS). However, it is known that the analytical treatment of the RGFDS is a difficult problem \cite{bender1978asymptotic, molloy1995critical, itzkovitz2003subgraphs, park2004statistical}. Namely, deriving simple analytical expressions for the likelihoods of edge-count variables is in general hard with the RGFDS. This implies that slow numerical methods based on simulations must be used \cite{maslov2002specificity, milo2002network, milo2003uniform}.
 
 A less constrained random graph model than the RGFDS is the Random Graph with Given Expected Degrees (RGGED) \cite{chung2002connected,RGGED2}.  While an individual realization of the RGGED might not preserve a vertex degree, it is preserved on average over all realizations. The key feature of the RGGED is that edges are treated as independent random variables, enabling the derivation of analytical expressions for the distributions of edge-count variables \cite{JCB}.
 
@@ -80,7 +80,7 @@ The \texttt{EdgeCount} package considers two types of edge-count variables:
 \item "within" for the number $z$ of edges observed in a given set $S$ of vertices
 \item "between" for the number $z$ of edges observed between two sets $S_1$ and $S_2$ of vertices
 \end{itemize}
-Observed values $z$ are obviously dependent on set sizes, but they should also be made conditional to degrees of the vertices in the set(s). Hence, to an observed value $z$ is associated a corresponding random variable $Z$ in the RGGED.
+Observed values $z$ are obviously dependent on set sizes, but they should also be made conditional to degrees of the vertices in the sets. Hence, to an observed value $z$ is associated a corresponding random variable $Z$ in the RGGED.
 
 \subsection{Edge-count distribution}
 
@@ -159,7 +159,7 @@ Since the distribution of an edge-count variable is easily computed, p-values ar
 \Pr\left( Z \geq z \right) = \sum_{x=z}^{m} \Pr \left( Z = x\right).
 \end{equation}
 
-P-values are calculated with \texttt{R} function \texttt{ppois}.
+P-values are calculated with \texttt{R} function \texttt{ppois()}.
 
 <<p_value_calculation, echo=TRUE, eval=FALSE>>=
 alpha <- stats::ppois(m, lambda, lower.tail = TRUE)
@@ -167,7 +167,7 @@ p_value <- (stats::ppois(z - 1, lambda, lower.tail = FALSE) -
               stats::ppois(m, lambda, lower.tail = FALSE)) / alpha
 @
 
-The Poisson distribution enables quantification of the variability on vertex degree introduced by the RGGED. In the model, the degree of a vertex $v_i$ with initial degree $k_i$ is a random variable $K_i$ defined by the edge count between this vertex and all the others:
+The Poisson distribution enables quantification of the variability on vertex degree modeled by the RGGED. In the model, the degree of a vertex $v_i$ with initial degree $k_i$ is a random variable $K_i$ defined by the edge count between this vertex and all the others:
 \begin{equation}
 \lambda_i = \frac{k_i}{2M}\sum_{j\neq i}k_j \simeq k_i.
 \end{equation}
@@ -175,7 +175,7 @@ That is, $K_i$ has mean $k_i$ and standard deviation $\sqrt{k_i}$. The introduce
 
 \subsection{Edge-count effect size}
 
-As explained earlier, the RGGED is not directly utilized as a null model to answer a question. Rather, it is used as an intermediate step that enables fair and fast comparison of diverse observed edge counts. Such a comparison can be between two edge-count variables defined by sets of different sizes. In this case, an effect size is the most appropriate quantity for comparison.
+As explained earlier, the RGGED is not directly utilized as a null model to answer a question. Rather, it is used as an intermediate step that enables fair and fast comparison of diverse observed edge counts. Such a comparison can be between edge-count variables defined by sets of different sizes. In this case, an effect size is the most appropriate quantity for comparison.
 
 Because edge-count random variables have Poisson distribution, the utilized effect size is
 
@@ -186,15 +186,19 @@ Because edge-count random variables have Poisson distribution, the utilized effe
 The addition of 3/8 stems from the work of Anscombe \cite{anscombe1948}, who showed that $\sqrt{X + 3/8}$ is the optimal variance-stabilizing transformation for a Poisson random variable $X$.
 
 
-\section{Fast approximations for sparse graphs}
+\section{Fast methods for sparse interaction networks}
+
+All the code for representation and analysis of undirected unipartite graphs (interaction networks) is contained in S4 clasees \texttt{ECGraph} and \texttt{ECProb}.
+
+\subsection{Sparseness condition}
 
 A condition for sparseness in the \texttt{EdgeCount} framework is
 \begin{equation}
 \max_{i,j} \frac{k_ik_j}{2M} < 1.
 \end{equation}
 
-This sparseness condition can be tested with method \texttt{summarize\_suitability\_fast}. For unipartite graphs (interaction networks), the relevant method is that of class \texttt{ECProb}. For bipartite graphs (group-element networks), the appropriate method is that of class \texttt{ECTermScoring}.
-The method returns a list containing the proportion \texttt{pij\_over\_1} of $(k_ik_j)/(2M) \geq 1$. An ideally sparse graph yields \texttt{pij\_over\_1} = 0.
+This sparseness condition can be tested with method \texttt{summarize\_suitability\_fast()} of class \texttt{ECProb}.
+The method returns a list containing the proportion \texttt{pij\_over\_1}, among all possible pairs $v_i,v_j$ of vertices, of pairs such that ve$(k_ik_j)/(2M) \geq 1$. An ideally sparse graph yields \texttt{pij\_over\_1} = 0.
 
 Now, approximating $p_{ij}$ values with $k_ik_j/(2M)$ is a conservative approach in the RGGED. Namely, using this approximation
 \begin{itemize}
@@ -204,9 +208,9 @@ Now, approximating $p_{ij}$ values with $k_ik_j/(2M)$ is a conservative approach
 \item[-] underestimates effect sizes.
 \end{itemize}
 
-Therefore, utilizing this approximation by default is a reasonable approach. The approximation is called {\bf fast approximation} because it enables faster calculation of edge-count statistics. The speedup is obtained in the computation of lambda parameters.
+Therefore, utilizing this approximation by default is a reasonable approach. The approximation is called "fast approximation" because it enables faster calculation of edge-count statistics. The speedup is obtained in the computation of lambda parameters.
 
-\subsection{Within set connectedness}
+\subsection{Within-set connectedness}
 
 Consider a vertex set $S$ of size $\left| S \right| = n$. With the fast approximation the $\lambda$ parameter is
 \begin{equation}
@@ -225,7 +229,7 @@ and substituting in the expression for lambda yields
 \lambda_{in} = \frac{1}{4M} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right].
 \end{equation}
 
-With this expression the computation of $\lambda_{in}$ has now linear time complexity: $\mathcal{O}\left( n \right)$. Method \texttt{edge\_count\_statistics()} of class \texttt{ECProb} when used with argument \texttt{lambda\_method = "fast"} implements this linear computation. Method \texttt{calculate\_in\_stats\_fast\_vectorized()} is an implementation of "within" edge count statistics for multiple sets provided as input. This method is fully vectorized and uses the \texttt{data.table} package \cite{datatable2025}. Here is a numerical illustration that its implementation achieves optimal, linear here, time complexity.
+With this expression the computation of $\lambda_{in}$ has now linear time complexity: $\mathcal{O}\left( n \right)$. Method \texttt{edge\_count\_statistics()} of class \texttt{ECProb} when used with argument \texttt{lambda\_method = "fast"} implements this linear computation. Method \texttt{calculate\_in\_stats\_fast\_vectorized()} is an implementation of "within" edge count statistics for multiple sets provided as input. This method is fully vectorized and uses the \texttt{data.table} package \cite{datatable2025}. Here is a numerical illustration that the implementation achieves optimal, linear here, time complexity.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to evidence linearity.} The illustration is based on the interaction network \texttt{sample\_ecg} contained in the \texttt{EdgeCount} package and derived from the STRING database \cite{szklarczyk2023, sample_ecg_data}.
 
 <<complexity_in_simulation, echo=TRUE, fig=TRUE, fig.height=5, fig.width=5>>=
 library(data.table)
@@ -282,11 +286,11 @@ points(results_dt$complexity, results_dt$time, pch=19, cex=1.2)
 @
 
 
-The execution time scales linearly with the optimal time complexity, which is the sum of the set sizes in each set collection used as input.
+The execution time scales linearly (R-squared value close to 1) with the optimal time complexity, which is the sum of the set sizes in each set collection used as input.
 
 The fast approximation of $p_{ij}$ also enables optimal computation of "between" connectedness statistics.
 
-\subsection{Between sets connectedness}
+\subsection{Between-sets connectedness}
 
 Consider two disjoint vertex sets $S_1$ and $S_2$ with sizes $n_1$ and $n_2$. With the fast approximation, the $\lambda$ parameter is
 \begin{equation}
@@ -301,8 +305,8 @@ This factorization reduces the calculation to simply summing the degrees within 
 
 Fast calculation of 'between' edge-count statistics for a single pair of sets is implemented in method \texttt{edge\_count\_statistics()} of class \texttt{ECProb} by setting both arguments \texttt{set1} and \texttt{set2} to non-null vectors and by using \texttt{lambda\_method = "fast"}.
 
-For multiple pairs of sets, the appropriatedmethod is
-\texttt{calculate\_between\_stats\_fast\_vectorized()}. It implements the fast approximation and is fully vectorized in parts by using the \texttt{data.table} package \cite{datatable2025}. The following simulation confirms that it achieves optimal, linear here, time complexity.
+For multiple pairs of sets, the appropriate method is
+\texttt{calculate\_between\_stats\_fast\_vectorized()}. It implements the fast approximation and is fully vectorized in parts by using the \texttt{data.table} package \cite{datatable2025}. The following simulation confirms that it achieves optimal, linear here, time complexity.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to evidence linearity.}
 
 <<complexity_between_simulation, echo=TRUE, fig=TRUE, fig.height=5, fig.width=5>>=
 library(data.table)
@@ -377,6 +381,33 @@ abline(lm_model_btw, col = "darkgrey", lwd=2)
 points(results_dt_btw$complexity, results_dt_btw$time, pch=19, cex=1.2)
 @
 
+\section{Fast methods for sparse bipartite networks}
+
+Class \texttt{ECTermScoring} complements the functionality of
+\texttt{ECGraph} and \texttt{ECProb} to the case of undirected bipartite graphs. These represent here membership of elements within groups, called terms in the package.
+
+\subsection{Sparseness condition}
+
+Call $\mathcal{T}$ the set of vertices that represent terms and $\mathcal{E}$ the set of elements. The sparseness condition is:
+\begin{equation}
+\max_{i \in \mathcal{T}, j \in \mathcal{E}} \frac{k_ik_j}{2M} < 1.
+\end{equation}
+This is the sparseness condition already presented for interaction networks, but adapted to edges existing only between terms and elements. Method \texttt{summarize\_suitability\_fast()} of class \texttt{ECTermScoring} is used to test this condition. The method returns a list containing the proportion \texttt{pij\_over\_1}, among all possible pairs $v_i, v_j$, of values $(k_ik_j)/(2M) \geq 1$. An ideally sparse graph yields \texttt{pij\_over\_1} = 0.
+
+But as mentioned for interaction networks, approximating $p_{ij}$ values with $k_ik_j/(2M)$ is a conservative approach in the RGGED. Namely, using this approximation
+\begin{itemize}
+\item[-] overestimates $p_{ij}$ values,
+\item[-] overestimates lambda values,
+\item[-] overestimates edge-count p-values,
+\item[-] underestimates effect sizes.
+\end{itemize}
+
+Therefore, utilizing this approximation by default is a reasonable approach.
+
+\subsection{Fast approximation}
+
+The fast approximation implemented in
+\texttt{ECTermScoring} is the same used in \texttt{ECProb} for between connectedeness, but applied to edge counts between elements and terms.
 
 \bibliographystyle{plain}
 \bibliography{theory}

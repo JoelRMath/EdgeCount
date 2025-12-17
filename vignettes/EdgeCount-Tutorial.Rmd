@@ -495,7 +495,7 @@ set.seed(1)
 plot_graph(g)
 ```
 
-This is verified by using method `summarize_suitability_fast` of `ECProb`.
+This is verified by using method `summarize_suitability_fast()` of `ECProb`.
 
 ```{r suitability_sparse}
 suitability_stats <- summarize_suitability_fast(ecp)
@@ -570,7 +570,7 @@ Object `sample_ecp` is utilized next to provide examples of `ECProb` uses.
 
 Example of connectedness analyses within an undirected, unipartite graph are now presented.
 
-### Tests for *within-set* connectedness
+### Tests for 'within-set' connectedness
 
 These tests answer the question: "Are the vertices of a given set $S$ more connected to each other than expected by chance?" 
 
@@ -607,7 +607,7 @@ statsA <- edge_count_statistics(sample_ecp,
 statsA
 ```
 
-Method `edge_count_statistics` returns a list:
+Method `edge_count_statistics()` returns a list:
 
 - `$observed_edge_count` $x$ is the observed number of edges, here the edge count within `setA`
 - `max_possible_edges` $m$ is the maximum number of edges one could observe in the RGGED, here the number of pairs withing `setA`, i.e. $(7\times6)/2 = 21$
@@ -764,7 +764,7 @@ p4 <- ggplot(annotated_results, aes(x = log2_Anscombe_ratio)) +
 (p1 + p2) / (p3 + p4)
 ```
 
-### Tests for *between-sets* connectedness
+### Tests for 'between-sets' connectedness
 
 These tests answer the question: "Are two given vertex sets $S_1$ and $S_2$ more connected to each other than expected by chance?"
 To answer these questions two things are implemented.
@@ -776,7 +776,7 @@ The 'between-sets' connectedness is a concept different from that of 'within-con
 
 #### Basic method
 
-The basic method is again `edge_count_statistics`. Two sets $S_1$ and $S_2$ are passed as arguments, and argument `observed_edge_count` is now obtained with method `get_edge_count_between`.
+The basic method is again `edge_count_statistics()`. Two sets $S_1$ and $S_2$ are passed as arguments, and argument `observed_edge_count` is now obtained with method `get_edge_count_between()`.
 
 Below is an example with two vertex sets represented in bipartite network `sample_ects` and tested for their 'between connectedness' with interaction network `sample_ecg` and its `ECProb` instance `sample_ecp`.
 
@@ -808,7 +808,7 @@ stats
 ```
 
 
-Method `edge_count_statistics` returns a list:
+Method `edge_count_statistics()` returns a list:
 
 - `$observed_edge_count` $x$ is the observed number of edges, here the edge count between the disjoint parts of `set1` and `set2`
 - `max_possible_edges` $m$ is the maximum number of edges one could observe in the RGGED, here the number of possible edges between the disjoint parts of `set1` and `set2` reduced to vertices represented in the `ECProb` object, that is $5\times 6 = 30$.
@@ -902,7 +902,7 @@ p_A + p_B
 
 The last examples showed how to test a single pair of sets for their between connectedness in an interaction network. When dealing with multiple pairs, it is better to utilize a vectorized method which has been optimized for speed and takes a data table of pairs as argument. Note that this method relies on a fast lambda approximation. 
 
-Method `calculate_between_stats_fast_vectorized` has the following arguments
+Method `calculate_between_stats_fast_vectorized()` has the following arguments
 
 - `object`: the `ECProb` object representing an interaction network
 - `pairs_dt`: a data table of pairs of set identifiers ("set1_id", "set2_id")
@@ -924,7 +924,7 @@ number_of_pairs
 
 Because `sample_ecp` is a sparse network, it is better to focus on pairs that are connected by at least one edge in the interaction network. Indeed, if a pair of sets has no interaction, its p-value is 1 and we can ignore it: 
 $$p_{S_1,S_2} = 1 \quad \text{and} \quad \text{lAr } = \log_2 \frac{3/8}{\lambda+3/8} < 0.$$
-The package contains `ECProb` method `get_disjoint_connected_pairs` that efficiently reduces a data table of set pairs to those pairs that are at least connected by one edge through their disjoint parts (the between connectedness is estimated on the disjoint parts). 
+The package contains `ECProb` method `get_disjoint_connected_pairs()` that efficiently reduces a data table of set pairs to those pairs that are at least connected by one edge through their disjoint parts (the between connectedness is estimated on the disjoint parts). 
 
 Below is the application to pairs of sets derived from `sample_ects`.
 
@@ -941,9 +941,9 @@ connected_pairs
 nrow(connected_pairs)
 signif(nrow(connected_pairs)/number_of_pairs, 2)
 ```
-Note that method `get_disjoint_connected_pairs` has a third optional argument `sets` that can be utilized to focus on some of the sets represented in the second argument `set_membership`. The method rapidly returms a much smaller number of pairs (0.75%) than the full Cartesian product.
+Note that method `get_disjoint_connected_pairs()` has a third optional argument `sets` that can be utilized to focus on some of the sets represented in the second argument `set_membership`. The method rapidly returms a much smaller number of pairs (0.75%) than the full Cartesian product.
 
-Next, `connected_pairs` are efficiently scored for their between connectedness with method `calculate_between_stats_fast_vectorized`. This method is fully vectorized by using the `data.table` package [@datatable2025] and fast lambda approximations.
+Next, `connected_pairs` are efficiently scored for their between connectedness with method `calculate_between_stats_fast_vectorized()`. This method is fully vectorized by using the `data.table` package [@datatable2025] and fast lambda approximations.
 
 ```{r vectorized_between}
 # fast calculation of between statistics for candidate pairs
@@ -1041,7 +1041,7 @@ Note that the constructor will fail if a vertex appears both as term and element
 
 ### Suitability for fast approximations
 
-The `@ecprob` slot of an `ECTermScoring` object allows for calculation of edge-count statistics on the underlying bipartite graph, including some based on fast lambda approximations. Because this graph is bipartite, any edge counting and associated statistics is done on edges between terms and elements. In particular, the method `summarize_suitability_fast`, used to check a graph for suitability to fast lambda approximations, is not optimal in the context of an `ECTermScoring` object. Instead, `ECTermScoring` contains method `summarize_suitability_bipartite` which is specifically designed for bipartite graphs.
+The `@ecprob` slot of an `ECTermScoring` object allows for calculation of edge-count statistics on the underlying bipartite graph, including some based on fast lambda approximations. Because this graph is bipartite, any edge counting and associated statistics is done on edges between terms and elements. In particular, the method `summarize_suitability_fast()`, used to check a graph for suitability to fast lambda approximations, is not optimal in the context of an `ECTermScoring` object. Instead, `ECTermScoring` contains its own method `summarize_suitability_bipartite()` which is specifically designed for bipartite graphs.
 
 Here is an example of small bipartite graph that is not optimal for fast lambda approximation.
 
@@ -1094,7 +1094,7 @@ system.time(suitability <- summarize_suitability_bipartite(sample_ects))
 suitability
 ```
 
-It was also built to have the same universe of human genes as `sample_ecp` (`sample_ecp <- ECProb(sample_ecg)`). Now, `sample_ecg` and `sample_ects` do not represent the same network: the first one represent interactions between genes/elements and the second one membership of elements in terms.
+It was also built to have the same universe of human genes as `sample_ecp` (`sample_ecp <- ECProb(sample_ecg)`). Now, `sample_ecg` and `sample_ects` do not represent the same network: the first one represents interactions between genes/elements and the second one membership of elements in terms.
 
 Methods of `ECTermScoring` are tailored to a bipartite network. This said, an `ECTermScoring` object has an `@ecprob` slot, thus making it possible to also utilize more general `ECProb` methods.
 
@@ -1166,11 +1166,11 @@ Results with `set_2` do not indicate strong connectedness to terms.
 
 Now, it is important to clarify the meaning of `p_value` as returned by method `terms_ecset_statistics`. It means here the probability of observing at least `observed_edge_count` between the selected set and the terms of the bipartite network **under the null model of RGGED** (similar to edges being rewired). `p_value` is a useful measure to compare matched terms, though `log2_Anscombe_ratio` is a better one. Since `sample_ects` contains no isolated elements (every element maps to at least one term), any random set will produce an edge count of at least one and a p-value less than 1. Namely, the distribution of p-values for random sets of elements drawn from `sample_ects` is not uniform.
 
-This distribution can be estimated with a vectorized version of `terms_ecset_statistics`.
+This distribution can be estimated with a vectorized version of `terms_ecset_statistics()`.
 
 #### Vectorized method
 
-Method `terms_ecset_statistics_vectorized` is similar to `terms_ecset_statistics` but it now accepts multiple sets as argument:
+Method `terms_ecset_statistics_vectorized()` is similar to `terms_ecset_statistics()` but it now accepts multiple sets as argument:
 
 - `input_sets`: a set-element data table with columns "set_id" and "element"
 
@@ -1192,7 +1192,7 @@ system.time(
 )
 ```
 
-The returned value `result` is a named list, where each name is a set_id and the value is the corresponding data table of statistics, such as in method `terms_ecset_statistics`, with columns `observed_edge_count`, `log2_Anscombe_ratio` and `p_value`.
+The returned value `result` is a named list, where each name is a set_id and the value is the corresponding data table of statistics, such as in method `terms_ecset_statistics()`, with columns `observed_edge_count`, `log2_Anscombe_ratio` and `p_value`.
 
 ```{r term_ecset_stat_control_1}
 random_stats_dt <- rbindlist(result, idcol = "set_id")
@@ -1222,10 +1222,10 @@ This is of course because only elements connected to at least one term are selec
 
 The distribution of RGGED p-values for connectedness of random sets to terms is not uniform. This implies that standard False Discovery Rate (FDR) corrections (like Benjamini-Hochberg) are not applicable.To provide a rigorous measure of significance, an Empirical FDR approach is used: compare the scores of the real set against a null distribution generated by drawing random element sets of the same size.
 
-Function `terms_ecset_statistics_fdr` of `ECTermScoring` is a wrapper performing the entire analysis:
+Method `terms_ecset_statistics_fdr()` of `ECTermScoring` is a wrapper performing the entire analysis:
 
-- Calculates raw statistics for the input set, as in `terms_ecset_statistics`
-- Generates `n_permutations` random sets of the same size, calculates Normalized Enrichment Score (NES), and estimates FDR q-values (function `calculate_empirical_fdr`).
+- Calculates raw statistics for the input set, as in `terms_ecset_statistics()`
+- Generates `n_permutations` random sets of the same size, calculates Normalized Enrichment Score (NES), and estimates FDR q-values (function `calculate_empirical_fdr()`).
 
 Below is the application to `set_1` (elements of term GO\:0005787).
 
@@ -1293,7 +1293,7 @@ The full process and its associated random experiment are described below:
 
 Sorting the results by ascending FDR q-values enables the user to detect terms significantly connected to top ranks (without defining a rank threshold) and below a desired false discovery rate.
 
-Here is a first trivial positive control for method `run_vsea`. Elements of a term of size 5 are given the top ranks.
+Here is a first trivial positive control for method `run_vsea()`. Elements of a term of size 5 are given the top ranks.
 
 ```{r vsea_pos1}
 term_id <- "GO:0000347"
@@ -1310,7 +1310,7 @@ max_summary[, (num_cols) := lapply(.SD, signif, digits = 3), .SDcols = num_cols]
 head(max_summary, 5)
 ```
 
-Using `run_vsea` correctly identifies the selected term `GO:0000347` based on its element ranks, as well as two related terms which have common elements.
+Using `run_vsea()` correctly identifies the selected term `GO:0000347` based on its element ranks, as well as two related terms which have common elements.
 
 
 Next is the obvious negative control of using random element ranks.
@@ -1360,7 +1360,7 @@ max_summary[, (num_cols) := lapply(.SD, signif, digits = 3), .SDcols = num_cols]
 head(max_summary, 8)
 ```
 
-Using `run_vsea` yields significantly-scoring terms that are related to known functions of the hub 'Vasoactive Intestinal Peptide' (VIP).
+Using `run_vsea()` yields significantly-scoring terms that are related to known functions of the hub 'Vasoactive Intestinal Peptide' (VIP).
 
 # References
 
