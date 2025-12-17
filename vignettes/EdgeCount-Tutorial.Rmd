@@ -576,7 +576,7 @@ These tests answer the question: "Are the vertices of a given set $S$ more conne
 
 Two things are implemented to answer this questions. 
 
-- First, the random experiment of choosing $S$ and counting edges is modeled and simulated.
+- First, the random experiment of choosing $S$ and counting edges is modeled and simulated. This defines the concept of chance.
 - Second, edge counts between simulated sets are compared in a fast and "fair" way. Fair means that degrees in set $S$ are taken into account by using the RGGED.
 
 #### Basic method 
@@ -769,7 +769,7 @@ p4 <- ggplot(annotated_results, aes(x = log2_Anscombe_ratio)) +
 These tests answer the question: "Are two given vertex sets $S_1$ and $S_2$ more connected to each other than expected by chance?"
 To answer these questions two things are implemented.
 
-- First, the random experiment of drawing two sets is modeled and simulated.
+- First, the random experiment of drawing two sets is modeled and simulated. This defines the concept of chance.
 - Second, a fast and "fair" way of comparing edge counts is implemented. This is achieved by using the RGGED which takes into account degrees of vertices in $S_1$ and $S_2$.
 
 The 'between-sets' connectedness is a concept different from that of 'within-connectedness' for individual sets. Do two sets 'talk' to each other, independently of their own internal connectedness? That is, pairs of sets are first reduced to their specific parts and then these two disjoint parts are tested for connectedness with each other. 
