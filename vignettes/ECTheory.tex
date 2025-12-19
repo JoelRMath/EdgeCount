@@ -1,4 +1,54 @@
-\documentclass{article}
+\documentclass{article}\usepackage[]{graphicx}\usepackage[]{xcolor}
+% maxwidth is the original width if it is less than linewidth
+% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+\definecolor{fgcolor}{rgb}{0.345, 0.345, 0.345}
+\newcommand{\hlnum}[1]{\textcolor[rgb]{0.686,0.059,0.569}{#1}}%
+\newcommand{\hlsng}[1]{\textcolor[rgb]{0.192,0.494,0.8}{#1}}%
+\newcommand{\hlcom}[1]{\textcolor[rgb]{0.678,0.584,0.686}{\textit{#1}}}%
+\newcommand{\hlopt}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hldef}[1]{\textcolor[rgb]{0.345,0.345,0.345}{#1}}%
+\newcommand{\hlkwa}[1]{\textcolor[rgb]{0.161,0.373,0.58}{\textbf{#1}}}%
+\newcommand{\hlkwb}[1]{\textcolor[rgb]{0.69,0.353,0.396}{#1}}%
+\newcommand{\hlkwc}[1]{\textcolor[rgb]{0.333,0.667,0.333}{#1}}%
+\newcommand{\hlkwd}[1]{\textcolor[rgb]{0.737,0.353,0.396}{\textbf{#1}}}%
+\let\hlipl\hlkwb
+
+\usepackage{framed}
+\makeatletter
+\newenvironment{kframe}{%
+ \def\at@end@of@kframe{}%
+ \ifinner\ifhmode%
+  \def\at@end@of@kframe{\end{minipage}}%
+  \begin{minipage}{\columnwidth}%
+ \fi\fi%
+ \def\FrameCommand##1{\hskip\@totalleftmargin \hskip-\fboxsep
+ \colorbox{shadecolor}{##1}\hskip-\fboxsep
+     % There is no \\@totalrightmargin, so:
+     \hskip-\linewidth \hskip-\@totalleftmargin \hskip\columnwidth}%
+ \MakeFramed {\advance\hsize-\width
+   \@totalleftmargin\z@ \linewidth\hsize
+   \@setminipage}}%
+ {\par\unskip\endMakeFramed%
+ \at@end@of@kframe}
+\makeatother
+
+\definecolor{shadecolor}{rgb}{.97, .97, .97}
+\definecolor{messagecolor}{rgb}{0, 0, 0}
+\definecolor{warningcolor}{rgb}{1, 0, 1}
+\definecolor{errorcolor}{rgb}{1, 0, 0}
+\newenvironment{knitrout}{}{} % an empty environment to be redefined in TeX
+
+\usepackage{alltt}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -13,24 +63,10 @@
 \title{EdgeCount: Statistical Theory and Algorithmic Efficiency}
 \author{Joel R. Pradines}
 \date{\today}
-
-\usepackage{Sweave}
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
 \begin{document}
 
-\begin{Schunk}
-\begin{Sinput}
-> library(knitr)
-> opts_chunk$set(
-+   prompt = FALSE,
-+   comment = NA,
-+   highlight = TRUE,
-+   background = '#F7F7F7',
-+   tidy = FALSE,
-+   fig.align = 'center',
-+   out.width = '0.7\\textwidth'
-+ )
-\end{Sinput}
-\end{Schunk}
+
 
 \maketitle
 
@@ -42,16 +78,20 @@
 
 \section{Introduction}
 
-The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing interaction networks or bipartite group-element graphs, the question is:
+The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing interaction networks or group-element (called term-element) networks, the main question is:
 
 \textit{Is an observed number of edges, called edge count, within a set (or between two sets) significantly higher than expected by chance?}
 
-To answer this, two components must be implemented.
+To answer this, the package implements a statistical framework built upon the Random Graph with Given Expected Degrees (RGGED) model \cite{chung2002connected,RGGED2}. The RGGED serves two distinct but related purposes depending on the analysis type:
 
-First, the random experiment defining the concept of \textit{chance} must be clearly specified and, in general, simulated to provide a control distribution.
-
-Second, one needs to be able to fairly compare edge-count values to each other. A fair comparison requires accounting for vertex degrees, as these may vary by orders of magnitude. This is achieved here by using a null model of random graphs that preserves the expected degrees of vertices \cite{chung2002connected,RGGED2}. Specifically, the average degree of a vertex over all random graph realizations matches its observed value in the original network. The analytical expressions for the likelihoods of edge-count variables in this model were derived in \cite{JCB}. These expressions enable fair and fast comparisons of edge-count values.
-
+\begin{itemize}
+    \item Fair comparison (scoring): The RGGED accounts for vertex degrees, which often vary by orders of magnitude. By using analytical expressions for the likelihood of edge counts in this model \cite{JCB}, the package allows for the fair and fast comparison of edge counts across different sets and graph topologies.
+    \item Null model specification:
+    \begin{itemize}
+        \item For interaction networks (unipartite graphs), the RGGED is utilized directly as the null model. The statistical significance of a set's connectedness is determined by comparing the observed edge count to the distribution under the RGGED on that specific set of vertices.
+        \item For term-element networks (bipartite graphs), the situation is more complex. Because analysis typically involves ranking multiple terms and filtering for existing connections (observed count of at least 1), the RGGED probability acts as a local score or effect size estimator. A second level of modeling—simulating the random selection of element sets—is then required to estimate False Discovery Rates (FDR) and assess global significance.
+    \end{itemize}
+\end{itemize}
 
 \section{Random graph model}
 
@@ -83,7 +123,8 @@ The \texttt{EdgeCount} package considers two types of edge-count variables:
 \item "within" for the number $z$ of edges observed in a given set $S$ of vertices
 \item "between" for the number $z$ of edges observed between two sets $S_1$ and $S_2$ of vertices
 \end{itemize}
-Observed values $z$ are obviously dependent on set sizes, but they should also be made conditional to degrees of the vertices in the sets. Hence, to an observed value $z$ is associated a corresponding random variable $Z$ in the RGGED.
+In this framework, the sets and the degrees of their constituent vertices are fixed parameters. Observed values $z$ are thus conditional on these degrees.
+To an observed value $z$ is associated a corresponding random variable $Z$ in the RGGED, which distribution enables assessment of the significance of the observed value $z$.
 
 \subsection{Edge-count distribution}
 
@@ -104,51 +145,58 @@ Then, we have $Z \sim \text{Poisson} \left(\lambda, m\right)$ as defined by
 The normalization factor $\alpha$ is utilized because an observed number $z$ of edges is bounded by a maximum number $m$ of edges. This said, we have $\alpha \simeq 1$ when $p_{ij} \ll 1$. This is numerically illustrated next.
 
 
-\begin{Schunk}
-\begin{Sinput}
-> # Function to calculate alpha and its complement
-> get_alpha_stats <- function(m, pij_avg) {
-+   lambda <- m * pij_avg
-+   alpha <- stats::ppois(m, lambda)
-+   alpha_comp <- stats::ppois(m, lambda, lower.tail = FALSE)
-+   return(c(alpha, alpha_comp))
-+ }
-> # Parameters
-> pij_values <- c(0.001, 0.01, 0.05, 0.1)
-> m_values <- c(1:29,seq(30, 1000, by = 10))
-> colors <- c("red", "blue", "green", "black")
-> # Plots
-> par(mfrow=c(1, 2), mar=c(5, 5, 4, 2) + 0.1, cex.lab=1.25,
-+     cex.axis=1.25, cex.main=1.25)
-> plot(1, type="n", xlab="Maximum possible edges (m)",
-+      ylab=expression(alpha),
-+      xlim=c(1, 1000), ylim=c(0.99, 1.00),
-+      log="x",
-+      main=expression(paste("Value of ", alpha, " (Linear)")))
-> for(i in seq_along(pij_values)) {
-+   lambdas <- m_values * pij_values[i]
-+   y_vals <- ppois(m_values, lambdas)
-+   lines(m_values, y_vals, col=colors[i], lwd=2)
-+ }
-> legend("bottomright", legend=paste("pij =", pij_values),
-+        col=colors, lwd=2, bty="n", cex=1)
-> epsilon <- 1e-16
-> plot(1, type="n", xlab="Maximum possible edges (m)",
-+      ylab=expression(1 - alpha),
-+      xlim=c(1, 1000), ylim=c(epsilon, 1),
-+      log="xy",
-+      main=expression(paste("Error ", 1 - alpha, " (Log Scale)")))
-> for(i in seq_along(pij_values)) {
-+   lambdas <- m_values * pij_values[i]
-+   y_vals <- ppois(m_values, lambdas, lower.tail = FALSE)
-+   y_vals <- pmax(y_vals, epsilon)
-+   lines(m_values, y_vals, col=colors[i], lwd=2)
-+ }
-> legend("topright", legend=paste("pij =", pij_values),
-+        col=colors, lwd=2, bty="n", cex=1)
-\end{Sinput}
-\end{Schunk}
-\includegraphics{ECTheory-alpha_simulation_side_by_side}
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlcom{# Function to calculate alpha and its complement}
+\hldef{get_alpha_stats} \hlkwb{<-} \hlkwa{function}\hldef{(}\hlkwc{m}\hldef{,} \hlkwc{pij_avg}\hldef{) \{}
+  \hldef{lambda} \hlkwb{<-} \hldef{m} \hlopt{*} \hldef{pij_avg}
+  \hldef{alpha} \hlkwb{<-} \hldef{stats}\hlopt{::}\hlkwd{ppois}\hldef{(m, lambda)}
+  \hldef{alpha_comp} \hlkwb{<-} \hldef{stats}\hlopt{::}\hlkwd{ppois}\hldef{(m, lambda,} \hlkwc{lower.tail} \hldef{=} \hlnum{FALSE}\hldef{)}
+  \hlkwd{return}\hldef{(}\hlkwd{c}\hldef{(alpha, alpha_comp))}
+\hldef{\}}
+\hlcom{# Parameters}
+\hldef{pij_values} \hlkwb{<-} \hlkwd{c}\hldef{(}\hlnum{0.001}\hldef{,} \hlnum{0.01}\hldef{,} \hlnum{0.05}\hldef{,} \hlnum{0.1}\hldef{)}
+\hldef{m_values} \hlkwb{<-} \hlkwd{c}\hldef{(}\hlnum{1}\hlopt{:}\hlnum{29}\hldef{,}\hlkwd{seq}\hldef{(}\hlnum{30}\hldef{,} \hlnum{1000}\hldef{,} \hlkwc{by} \hldef{=} \hlnum{10}\hldef{))}
+\hldef{colors} \hlkwb{<-} \hlkwd{c}\hldef{(}\hlsng{"red"}\hldef{,} \hlsng{"blue"}\hldef{,} \hlsng{"green"}\hldef{,} \hlsng{"black"}\hldef{)}
+\hlcom{# Plots}
+\hlkwd{par}\hldef{(}\hlkwc{mfrow}\hldef{=}\hlkwd{c}\hldef{(}\hlnum{1}\hldef{,} \hlnum{2}\hldef{),} \hlkwc{mar}\hldef{=}\hlkwd{c}\hldef{(}\hlnum{5}\hldef{,} \hlnum{5}\hldef{,} \hlnum{4}\hldef{,} \hlnum{2}\hldef{)} \hlopt{+} \hlnum{0.1}\hldef{,} \hlkwc{cex.lab}\hldef{=}\hlnum{1.25}\hldef{,}
+    \hlkwc{cex.axis}\hldef{=}\hlnum{1.25}\hldef{,} \hlkwc{cex.main}\hldef{=}\hlnum{1.25}\hldef{)}
+\hlkwd{plot}\hldef{(}\hlnum{1}\hldef{,} \hlkwc{type}\hldef{=}\hlsng{"n"}\hldef{,} \hlkwc{xlab}\hldef{=}\hlsng{"Maximum possible edges (m)"}\hldef{,}
+     \hlkwc{ylab}\hldef{=}\hlkwd{expression}\hldef{(alpha),}
+     \hlkwc{xlim}\hldef{=}\hlkwd{c}\hldef{(}\hlnum{1}\hldef{,} \hlnum{1000}\hldef{),} \hlkwc{ylim}\hldef{=}\hlkwd{c}\hldef{(}\hlnum{0.99}\hldef{,} \hlnum{1.00}\hldef{),}
+     \hlkwc{log}\hldef{=}\hlsng{"x"}\hldef{,}
+     \hlkwc{main}\hldef{=}\hlkwd{expression}\hldef{(}\hlkwd{paste}\hldef{(}\hlsng{"Value of "}\hldef{, alpha,} \hlsng{" (Linear)"}\hldef{)))}
+\hlkwa{for}\hldef{(i} \hlkwa{in} \hlkwd{seq_along}\hldef{(pij_values)) \{}
+  \hldef{lambdas} \hlkwb{<-} \hldef{m_values} \hlopt{*} \hldef{pij_values[i]}
+  \hldef{y_vals} \hlkwb{<-} \hlkwd{ppois}\hldef{(m_values, lambdas)}
+  \hlkwd{lines}\hldef{(m_values, y_vals,} \hlkwc{col}\hldef{=colors[i],} \hlkwc{lwd}\hldef{=}\hlnum{2}\hldef{)}
+\hldef{\}}
+\hlkwd{legend}\hldef{(}\hlsng{"bottomright"}\hldef{,} \hlkwc{legend}\hldef{=}\hlkwd{paste}\hldef{(}\hlsng{"pij ="}\hldef{, pij_values),}
+       \hlkwc{col}\hldef{=colors,} \hlkwc{lwd}\hldef{=}\hlnum{2}\hldef{,} \hlkwc{bty}\hldef{=}\hlsng{"n"}\hldef{,} \hlkwc{cex}\hldef{=}\hlnum{1}\hldef{)}
+\hldef{epsilon} \hlkwb{<-} \hlnum{1e-16}
+\hlkwd{plot}\hldef{(}\hlnum{1}\hldef{,} \hlkwc{type}\hldef{=}\hlsng{"n"}\hldef{,} \hlkwc{xlab}\hldef{=}\hlsng{"Maximum possible edges (m)"}\hldef{,}
+     \hlkwc{ylab}\hldef{=}\hlkwd{expression}\hldef{(}\hlnum{1} \hlopt{-} \hldef{alpha),}
+     \hlkwc{xlim}\hldef{=}\hlkwd{c}\hldef{(}\hlnum{1}\hldef{,} \hlnum{1000}\hldef{),} \hlkwc{ylim}\hldef{=}\hlkwd{c}\hldef{(epsilon,} \hlnum{1}\hldef{),}
+     \hlkwc{log}\hldef{=}\hlsng{"xy"}\hldef{,}
+     \hlkwc{main}\hldef{=}\hlkwd{expression}\hldef{(}\hlkwd{paste}\hldef{(}\hlsng{"Error "}\hldef{,} \hlnum{1} \hlopt{-} \hldef{alpha,} \hlsng{" (Log Scale)"}\hldef{)))}
+\hlkwa{for}\hldef{(i} \hlkwa{in} \hlkwd{seq_along}\hldef{(pij_values)) \{}
+  \hldef{lambdas} \hlkwb{<-} \hldef{m_values} \hlopt{*} \hldef{pij_values[i]}
+  \hldef{y_vals} \hlkwb{<-} \hlkwd{ppois}\hldef{(m_values, lambdas,} \hlkwc{lower.tail} \hldef{=} \hlnum{FALSE}\hldef{)}
+  \hldef{y_vals} \hlkwb{<-} \hlkwd{pmax}\hldef{(y_vals, epsilon)}
+  \hlkwd{lines}\hldef{(m_values, y_vals,} \hlkwc{col}\hldef{=colors[i],} \hlkwc{lwd}\hldef{=}\hlnum{2}\hldef{)}
+\hldef{\}}
+\hlkwd{legend}\hldef{(}\hlsng{"topright"}\hldef{,} \hlkwc{legend}\hldef{=}\hlkwd{paste}\hldef{(}\hlsng{"pij ="}\hldef{, pij_values),}
+       \hlkwc{col}\hldef{=colors,} \hlkwc{lwd}\hldef{=}\hlnum{2}\hldef{,} \hlkwc{bty}\hldef{=}\hlsng{"n"}\hldef{,} \hlkwc{cex}\hldef{=}\hlnum{1}\hldef{)}
+\end{alltt}
+\end{kframe}
+
+{\centering \includegraphics[width=1\textwidth]{figure/alpha_simulation_side_by_side-1} 
+
+}
+
+
+\end{knitrout}
 
 For a within variable associated with a set $S$ we have
 \begin{equation}
@@ -167,13 +215,15 @@ Since the distribution of an edge-count variable is easily computed, p-values ar
 
 P-values are calculated with \texttt{R} function \texttt{ppois()}.
 
-\begin{Schunk}
-\begin{Sinput}
-> alpha <- stats::ppois(m, lambda, lower.tail = TRUE)
-> p_value <- (stats::ppois(z - 1, lambda, lower.tail = FALSE) -
-+               stats::ppois(m, lambda, lower.tail = FALSE)) / alpha
-\end{Sinput}
-\end{Schunk}
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hldef{alpha} \hlkwb{<-} \hldef{stats}\hlopt{::}\hlkwd{ppois}\hldef{(m, lambda,} \hlkwc{lower.tail} \hldef{=} \hlnum{TRUE}\hldef{)}
+\hldef{p_value} \hlkwb{<-} \hldef{(stats}\hlopt{::}\hlkwd{ppois}\hldef{(z} \hlopt{-} \hlnum{1}\hldef{, lambda,} \hlkwc{lower.tail} \hldef{=} \hlnum{FALSE}\hldef{)} \hlopt{-}
+              \hldef{stats}\hlopt{::}\hlkwd{ppois}\hldef{(m, lambda,} \hlkwc{lower.tail} \hldef{=} \hlnum{FALSE}\hldef{))} \hlopt{/} \hldef{alpha}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
 
 The Poisson distribution enables quantification of the variability on vertex degree modeled by the RGGED. In the model, the degree of a vertex $v_i$ with initial degree $k_i$ is a random variable $K_i$ defined by the edge count between this vertex and all the others:
 \begin{equation}
@@ -237,59 +287,71 @@ and substituting in the expression for lambda yields
 \lambda_{in} = \frac{1}{4M} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right].
 \end{equation}
 
-With this expression the computation of $\lambda_{in}$ has now linear time complexity: $\mathcal{O}\left( n \right)$. Method \texttt{edge\_count\_statistics()} of class \texttt{ECProb} when used with argument \texttt{lambda\_method = "fast"} implements this linear computation. Method \texttt{calculate\_in\_stats\_fast\_vectorized()} is an implementation of "within" edge count statistics for multiple sets provided as input. This method is fully vectorized and uses the \texttt{data.table} package \cite{datatable2025}. Here is a numerical illustration that the implementation achieves optimal, linear here, time complexity.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to evidence linearity.} The illustration is based on the interaction network \texttt{sample\_ecg} contained in the \texttt{EdgeCount} package and derived from the STRING database \cite{szklarczyk2023, sample_ecg_data}.
+With this expression the computation of $\lambda_{in}$ has now linear time complexity: $\mathcal{O}\left( n \right)$. Method \texttt{edge\_count\_statistics()} of class \texttt{ECProb} when used with argument \texttt{lambda\_method = "fast"} implements this linear computation. Method \texttt{calculate\_in\_stats\_fast\_vectorized()} is an implementation of "within" edge count statistics for multiple sets provided as input. This method is fully vectorized and uses the \texttt{data.table} package \cite{datatable2025}. Here is a numerical illustration that the implementation achieves optimal, linear here, time complexity.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to clearly evidence linearity.} The illustration is based on the interaction network \texttt{sample\_ecg} contained in the \texttt{EdgeCount} package and derived from the STRING database \cite{szklarczyk2023, sample_ecg_data}.
 
-\begin{Schunk}
-\begin{Sinput}
-> library(data.table)
-> library(EdgeCount)
-> data("sample_ecg")
-> ecprob <- ECProb(sample_ecg)
-> n_sim <- 5
-> n_collections <- 10
-> collection_size_universe <- seq(10, 1000, length.out = n_collections)
-> set_size_universe <- 10:100
-> set.seed(1)
-> get_collection <- function(target_n_sets){
-+   n_sets <- round(target_n_sets)
-+   sets <- lapply(1:n_sets, function(x){
-+     set_size <- sample(set_size_universe, 1)
-+     sample(ecprob@names, set_size)
-+   })
-+   set_membership_dt <- data.table(
-+     set_id = rep(seq_along(sets), lengths(sets)),
-+     element = unlist(sets)
-+   )
-+   return(set_membership_dt)
-+ }
-> collections <- lapply(collection_size_universe, get_collection)
-> results_list <- lapply(collections, function(set_membership_dt){
-+   sets_dt <- data.table(set_id = unique(set_membership_dt$set_id))
-+   times <- numeric(n_sim)
-+   res <- NULL
-+   for(k in 1:n_sim){
-+     start_time <- Sys.time()
-+     capture.output(
-+       res <- calculate_in_stats_fast_vectorized(ecprob, sets_dt, set_membership_dt)
-+     )
-+     end_time <- Sys.time()
-+     times[k] <- as.numeric(end_time - start_time, units = "secs")
-+   }
-+   complexity <- sum(res$set_size, na.rm = TRUE)
-+   data.table(complexity = complexity, time = min(times))
-+ })
-> results_dt <- rbindlist(results_list)
-> lm_model <- lm(time ~ complexity, data = results_dt)
-> r_sq <- summary(lm_model)$r.squared
-> plot(results_dt$complexity, results_dt$time, pch=19, cex=1.2,
-+      xlab = "Complexity (total vertices processed)",
-+      ylab = "Execution time (s)",
-+      main = paste("Linear complexity verification\nR-squared =", round(r_sq, 4)))
-> abline(lm_model, col = "darkgrey", lwd=2)
-> points(results_dt$complexity, results_dt$time, pch=19, cex=1.2)
-\end{Sinput}
-\end{Schunk}
-\includegraphics{ECTheory-complexity_in_simulation}
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlkwd{library}\hldef{(data.table)}
+\hlkwd{library}\hldef{(EdgeCount)}
+\hlkwd{data}\hldef{(}\hlsng{"sample_ecg"}\hldef{)}
+\hldef{ecprob} \hlkwb{<-} \hlkwd{ECProb}\hldef{(sample_ecg)}
+\hldef{n_sim} \hlkwb{<-} \hlnum{5}
+\hldef{n_collections} \hlkwb{<-} \hlnum{10}
+\hldef{collection_size_universe} \hlkwb{<-} \hlkwd{seq}\hldef{(}\hlnum{10}\hldef{,} \hlnum{1000}\hldef{,} \hlkwc{length.out} \hldef{= n_collections)}
+\hldef{set_size_universe} \hlkwb{<-} \hlnum{10}\hlopt{:}\hlnum{100}
+\hlkwd{set.seed}\hldef{(}\hlnum{1}\hldef{)}
+
+\hldef{get_collection} \hlkwb{<-} \hlkwa{function}\hldef{(}\hlkwc{target_n_sets}\hldef{)\{}
+  \hldef{n_sets} \hlkwb{<-} \hlkwd{round}\hldef{(target_n_sets)}
+  \hldef{sets} \hlkwb{<-} \hlkwd{lapply}\hldef{(}\hlnum{1}\hlopt{:}\hldef{n_sets,} \hlkwa{function}\hldef{(}\hlkwc{x}\hldef{)\{}
+    \hldef{set_size} \hlkwb{<-} \hlkwd{sample}\hldef{(set_size_universe,} \hlnum{1}\hldef{)}
+    \hlkwd{sample}\hldef{(ecprob}\hlopt{@}\hlkwc{names}\hldef{, set_size)}
+  \hldef{\})}
+  \hldef{set_membership_dt} \hlkwb{<-} \hlkwd{data.table}\hldef{(}
+    \hlkwc{set_id} \hldef{=} \hlkwd{rep}\hldef{(}\hlkwd{seq_along}\hldef{(sets),} \hlkwd{lengths}\hldef{(sets)),}
+    \hlkwc{element} \hldef{=} \hlkwd{unlist}\hldef{(sets)}
+  \hldef{)}
+  \hlkwd{return}\hldef{(set_membership_dt)}
+\hldef{\}}
+
+\hldef{collections} \hlkwb{<-} \hlkwd{lapply}\hldef{(collection_size_universe, get_collection)}
+\hldef{results_list} \hlkwb{<-} \hlkwd{lapply}\hldef{(collections,} \hlkwa{function}\hldef{(}\hlkwc{set_membership_dt}\hldef{)\{}
+  \hldef{sets_dt} \hlkwb{<-} \hlkwd{data.table}\hldef{(}\hlkwc{set_id} \hldef{=} \hlkwd{unique}\hldef{(set_membership_dt}\hlopt{$}\hldef{set_id))}
+  \hldef{times} \hlkwb{<-} \hlkwd{numeric}\hldef{(n_sim)}
+  \hldef{res} \hlkwb{<-} \hlkwa{NULL}
+  \hlkwa{for}\hldef{(k} \hlkwa{in} \hlnum{1}\hlopt{:}\hldef{n_sim)\{}
+    \hldef{start_time} \hlkwb{<-} \hlkwd{Sys.time}\hldef{()}
+    \hlkwd{capture.output}\hldef{(}
+      \hldef{res} \hlkwb{<-} \hlkwd{calculate_in_stats_fast_vectorized}\hldef{(ecprob, sets_dt, set_membership_dt)}
+    \hldef{)}
+    \hldef{end_time} \hlkwb{<-} \hlkwd{Sys.time}\hldef{()}
+    \hldef{times[k]} \hlkwb{<-} \hlkwd{as.numeric}\hldef{(end_time} \hlopt{-} \hldef{start_time,} \hlkwc{units} \hldef{=} \hlsng{"secs"}\hldef{)}
+  \hldef{\}}
+  \hldef{complexity} \hlkwb{<-} \hlkwd{sum}\hldef{(res}\hlopt{$}\hldef{set_size,} \hlkwc{na.rm} \hldef{=} \hlnum{TRUE}\hldef{)}
+  \hlkwd{data.table}\hldef{(}\hlkwc{complexity} \hldef{= complexity,} \hlkwc{time} \hldef{=} \hlkwd{min}\hldef{(times))}
+\hldef{\})}
+
+\hldef{results_dt} \hlkwb{<-} \hlkwd{rbindlist}\hldef{(results_list)}
+
+\hldef{lm_model} \hlkwb{<-} \hlkwd{lm}\hldef{(time} \hlopt{~} \hldef{complexity,} \hlkwc{data} \hldef{= results_dt)}
+\hldef{r_sq} \hlkwb{<-} \hlkwd{summary}\hldef{(lm_model)}\hlopt{$}\hldef{r.squared}
+
+\hlkwd{plot}\hldef{(results_dt}\hlopt{$}\hldef{complexity, results_dt}\hlopt{$}\hldef{time,} \hlkwc{pch}\hldef{=}\hlnum{19}\hldef{,} \hlkwc{cex}\hldef{=}\hlnum{1.2}\hldef{,}
+     \hlkwc{xlab} \hldef{=} \hlsng{"Complexity (total vertices processed)"}\hldef{,}
+     \hlkwc{ylab} \hldef{=} \hlsng{"Execution time (s)"}\hldef{,}
+     \hlkwc{main} \hldef{=} \hlkwd{paste}\hldef{(}\hlsng{"Linear complexity verification\textbackslash{}nR-squared ="}\hldef{,} \hlkwd{round}\hldef{(r_sq,} \hlnum{4}\hldef{)))}
+\hlkwd{abline}\hldef{(lm_model,} \hlkwc{col} \hldef{=} \hlsng{"darkgrey"}\hldef{,} \hlkwc{lwd}\hldef{=}\hlnum{2}\hldef{)}
+\hlkwd{points}\hldef{(results_dt}\hlopt{$}\hldef{complexity, results_dt}\hlopt{$}\hldef{time,} \hlkwc{pch}\hldef{=}\hlnum{19}\hldef{,} \hlkwc{cex}\hldef{=}\hlnum{1.2}\hldef{)}
+\end{alltt}
+\end{kframe}
+
+{\centering \includegraphics[width=0.7\textwidth]{figure/complexity_in_simulation-1} 
+
+}
+
+
+\end{knitrout}
 
 
 The execution time scales linearly (R-squared value close to 1) with the optimal time complexity, which is the sum of the set sizes in each set collection used as input.
@@ -312,76 +374,90 @@ This factorization reduces the calculation to simply summing the degrees within 
 Fast calculation of 'between' edge-count statistics for a single pair of sets is implemented in method \texttt{edge\_count\_statistics()} of class \texttt{ECProb} by setting both arguments \texttt{set1} and \texttt{set2} to non-null vectors and by using \texttt{lambda\_method = "fast"}.
 
 For multiple pairs of sets, the appropriate method is
-\texttt{calculate\_between\_stats\_fast\_vectorized()}. It implements the fast approximation and is fully vectorized in parts by using the \texttt{data.table} package \cite{datatable2025}. The following simulation confirms that it achieves optimal, linear here, time complexity.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to evidence linearity.}
+\texttt{calculate\_between\_stats\_fast\_vectorized()}. It implements the fast approximation and is fully vectorized in parts by using the \texttt{data.table} package \cite{datatable2025}. The following simulation confirms that it achieves optimal, linear here, time complexity.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to clearly evidence linearity.}
 
-\begin{Schunk}
-\begin{Sinput}
-> library(data.table)
-> library(EdgeCount)
-> data("sample_ecg")
-> ecprob <- ECProb(sample_ecg)
-> n_sim <- 10
-> n_collections <- 10
-> n_pairs_universe <- seq(500, 5000, length.out = n_collections)
-> set_size_universe <- 10:50
-> set.seed(123)
-> get_between_collection <- function(n_pairs){
-+ 
-+   n_pairs <- round(n_pairs)
-+   total_sets <- 2 * n_pairs
-+ 
-+   sets <- lapply(1:total_sets, function(x) {
-+     sample(ecprob@names, sample(set_size_universe, 1))
-+   })
-+ 
-+   set_membership_dt <- data.table(
-+     set_id = rep(seq_along(sets), lengths(sets)),
-+     element = unlist(sets)
-+   )
-+ 
-+   pairs_dt <- data.table(
-+     set1 = seq(1, total_sets, by = 2),
-+     set2 = seq(2, total_sets, by = 2)
-+   )
-+ 
-+   return(list(pairs = pairs_dt, membership = set_membership_dt))
-+ }
-> collections_btw <- lapply(n_pairs_universe, get_between_collection)
-> results_list_btw <- lapply(collections_btw, function(input_data){
-+ 
-+   pairs_dt <- input_data$pairs
-+   membership_dt <- input_data$membership
-+ 
-+   times <- numeric(n_sim)
-+   res <- NULL
-+ 
-+   for(k in 1:n_sim){
-+     start_time <- Sys.time()
-+     temp_res <- NULL
-+     capture.output(
-+       temp_res <- calculate_between_stats_fast_vectorized(ecprob, pairs_dt, membership_dt)
-+     )
-+     res <- temp_res
-+     end_time <- Sys.time()
-+     times[k] <- as.numeric(end_time - start_time, units = "secs")
-+   }
-+ 
-+   complexity <- sum(res$size1, na.rm = TRUE) + sum(res$size2, na.rm = TRUE)
-+ 
-+   data.table(complexity = complexity, time = min(times))
-+ })
-> results_dt_btw <- rbindlist(results_list_btw)
-> lm_model_btw <- lm(time ~ complexity, data = results_dt_btw)
-> r_sq_btw <- summary(lm_model_btw)$r.squared
-> plot(results_dt_btw$complexity, results_dt_btw$time, pch=19, cex=1.2,
-+      xlab = "Complexity (sum of set sizes)",
-+      ylab = "Execution time (s)",
-+      main = paste("Between-set linear complexity\nR-squared =", round(r_sq_btw, 4)))
-> abline(lm_model_btw, col = "darkgrey", lwd=2)
-> points(results_dt_btw$complexity, results_dt_btw$time, pch=19, cex=1.2)
-\end{Sinput}
-\end{Schunk}
-\includegraphics{ECTheory-complexity_between_simulation}
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlkwd{library}\hldef{(data.table)}
+\hlkwd{library}\hldef{(EdgeCount)}
+\hlkwd{data}\hldef{(}\hlsng{"sample_ecg"}\hldef{)}
+\hldef{ecprob} \hlkwb{<-} \hlkwd{ECProb}\hldef{(sample_ecg)}
+
+\hldef{n_sim} \hlkwb{<-} \hlnum{10}
+\hldef{n_collections} \hlkwb{<-} \hlnum{10}
+\hldef{n_pairs_universe} \hlkwb{<-} \hlkwd{seq}\hldef{(}\hlnum{500}\hldef{,} \hlnum{5000}\hldef{,} \hlkwc{length.out} \hldef{= n_collections)}
+\hldef{set_size_universe} \hlkwb{<-} \hlnum{10}\hlopt{:}\hlnum{50}
+\hlkwd{set.seed}\hldef{(}\hlnum{123}\hldef{)}
+
+\hldef{get_between_collection} \hlkwb{<-} \hlkwa{function}\hldef{(}\hlkwc{n_pairs}\hldef{)\{}
+
+  \hldef{n_pairs} \hlkwb{<-} \hlkwd{round}\hldef{(n_pairs)}
+  \hldef{total_sets} \hlkwb{<-} \hlnum{2} \hlopt{*} \hldef{n_pairs}
+
+  \hldef{sets} \hlkwb{<-} \hlkwd{lapply}\hldef{(}\hlnum{1}\hlopt{:}\hldef{total_sets,} \hlkwa{function}\hldef{(}\hlkwc{x}\hldef{) \{}
+    \hlkwd{sample}\hldef{(ecprob}\hlopt{@}\hlkwc{names}\hldef{,} \hlkwd{sample}\hldef{(set_size_universe,} \hlnum{1}\hldef{))}
+  \hldef{\})}
+
+  \hldef{set_membership_dt} \hlkwb{<-} \hlkwd{data.table}\hldef{(}
+    \hlkwc{set_id} \hldef{=} \hlkwd{rep}\hldef{(}\hlkwd{seq_along}\hldef{(sets),} \hlkwd{lengths}\hldef{(sets)),}
+    \hlkwc{element} \hldef{=} \hlkwd{unlist}\hldef{(sets)}
+  \hldef{)}
+
+  \hldef{pairs_dt} \hlkwb{<-} \hlkwd{data.table}\hldef{(}
+    \hlkwc{set1} \hldef{=} \hlkwd{seq}\hldef{(}\hlnum{1}\hldef{, total_sets,} \hlkwc{by} \hldef{=} \hlnum{2}\hldef{),}
+    \hlkwc{set2} \hldef{=} \hlkwd{seq}\hldef{(}\hlnum{2}\hldef{, total_sets,} \hlkwc{by} \hldef{=} \hlnum{2}\hldef{)}
+  \hldef{)}
+
+  \hlkwd{return}\hldef{(}\hlkwd{list}\hldef{(}\hlkwc{pairs} \hldef{= pairs_dt,} \hlkwc{membership} \hldef{= set_membership_dt))}
+\hldef{\}}
+
+\hldef{collections_btw} \hlkwb{<-} \hlkwd{lapply}\hldef{(n_pairs_universe, get_between_collection)}
+
+\hldef{results_list_btw} \hlkwb{<-} \hlkwd{lapply}\hldef{(collections_btw,} \hlkwa{function}\hldef{(}\hlkwc{input_data}\hldef{)\{}
+
+  \hldef{pairs_dt} \hlkwb{<-} \hldef{input_data}\hlopt{$}\hldef{pairs}
+  \hldef{membership_dt} \hlkwb{<-} \hldef{input_data}\hlopt{$}\hldef{membership}
+
+  \hldef{times} \hlkwb{<-} \hlkwd{numeric}\hldef{(n_sim)}
+  \hldef{res} \hlkwb{<-} \hlkwa{NULL}
+
+  \hlkwa{for}\hldef{(k} \hlkwa{in} \hlnum{1}\hlopt{:}\hldef{n_sim)\{}
+    \hldef{start_time} \hlkwb{<-} \hlkwd{Sys.time}\hldef{()}
+    \hldef{temp_res} \hlkwb{<-} \hlkwa{NULL}
+    \hlkwd{capture.output}\hldef{(}
+      \hldef{temp_res} \hlkwb{<-} \hlkwd{calculate_between_stats_fast_vectorized}\hldef{(ecprob, pairs_dt, membership_dt)}
+    \hldef{)}
+    \hldef{res} \hlkwb{<-} \hldef{temp_res}
+    \hldef{end_time} \hlkwb{<-} \hlkwd{Sys.time}\hldef{()}
+    \hldef{times[k]} \hlkwb{<-} \hlkwd{as.numeric}\hldef{(end_time} \hlopt{-} \hldef{start_time,} \hlkwc{units} \hldef{=} \hlsng{"secs"}\hldef{)}
+  \hldef{\}}
+
+  \hldef{complexity} \hlkwb{<-} \hlkwd{sum}\hldef{(res}\hlopt{$}\hldef{size1,} \hlkwc{na.rm} \hldef{=} \hlnum{TRUE}\hldef{)} \hlopt{+} \hlkwd{sum}\hldef{(res}\hlopt{$}\hldef{size2,} \hlkwc{na.rm} \hldef{=} \hlnum{TRUE}\hldef{)}
+
+  \hlkwd{data.table}\hldef{(}\hlkwc{complexity} \hldef{= complexity,} \hlkwc{time} \hldef{=} \hlkwd{min}\hldef{(times))}
+\hldef{\})}
+
+\hldef{results_dt_btw} \hlkwb{<-} \hlkwd{rbindlist}\hldef{(results_list_btw)}
+
+\hldef{lm_model_btw} \hlkwb{<-} \hlkwd{lm}\hldef{(time} \hlopt{~} \hldef{complexity,} \hlkwc{data} \hldef{= results_dt_btw)}
+\hldef{r_sq_btw} \hlkwb{<-} \hlkwd{summary}\hldef{(lm_model_btw)}\hlopt{$}\hldef{r.squared}
+
+\hlkwd{plot}\hldef{(results_dt_btw}\hlopt{$}\hldef{complexity, results_dt_btw}\hlopt{$}\hldef{time,} \hlkwc{pch}\hldef{=}\hlnum{19}\hldef{,} \hlkwc{cex}\hldef{=}\hlnum{1.2}\hldef{,}
+     \hlkwc{xlab} \hldef{=} \hlsng{"Complexity (sum of set sizes)"}\hldef{,}
+     \hlkwc{ylab} \hldef{=} \hlsng{"Execution time (s)"}\hldef{,}
+     \hlkwc{main} \hldef{=} \hlkwd{paste}\hldef{(}\hlsng{"Between-set linear complexity\textbackslash{}nR-squared ="}\hldef{,} \hlkwd{round}\hldef{(r_sq_btw,} \hlnum{4}\hldef{)))}
+\hlkwd{abline}\hldef{(lm_model_btw,} \hlkwc{col} \hldef{=} \hlsng{"darkgrey"}\hldef{,} \hlkwc{lwd}\hldef{=}\hlnum{2}\hldef{)}
+\hlkwd{points}\hldef{(results_dt_btw}\hlopt{$}\hldef{complexity, results_dt_btw}\hlopt{$}\hldef{time,} \hlkwc{pch}\hldef{=}\hlnum{19}\hldef{,} \hlkwc{cex}\hldef{=}\hlnum{1.2}\hldef{)}
+\end{alltt}
+\end{kframe}
+
+{\centering \includegraphics[width=0.7\textwidth]{figure/complexity_between_simulation-1} 
+
+}
+
+
+\end{knitrout}
 
 \section{Fast methods for sparse bipartite networks}
 
@@ -408,8 +484,140 @@ Therefore, utilizing this approximation by default is a reasonable approach.
 
 \subsection{Fast approximation}
 
-The fast approximation implemented in
-\texttt{ECTermScoring} is the same used in \texttt{ECProb} for between connectedeness, but applied to edge counts between elements and terms.
+The fast approximation implemented in \texttt{ECTermScoring} is analogous to that used in \texttt{ECProb} for between-sets connectedness. Consider a set $S$ of elements and its term neighborhood $\mathcal{T}_S$ (terms connected to at least one element in $S$).
+
+The expected number of edges $\lambda$ in this subgraph is given by the double summation:
+\begin{equation}
+\lambda = \sum_{t \in \mathcal{T}_S} \sum_{e \in S} p_{et}.
+\end{equation}
+
+A naive calculation would have multiplicative time complexity $\mathcal{O}\left( |S| \cdot |\mathcal{T}_S| \right)$. However, utilizing the fast approximation $p_{et} = k_ek_t/(2M)$, the expression factors into the product of two sums:
+\begin{equation}
+ \lambda = \frac{1}{2M} \left( \sum_{t \in \mathcal{T}_S} k_t \right) \left( \sum_{e \in S} k_e \right).
+\end{equation}
+
+Consequently, the time complexity for scoring all terms in the neighborhood becomes additive: $\mathcal{O}\left( |S| + |\mathcal{T}_S| \right)$. More generally, the average time complexity $T(S)$ for a random set $S$ of elements scales as:
+\begin{equation}
+T(S) \sim \mathcal{O} \left( \left| S \right| \left( 1 + \left< k_e\right> \right) \right),
+\end{equation}
+where $\left< k_e \right>$ is the average element degree across the graph.
+
+\subsection{Scoring Terms against Element Sets}
+
+The primary analysis on bipartite graphs involves identifying which terms are significantly connected to a given set of elements.
+
+
+The basic method \texttt{terms\_ecset\_statistics()} calculates connectedness statistics for a single set of element against all its connected terms. These RGGED-based statistics can then be utilized to rank terms for their connectection strength to the set.
+
+This said, analyses often require scoring multiple sets simultaneously. Method \texttt{terms\_ecset\_statistics\_vectorized()} is optimized for this purpose. By utilizing the fast approximation derived in the previous section and \texttt{data.table} operations, it achieves linear time complexity. The following simulation verifies this linear scaling.\footnote{Such numerical results are always dependent on the utilized CPU . A faster machine might require larger simulated sets to clearly evidence linearity.} As explained before, linear complexity is the sum of the input elements processed plus the total number of term-element connections evaluated (the neighborhood size).
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlkwd{library}\hldef{(data.table)}
+\hlkwd{library}\hldef{(EdgeCount)}
+\hlkwd{data}\hldef{(}\hlsng{"sample_ects"}\hldef{)}
+
+\hlcom{# --- PART 1: Complexity Simulation ---}
+\hldef{n_sim} \hlkwb{<-} \hlnum{5}
+\hldef{n_points} \hlkwb{<-} \hlnum{10}
+\hldef{n_sets_universe} \hlkwb{<-} \hlkwd{seq}\hldef{(}\hlnum{50}\hldef{,} \hlnum{1000}\hldef{,} \hlkwc{length.out} \hldef{= n_points)}
+\hlkwd{set.seed}\hldef{(}\hlnum{123}\hldef{)}
+
+\hldef{results_list} \hlkwb{<-} \hlkwd{lapply}\hldef{(n_sets_universe,} \hlkwa{function}\hldef{(}\hlkwc{n_s}\hldef{)\{}
+  \hldef{n_s} \hlkwb{<-} \hlkwd{round}\hldef{(n_s)}
+
+  \hlcom{# Generate sets with variable sizes (10 to 50)}
+  \hldef{current_set_sizes} \hlkwb{<-} \hlkwd{sample}\hldef{(}\hlnum{10}\hlopt{:}\hlnum{50}\hldef{, n_s,} \hlkwc{replace} \hldef{=} \hlnum{TRUE}\hldef{)}
+  \hldef{random_elements} \hlkwb{<-} \hlkwd{unlist}\hldef{(}\hlkwd{lapply}\hldef{(current_set_sizes,} \hlkwa{function}\hldef{(}\hlkwc{sz}\hldef{) \{}
+    \hlkwd{sample}\hldef{(sample_ects}\hlopt{@}\hlkwc{elements}\hldef{, sz)}
+  \hldef{\}))}
+
+  \hldef{input_sets_dt} \hlkwb{<-} \hlkwd{data.table}\hldef{(}
+    \hlkwc{set_id} \hldef{=} \hlkwd{rep}\hldef{(}\hlkwd{paste0}\hldef{(}\hlsng{"S"}\hldef{,} \hlnum{1}\hlopt{:}\hldef{n_s),} \hlkwc{times} \hldef{= current_set_sizes),}
+    \hlkwc{element} \hldef{= random_elements}
+  \hldef{)}
+
+  \hldef{times} \hlkwb{<-} \hlkwd{numeric}\hldef{(n_sim)}
+  \hldef{res} \hlkwb{<-} \hlkwa{NULL}
+
+  \hlkwa{for}\hldef{(k} \hlkwa{in} \hlnum{1}\hlopt{:}\hldef{n_sim)\{}
+    \hldef{start_time} \hlkwb{<-} \hlkwd{Sys.time}\hldef{()}
+    \hlkwd{capture.output}\hldef{(}
+      \hldef{res} \hlkwb{<-} \hlkwd{terms_ecset_statistics_vectorized}\hldef{(sample_ects, input_sets_dt)}
+    \hldef{)}
+    \hldef{end_time} \hlkwb{<-} \hlkwd{Sys.time}\hldef{()}
+    \hldef{times[k]} \hlkwb{<-} \hlkwd{as.numeric}\hldef{(end_time} \hlopt{-} \hldef{start_time,} \hlkwc{units} \hldef{=} \hlsng{"secs"}\hldef{)}
+  \hldef{\}}
+
+  \hlcom{# Exact Complexity: Input size + Output Neighborhood size}
+  \hldef{total_neighborhood_size} \hlkwb{<-} \hlkwd{sum}\hldef{(}\hlkwd{vapply}\hldef{(res, nrow,} \hlkwd{integer}\hldef{(}\hlnum{1}\hldef{)))}
+  \hldef{true_complexity} \hlkwb{<-} \hlkwd{nrow}\hldef{(input_sets_dt)} \hlopt{+} \hldef{total_neighborhood_size}
+
+  \hlkwd{data.table}\hldef{(}\hlkwc{complexity} \hldef{= true_complexity,} \hlkwc{time} \hldef{=} \hlkwd{min}\hldef{(times))}
+\hldef{\})}
+
+\hldef{results_dt} \hlkwb{<-} \hlkwd{rbindlist}\hldef{(results_list)}
+\hldef{lm_model} \hlkwb{<-} \hlkwd{lm}\hldef{(time} \hlopt{~} \hldef{complexity,} \hlkwc{data} \hldef{= results_dt)}
+\hldef{r_sq} \hlkwb{<-} \hlkwd{summary}\hldef{(lm_model)}\hlopt{$}\hldef{r.squared}
+
+\hlcom{# --- PART 2: Generate Null Distribution ---}
+\hldef{n_hist_sets} \hlkwb{<-} \hlnum{10000}
+\hldef{hist_set_size} \hlkwb{<-} \hlnum{20}
+\hldef{hist_elements} \hlkwb{<-} \hlkwd{unlist}\hldef{(}\hlkwd{replicate}\hldef{(n_hist_sets,}
+                                  \hlkwd{sample}\hldef{(sample_ects}\hlopt{@}\hlkwc{elements}\hldef{, hist_set_size),}
+                                  \hlkwc{simplify} \hldef{=} \hlnum{FALSE}\hldef{))}
+\hldef{hist_input} \hlkwb{<-} \hlkwd{data.table}\hldef{(}
+  \hlkwc{set_id} \hldef{=} \hlkwd{rep}\hldef{(}\hlkwd{paste0}\hldef{(}\hlsng{"H"}\hldef{,} \hlnum{1}\hlopt{:}\hldef{n_hist_sets),} \hlkwc{each} \hldef{= hist_set_size),}
+  \hlkwc{element} \hldef{= hist_elements}
+\hldef{)}
+\hlkwd{capture.output}\hldef{(}
+  \hldef{hist_res} \hlkwb{<-} \hlkwd{terms_ecset_statistics_vectorized}\hldef{(sample_ects, hist_input)}
+\hldef{)}
+\end{alltt}
+\begin{verbatim}
+character(0)
+\end{verbatim}
+\begin{alltt}
+\hldef{hist_stats} \hlkwb{<-} \hlkwd{rbindlist}\hldef{(hist_res)}
+\hldef{p_values_sample} \hlkwb{<-} \hldef{hist_stats}\hlopt{$}\hldef{p_value}
+
+\hlcom{# --- PART 3: Base R Visualization ---}
+\hlkwd{par}\hldef{(}\hlkwc{mfrow}\hldef{=}\hlkwd{c}\hldef{(}\hlnum{1}\hldef{,} \hlnum{2}\hldef{),} \hlkwc{mar}\hldef{=}\hlkwd{c}\hldef{(}\hlnum{5}\hldef{,} \hlnum{4}\hldef{,} \hlnum{4}\hldef{,} \hlnum{2}\hldef{)} \hlopt{+} \hlnum{0.1}\hldef{)}
+
+\hlcom{# Plot A: Linear Complexity}
+\hlkwd{plot}\hldef{(results_dt}\hlopt{$}\hldef{complexity, results_dt}\hlopt{$}\hldef{time,} \hlkwc{pch}\hldef{=}\hlnum{19}\hldef{,} \hlkwc{col}\hldef{=}\hlsng{"purple"}\hldef{,}
+     \hlkwc{xlab} \hldef{=} \hlsng{"Complexity (|S| + |T_S|)"}\hldef{,}
+     \hlkwc{ylab} \hldef{=} \hlsng{"Execution Time (s)"}\hldef{,}
+     \hlkwc{main} \hldef{=} \hlkwd{paste}\hldef{(}\hlsng{"Vectorized Scoring Complexity\textbackslash{}nR-squared ="}\hldef{,} \hlkwd{round}\hldef{(r_sq,} \hlnum{4}\hldef{)))}
+\hlkwd{abline}\hldef{(lm_model,} \hlkwc{col}\hldef{=}\hlsng{"red"}\hldef{,} \hlkwc{lwd}\hldef{=}\hlnum{2}\hldef{)}
+
+\hlcom{# Plot B: Non-uniform P-value Distribution}
+\hlcom{# We use a high number of breaks and limit xlim to see the structure near 0}
+\hlkwd{hist}\hldef{(p_values_sample,} \hlkwc{breaks} \hldef{=} \hlnum{100}\hldef{,} \hlkwc{col} \hldef{=} \hlsng{"#047857"}\hldef{,} \hlkwc{border} \hldef{=} \hlnum{NA}\hldef{,}
+     \hlkwc{main} \hldef{=} \hlsng{"Null P-value Dist. (Random Sets)"}\hldef{,}
+     \hlkwc{xlab} \hldef{=} \hlsng{"RGGED p-value"}\hldef{,}
+     \hlkwc{xlim} \hldef{=} \hlkwd{c}\hldef{(}\hlnum{0}\hldef{,} \hlnum{0.02}\hldef{))} \hlcom{# Zoom in to relevant range}
+\end{alltt}
+\end{kframe}
+
+{\centering \includegraphics[width=1\textwidth]{figure/complexity_terms_vectorized-1} 
+
+}
+
+
+\end{knitrout}
+
+\subsection{Empirical False Discovery Rate}
+
+When scoring terms against a set of elements, the package only considers terms that have at least one connection to the set (observed edge count $z \ge 1$). Since unconnected terms ($z=0$, $p=1$) are excluded from the output, the distribution of RGGED p-values under the null hypothesis (random sets) is not uniform; specifically, it is depleted near 1.
+
+Consequently, standard multiple testing corrections (like Benjamini-Hochberg) are not applicable. To assess significance rigorously, the package implements an Empirical FDR approach in \texttt{terms\_ecset\_statistics\_fdr()}. This method:
+\begin{enumerate}
+    \item Generates a null distribution of effect sizes by simulating random element sets of the same size as the input.
+    \item Calculates a Normalized Enrichment Score (NES) for each term.
+    \item Estimates the False Discovery Rate (q-value) by comparing the observed NES to the null distribution.
+\end{enumerate}
 
 \bibliographystyle{plain}
 \bibliography{theory}

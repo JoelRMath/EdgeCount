@@ -39,16 +39,20 @@ opts_chunk$set(
 
 \section{Introduction}
 
-The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing interaction networks or bipartite group-element graphs, the question is:
+The \texttt{EdgeCount} package provides methods to analyze the connectedness of vertex sets in large, sparse, undirected graphs. Whether analyzing interaction networks or group-element (called term-element) networks, the main question is:
 
 \textit{Is an observed number of edges, called edge count, within a set (or between two sets) significantly higher than expected by chance?}
 
-To answer this, two components must be implemented.
+To answer this, the package implements a statistical framework built upon the Random Graph with Given Expected Degrees (RGGED) model \cite{chung2002connected,RGGED2}. The RGGED serves two distinct but related purposes depending on the analysis type:
 
-First, the random experiment defining the concept of \textit{chance} must be clearly specified and, in general, simulated to provide a control distribution.
-
-Second, one needs to be able to fairly compare edge-count values to each other. A fair comparison requires accounting for vertex degrees, as these may vary by orders of magnitude. This is achieved here by using a null model of random graphs that preserves the expected degrees of vertices \cite{chung2002connected,RGGED2}. Specifically, the average degree of a vertex over all random graph realizations matches its observed value in the original network. The analytical expressions for the likelihoods of edge-count variables in this model were derived in \cite{JCB}. These expressions enable fair and fast comparisons of edge-count values.
-
+\begin{itemize}
+    \item Fair comparison (scoring): The RGGED accounts for vertex degrees, which often vary by orders of magnitude. By using analytical expressions for the likelihood of edge counts in this model \cite{JCB}, the package allows for the fair and fast comparison of edge counts across different sets and graph topologies.
+    \item Null model specification:
+    \begin{itemize}
+        \item For interaction networks (unipartite graphs), the RGGED is utilized directly as the null model. The statistical significance of a set's connectedness is determined by comparing the observed edge count to the distribution under the RGGED on that specific set of vertices.
+        \item For term-element networks (bipartite graphs), the situation is more complex. Because analysis typically involves ranking multiple terms and filtering for existing connections (observed count of at least 1), the RGGED probability acts as a local score or effect size estimator. A second level of modeling—simulating the random selection of element sets—is then required to estimate False Discovery Rates (FDR) and assess global significance.
+    \end{itemize}
+\end{itemize}
 
 \section{Random graph model}
 
@@ -80,7 +84,8 @@ The \texttt{EdgeCount} package considers two types of edge-count variables:
 \item "within" for the number $z$ of edges observed in a given set $S$ of vertices
 \item "between" for the number $z$ of edges observed between two sets $S_1$ and $S_2$ of vertices
 \end{itemize}
-Observed values $z$ are obviously dependent on set sizes, but they should also be made conditional to degrees of the vertices in the sets. Hence, to an observed value $z$ is associated a corresponding random variable $Z$ in the RGGED.
+In this framework, the sets and the degrees of their constituent vertices are fixed parameters. Observed values $z$ are thus conditional on these degrees.
+To an observed value $z$ is associated a corresponding random variable $Z$ in the RGGED, which distribution enables assessment of the significance of the observed value $z$.
 
 \subsection{Edge-count distribution}
 
@@ -229,7 +234,7 @@ and substituting in the expression for lambda yields
 \lambda_{in} = \frac{1}{4M} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right].
 \end{equation}
 
-With this expression the computation of $\lambda_{in}$ has now linear time complexity: $\mathcal{O}\left( n \right)$. Method \texttt{edge\_count\_statistics()} of class \texttt{ECProb} when used with argument \texttt{lambda\_method = "fast"} implements this linear computation. Method \texttt{calculate\_in\_stats\_fast\_vectorized()} is an implementation of "within" edge count statistics for multiple sets provided as input. This method is fully vectorized and uses the \texttt{data.table} package \cite{datatable2025}. Here is a numerical illustration that the implementation achieves optimal, linear here, time complexity.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to evidence linearity.} The illustration is based on the interaction network \texttt{sample\_ecg} contained in the \texttt{EdgeCount} package and derived from the STRING database \cite{szklarczyk2023, sample_ecg_data}.
+With this expression the computation of $\lambda_{in}$ has now linear time complexity: $\mathcal{O}\left( n \right)$. Method \texttt{edge\_count\_statistics()} of class \texttt{ECProb} when used with argument \texttt{lambda\_method = "fast"} implements this linear computation. Method \texttt{calculate\_in\_stats\_fast\_vectorized()} is an implementation of "within" edge count statistics for multiple sets provided as input. This method is fully vectorized and uses the \texttt{data.table} package \cite{datatable2025}. Here is a numerical illustration that the implementation achieves optimal, linear here, time complexity.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to clearly evidence linearity.} The illustration is based on the interaction network \texttt{sample\_ecg} contained in the \texttt{EdgeCount} package and derived from the STRING database \cite{szklarczyk2023, sample_ecg_data}.
 
 <<complexity_in_simulation, echo=TRUE, fig=TRUE, fig.height=5, fig.width=5>>=
 library(data.table)
@@ -306,7 +311,7 @@ This factorization reduces the calculation to simply summing the degrees within 
 Fast calculation of 'between' edge-count statistics for a single pair of sets is implemented in method \texttt{edge\_count\_statistics()} of class \texttt{ECProb} by setting both arguments \texttt{set1} and \texttt{set2} to non-null vectors and by using \texttt{lambda\_method = "fast"}.
 
 For multiple pairs of sets, the appropriate method is
-\texttt{calculate\_between\_stats\_fast\_vectorized()}. It implements the fast approximation and is fully vectorized in parts by using the \texttt{data.table} package \cite{datatable2025}. The following simulation confirms that it achieves optimal, linear here, time complexity.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to evidence linearity.}
+\texttt{calculate\_between\_stats\_fast\_vectorized()}. It implements the fast approximation and is fully vectorized in parts by using the \texttt{data.table} package \cite{datatable2025}. The following simulation confirms that it achieves optimal, linear here, time complexity.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to clearly evidence linearity.}
 
 <<complexity_between_simulation, echo=TRUE, fig=TRUE, fig.height=5, fig.width=5>>=
 library(data.table)
@@ -406,8 +411,125 @@ Therefore, utilizing this approximation by default is a reasonable approach.
 
 \subsection{Fast approximation}
 
-The fast approximation implemented in
-\texttt{ECTermScoring} is the same used in \texttt{ECProb} for between connectedeness, but applied to edge counts between elements and terms.
+The fast approximation implemented in \texttt{ECTermScoring} is analogous to that used in \texttt{ECProb} for between-sets connectedness. Consider a set $S$ of elements and its term neighborhood $\mathcal{T}_S$ (terms connected to at least one element in $S$).
+
+The expected number of edges $\lambda$ in this subgraph is given by the double summation:
+\begin{equation}
+\lambda = \sum_{t \in \mathcal{T}_S} \sum_{e \in S} p_{et}.
+\end{equation}
+
+A naive calculation would have multiplicative time complexity $\mathcal{O}\left( |S| \cdot |\mathcal{T}_S| \right)$. However, utilizing the fast approximation $p_{et} = k_ek_t/(2M)$, the expression factors into the product of two sums:
+\begin{equation}
+ \lambda = \frac{1}{2M} \left( \sum_{t \in \mathcal{T}_S} k_t \right) \left( \sum_{e \in S} k_e \right).
+\end{equation}
+
+Consequently, the time complexity for scoring all terms in the neighborhood becomes additive: $\mathcal{O}\left( |S| + |\mathcal{T}_S| \right)$. More generally, the average time complexity $T(S)$ for a random set $S$ of elements scales as:
+\begin{equation}
+T(S) \sim \mathcal{O} \left( \left| S \right| \left( 1 + \left< k_e\right> \right) \right),
+\end{equation}
+where $\left< k_e \right>$ is the average element degree across the graph.
+
+\subsection{Scoring Terms against Element Sets}
+
+The primary analysis on bipartite graphs involves identifying which terms are significantly connected to a given set of elements.
+
+
+The basic method \texttt{terms\_ecset\_statistics()} calculates connectedness statistics for a single set of element against all its connected terms. These RGGED-based statistics can then be utilized to rank terms for their connectection strength to the set.
+
+This said, analyses often require scoring multiple sets simultaneously. Method \texttt{terms\_ecset\_statistics\_vectorized()} is optimized for this purpose. By utilizing the fast approximation derived in the previous section and \texttt{data.table} operations, it achieves linear time complexity. The following simulation verifies this linear scaling.\footnote{Such numerical results are always dependent on the utilized CPU . A faster machine might require larger simulated sets to clearly evidence linearity.} As explained before, linear complexity is the sum of the input elements processed plus the total number of term-element connections evaluated (the neighborhood size).
+
+<<complexity_terms_vectorized, echo=TRUE, fig=TRUE, fig.height=5, fig.width=10, out.width='1\\textwidth'>>=
+library(data.table)
+library(EdgeCount)
+data("sample_ects")
+
+# --- PART 1: Complexity Simulation ---
+n_sim <- 5
+n_points <- 10
+n_sets_universe <- seq(50, 1000, length.out = n_points)
+set.seed(123)
+
+results_list <- lapply(n_sets_universe, function(n_s){
+  n_s <- round(n_s)
+
+  # Generate sets with variable sizes (10 to 50)
+  current_set_sizes <- sample(10:50, n_s, replace = TRUE)
+  random_elements <- unlist(lapply(current_set_sizes, function(sz) {
+    sample(sample_ects@elements, sz)
+  }))
+
+  input_sets_dt <- data.table(
+    set_id = rep(paste0("S", 1:n_s), times = current_set_sizes),
+    element = random_elements
+  )
+
+  times <- numeric(n_sim)
+  res <- NULL
+
+  for(k in 1:n_sim){
+    start_time <- Sys.time()
+    capture.output(
+      res <- terms_ecset_statistics_vectorized(sample_ects, input_sets_dt)
+    )
+    end_time <- Sys.time()
+    times[k] <- as.numeric(end_time - start_time, units = "secs")
+  }
+
+  # Exact Complexity: Input size + Output Neighborhood size
+  total_neighborhood_size <- sum(vapply(res, nrow, integer(1)))
+  true_complexity <- nrow(input_sets_dt) + total_neighborhood_size
+
+  data.table(complexity = true_complexity, time = min(times))
+})
+
+results_dt <- rbindlist(results_list)
+lm_model <- lm(time ~ complexity, data = results_dt)
+r_sq <- summary(lm_model)$r.squared
+
+# --- PART 2: Generate Null Distribution ---
+n_hist_sets <- 10000
+hist_set_size <- 20
+hist_elements <- unlist(replicate(n_hist_sets,
+                                  sample(sample_ects@elements, hist_set_size),
+                                  simplify = FALSE))
+hist_input <- data.table(
+  set_id = rep(paste0("H", 1:n_hist_sets), each = hist_set_size),
+  element = hist_elements
+)
+capture.output(
+  hist_res <- terms_ecset_statistics_vectorized(sample_ects, hist_input)
+)
+hist_stats <- rbindlist(hist_res)
+p_values_sample <- hist_stats$p_value
+
+# --- PART 3: Base R Visualization ---
+par(mfrow=c(1, 2), mar=c(5, 4, 4, 2) + 0.1)
+
+# Plot A: Linear Complexity
+plot(results_dt$complexity, results_dt$time, pch=19, col="purple",
+     xlab = "Complexity (|S| + |T_S|)",
+     ylab = "Execution Time (s)",
+     main = paste("Vectorized Scoring Complexity\nR-squared =", round(r_sq, 4)))
+abline(lm_model, col="red", lwd=2)
+
+# Plot B: Non-uniform P-value Distribution
+# We use a high number of breaks and limit xlim to see the structure near 0
+hist(p_values_sample, breaks = 100, col = "#047857", border = NA,
+     main = "Null P-value Dist. (Random Sets)",
+     xlab = "RGGED p-value",
+     xlim = c(0, 0.02)) # Zoom in to relevant range
+@
+
+\subsection{Empirical False Discovery Rate}
+
+When scoring terms against a set of elements, the package only considers terms that have at least one connection to the set (observed edge count $z \ge 1$). Since unconnected terms ($z=0$, $p=1$) are excluded from the output, the distribution of RGGED p-values under the null hypothesis (random sets) is not uniform; specifically, it is depleted near 1.
+
+Consequently, standard multiple testing corrections (like Benjamini-Hochberg) are not applicable. To assess significance rigorously, the package implements an Empirical FDR approach in \texttt{terms\_ecset\_statistics\_fdr()}. This method:
+\begin{enumerate}
+    \item Generates a null distribution of effect sizes by simulating random element sets of the same size as the input.
+    \item Calculates a Normalized Enrichment Score (NES) for each term.
+    \item Estimates the False Discovery Rate (q-value) by comparing the observed NES to the null distribution.
+\end{enumerate}
 
 \bibliographystyle{plain}
 \bibliography{theory}
