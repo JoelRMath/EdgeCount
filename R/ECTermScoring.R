@@ -353,8 +353,8 @@ setMethod(
 #'   is supported for this vectorized function.
 #'
 #' @return A named list of `data.table`s. Each name corresponds to an
-#'   `input_set_id`, and each `data.table` contains the enrichment statistics
-#'   for all connected terms.
+#'   `input_set_id`, and each `data.table` contains the connectedness statistics
+#'   for all connected terms (see terms_ecset_statistics()).
 #' @export
 #' @examples
 #' # Load sample data included with the package

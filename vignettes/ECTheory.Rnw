@@ -1,4 +1,8 @@
 \documentclass{article}
+% \VignetteIndexEntry{EdgeCount: Statistical Theory and Algorithmic Efficiency}
+% \VignetteEngine{knitr::knitr}
+% \VignetteEncoding{UTF-8}
+
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -6,6 +10,7 @@
 \usepackage{geometry}
 \geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
 \usepackage{parskip}
+\usepackage[flushmargin]{footmisc}
 \usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
 
 \sloppy
@@ -61,7 +66,7 @@ Let $G(V, E)$ be an undirected graph with no loops and no multiple edges.
     \item Let $N = |V|$ be the order of the graph (number of vertices).
     \item Let $M = |E|$ be the size of the graph (number of edges).
     \item Let $k_i$ be the degree of vertex $v_i$.
-    \item Let $\left< k \right>$ be the the average vertex degree.
+    \item Let $\left< k \right>$ be the average vertex degree.
 \end{itemize}
 
 Call the degree sequence of $G$ the nonincreasing sequence of all its vertex degrees. An obvious null model for $G$ is that of a random graph whose realizations always preserve the degree sequence. This model is referred to as the Random Graph with Fixed Degree Sequence (RGFDS). However, it is known that the analytical treatment of the RGFDS is a difficult problem \cite{bender1978asymptotic, molloy1995critical, itzkovitz2003subgraphs, park2004statistical}. Namely, deriving simple analytical expressions for the likelihoods of edge-count variables is in general hard with the RGFDS. This implies that slow numerical methods based on simulations must be used \cite{maslov2002specificity, milo2002network, milo2003uniform}.
@@ -85,11 +90,11 @@ The \texttt{EdgeCount} package considers two types of edge-count variables:
 \item "between" for the number $z$ of edges observed between two sets $S_1$ and $S_2$ of vertices
 \end{itemize}
 In this framework, the sets and the degrees of their constituent vertices are fixed parameters. Observed values $z$ are thus conditional on these degrees.
-To an observed value $z$ is associated a corresponding random variable $Z$ in the RGGED, which distribution enables assessment of the significance of the observed value $z$.
+A corresponding random variable $Z$ in the RGGED is associated to an observes value $z$; its distribution enables assessment of the significance of $z$.
 
 \subsection{Edge-count distribution}
 
-Edge-count random variables in the RGGED model of a large and sparse graph have approximate Poisson distribution. This is because they are the sum of independent Bernoulli random variables with small parameters $p_{ij} \ll 1$, even when these parameters have different values \cite{lecam1960approximation, kerstan1964verallgemeinerung, JCB}.
+Edge-count random variables in the RGGED model of a large and sparse graph have an approximate Poisson distribution. This is because they are the sum of independent Bernoulli random variables with small parameters $p_{ij} \ll 1$, even when these parameters have different values \cite{lecam1960approximation, kerstan1964verallgemeinerung, JCB}.
 
 Call $Z$ an edge-count random variable defined by the sum of $m$ potential edges, each edge corresponding to a pair $v_iv_j$ of vertices:
 \begin{equation}
@@ -107,18 +112,18 @@ The normalization factor $\alpha$ is utilized because an observed number $z$ of 
 
 
 <<alpha_simulation_side_by_side, echo=TRUE, fig=TRUE, fig.height=5, fig.width=10, out.width='1\\textwidth'>>=
-# Function to calculate alpha and its complement
+# function to calculate alpha and its complement
 get_alpha_stats <- function(m, pij_avg) {
   lambda <- m * pij_avg
   alpha <- stats::ppois(m, lambda)
   alpha_comp <- stats::ppois(m, lambda, lower.tail = FALSE)
   return(c(alpha, alpha_comp))
 }
-# Parameters
+# parameters
 pij_values <- c(0.001, 0.01, 0.05, 0.1)
 m_values <- c(1:29,seq(30, 1000, by = 10))
 colors <- c("red", "blue", "green", "black")
-# Plots
+# plots
 par(mfrow=c(1, 2), mar=c(5, 5, 4, 2) + 0.1, cex.lab=1.25,
     cex.axis=1.25, cex.main=1.25)
 plot(1, type="n", xlab="Maximum possible edges (m)",
@@ -158,7 +163,7 @@ For a between variable associated with two sets $S_1$ and $S_2$ we have
 m = \left| S_1 \right| \left| S_2 \right|  \quad \text{and} \quad \lambda = \sum_{i \in S_1, j \in S_2} p_{ij}.
 \end{equation}
 
-Since the distribution of an edge-count variable is easily computed, p-values are also calculated.
+Edge-count p-values are given by
 
 \begin{equation}
 \Pr\left( Z \geq z \right) = \sum_{x=z}^{m} \Pr \left( Z = x\right).
@@ -172,7 +177,7 @@ p_value <- (stats::ppois(z - 1, lambda, lower.tail = FALSE) -
               stats::ppois(m, lambda, lower.tail = FALSE)) / alpha
 @
 
-The Poisson distribution enables quantification of the variability on vertex degree modeled by the RGGED. In the model, the degree of a vertex $v_i$ with initial degree $k_i$ is a random variable $K_i$ defined by the edge count between this vertex and all the others:
+Note that the Poisson distribution enables quantification of the variability on vertex degree modeled by the RGGED. In the model, the degree of a vertex $v_i$ with initial degree $k_i$ is a random variable $K_i$ defined by the edge count between this vertex and all the others:
 \begin{equation}
 \lambda_i = \frac{k_i}{2M}\sum_{j\neq i}k_j \simeq k_i.
 \end{equation}
@@ -180,7 +185,7 @@ That is, $K_i$ has mean $k_i$ and standard deviation $\sqrt{k_i}$. The introduce
 
 \subsection{Edge-count effect size}
 
-As explained earlier, the RGGED is not directly utilized as a null model to answer a question. Rather, it is used as an intermediate step that enables fair and fast comparison of diverse observed edge counts. Such a comparison can be between edge-count variables defined by sets of different sizes. In this case, an effect size is the most appropriate quantity for comparison.
+As explained earlier, the RGGED is not always directly utilized as a null model to answer a question. Instead, it can be used as an intermediate step that enables fair and fast comparison of diverse observed edge counts. Such a comparison can be between edge-count variables defined by sets of different sizes. In this case, an effect size is the most appropriate quantity for comparison.
 
 Because edge-count random variables have Poisson distribution, the utilized effect size is
 
@@ -193,7 +198,7 @@ The addition of 3/8 stems from the work of Anscombe \cite{anscombe1948}, who sho
 
 \section{Fast methods for sparse interaction networks}
 
-All the code for representation and analysis of undirected unipartite graphs (interaction networks) is contained in S4 clasees \texttt{ECGraph} and \texttt{ECProb}.
+All the code for representation and analysis of undirected unipartite graphs (interaction networks) is contained in S4 classes \texttt{ECGraph} and \texttt{ECProb}.
 
 \subsection{Sparseness condition}
 
@@ -203,9 +208,9 @@ A condition for sparseness in the \texttt{EdgeCount} framework is
 \end{equation}
 
 This sparseness condition can be tested with method \texttt{summarize\_suitability\_fast()} of class \texttt{ECProb}.
-The method returns a list containing the proportion \texttt{pij\_over\_1}, among all possible pairs $v_i,v_j$ of vertices, of pairs such that ve$(k_ik_j)/(2M) \geq 1$. An ideally sparse graph yields \texttt{pij\_over\_1} = 0.
+The method returns a list containing the proportion \texttt{pij\_over\_1}, among all possible pairs $v_i,v_j$ of vertices, of pairs such that $(k_ik_j)/(2M) \geq 1$. An ideally sparse graph yields \texttt{pij\_over\_1} = 0.
 
-Now, approximating $p_{ij}$ values with $k_ik_j/(2M)$ is a conservative approach in the RGGED. Namely, using this approximation
+Now, approximating $p_{ij}$ values by $k_ik_j/(2M)$ is a conservative approach in the RGGED. Namely, using this approximation
 \begin{itemize}
 \item[-] overestimates $p_{ij}$ values,
 \item[-] overestimates lambda values,
@@ -389,7 +394,7 @@ points(results_dt_btw$complexity, results_dt_btw$time, pch=19, cex=1.2)
 \section{Fast methods for sparse bipartite networks}
 
 Class \texttt{ECTermScoring} complements the functionality of
-\texttt{ECGraph} and \texttt{ECProb} to the case of undirected bipartite graphs. These represent here membership of elements within groups, called terms in the package.
+\texttt{ECGraph} and \texttt{ECProb} to the case of undirected bipartite graphs. These represent here membership of elements within groups, called terms in the package. The package comes with a sample bipartite network \texttt{sample\_ects} that maps a trimmed version of GO categories to their human gene elements \cite{orgHsEg,goconsortium2023, sample_ects_data}.
 
 \subsection{Sparseness condition}
 
@@ -411,56 +416,54 @@ Therefore, utilizing this approximation by default is a reasonable approach.
 
 \subsection{Fast approximation}
 
-The fast approximation implemented in \texttt{ECTermScoring} is analogous to that used in \texttt{ECProb} for between-sets connectedness. Consider a set $S$ of elements and its term neighborhood $\mathcal{T}_S$ (terms connected to at least one element in $S$).
+The fast approximation implemented in \texttt{ECTermScoring} is analogous to that used in \texttt{ECProb} for between-sets connectedness. Consider a set $S$ of elements and its term neighborhood $T_S$ (terms connected to at least one element in $S$).
 
 The expected number of edges $\lambda$ in this subgraph is given by the double summation:
 \begin{equation}
-\lambda = \sum_{t \in \mathcal{T}_S} \sum_{e \in S} p_{et}.
+\lambda = \sum_{t \in T_S} \sum_{e \in S} p_{et}.
 \end{equation}
 
-A naive calculation would have multiplicative time complexity $\mathcal{O}\left( |S| \cdot |\mathcal{T}_S| \right)$. However, utilizing the fast approximation $p_{et} = k_ek_t/(2M)$, the expression factors into the product of two sums:
+A naive calculation would have multiplicative time complexity $\mathcal{O}\left( |S| \cdot |T_S| \right)$. However, utilizing the fast approximation $p_{et} = k_ek_t/(2M)$, the expression factors into the product of two sums:
 \begin{equation}
- \lambda = \frac{1}{2M} \left( \sum_{t \in \mathcal{T}_S} k_t \right) \left( \sum_{e \in S} k_e \right).
+ \lambda = \frac{1}{2M} \left( \sum_{t \in T_S} k_t \right) \left( \sum_{e \in S} k_e \right).
 \end{equation}
 
-Consequently, the time complexity for scoring all terms in the neighborhood becomes additive: $\mathcal{O}\left( |S| + |\mathcal{T}_S| \right)$. More generally, the average time complexity $T(S)$ for a random set $S$ of elements scales as:
+Consequently, the time complexity for scoring all terms in the neighborhood becomes additive: $\mathcal{O}\left( |S| + |T_S| \right)$. More generally, the average time complexity for a random set $S$ of elements scales as:
 \begin{equation}
-T(S) \sim \mathcal{O} \left( \left| S \right| \left( 1 + \left< k_e\right> \right) \right),
+\mathcal{O} \left( \left| S \right| \left( 1 + \left< k_e\right> \right) \right),
 \end{equation}
 where $\left< k_e \right>$ is the average element degree across the graph.
 
-\subsection{Scoring Terms against Element Sets}
+\subsection{Scoring terms against element sets}
 
-The primary analysis on bipartite graphs involves identifying which terms are significantly connected to a given set of elements.
+The primary analysis on bipartite graphs is identifying which terms are significantly connected to a given set of elements.
 
+The basic method \texttt{terms\_ecset\_statistics()} calculates connectedness statistics for a single set of elements against all its connected terms. These RGGED-based statistics can then be utilized to rank terms for their connection strength to the set.
 
-The basic method \texttt{terms\_ecset\_statistics()} calculates connectedness statistics for a single set of element against all its connected terms. These RGGED-based statistics can then be utilized to rank terms for their connectection strength to the set.
-
-This said, analyses often require scoring multiple sets simultaneously. Method \texttt{terms\_ecset\_statistics\_vectorized()} is optimized for this purpose. By utilizing the fast approximation derived in the previous section and \texttt{data.table} operations, it achieves linear time complexity. The following simulation verifies this linear scaling.\footnote{Such numerical results are always dependent on the utilized CPU . A faster machine might require larger simulated sets to clearly evidence linearity.} As explained before, linear complexity is the sum of the input elements processed plus the total number of term-element connections evaluated (the neighborhood size).
+This said, analyses often require scoring multiple sets simultaneously. The method optimized for this purpose is \texttt{terms\_ecset\_statistics\_vectorized()}. By utilizing the fast approximation derived in the previous section and \texttt{data.table} operations \cite{datatable2025}, it achieves the desired linear time complexity. The following simulation verifies this linear scaling.\footnote{Such numerical results are always dependent on the utilized CPU . A faster machine might require larger simulated sets to clearly evidence linearity.} As explained before, linear complexity is the sum of the number of input elements and the number of connected terms (neighborhood size).
 
 <<complexity_terms_vectorized, echo=TRUE, fig=TRUE, fig.height=5, fig.width=10, out.width='1\\textwidth'>>=
 library(data.table)
 library(EdgeCount)
 data("sample_ects")
 
-# --- PART 1: Complexity Simulation ---
+# simulation
 n_sim <- 5
 n_points <- 10
 n_sets_universe <- seq(50, 1000, length.out = n_points)
-set.seed(123)
+set.seed(1)
+p_values <- numeric()
 
 results_list <- lapply(n_sets_universe, function(n_s){
   n_s <- round(n_s)
-
-  # Generate sets with variable sizes (10 to 50)
-  current_set_sizes <- sample(10:50, n_s, replace = TRUE)
-  random_elements <- unlist(lapply(current_set_sizes, function(sz) {
+  set_sizes <- sample(10:50, n_s, replace = TRUE)
+  elements <- unlist(lapply(set_sizes, function(sz) {
     sample(sample_ects@elements, sz)
   }))
 
   input_sets_dt <- data.table(
-    set_id = rep(paste0("S", 1:n_s), times = current_set_sizes),
-    element = random_elements
+    set_id = rep(paste0("S", 1:n_s), times = set_sizes),
+    element = elements
   )
 
   times <- numeric(n_sim)
@@ -473,132 +476,242 @@ results_list <- lapply(n_sets_universe, function(n_s){
     )
     end_time <- Sys.time()
     times[k] <- as.numeric(end_time - start_time, units = "secs")
+
+    if (k == 1){
+      current_p <- rbindlist(res)$p_value
+      p_values <<- c(p_values, current_p)
+    }
   }
 
-  # Exact Complexity: Input size + Output Neighborhood size
-  total_neighborhood_size <- sum(vapply(res, nrow, integer(1)))
-  true_complexity <- nrow(input_sets_dt) + total_neighborhood_size
+  neighborhood_size <- sum(vapply(res, nrow, integer(1)))
+  complexity <- nrow(input_sets_dt) + neighborhood_size
 
-  data.table(complexity = true_complexity, time = min(times))
+  data.table(complexity = complexity, time = min(times))
 })
 
 results_dt <- rbindlist(results_list)
 lm_model <- lm(time ~ complexity, data = results_dt)
 r_sq <- summary(lm_model)$r.squared
 
-# --- PART 2: Generate Null Distribution ---
-n_hist_sets <- 10000
-hist_set_size <- 20
-hist_elements <- unlist(replicate(n_hist_sets,
-                                  sample(sample_ects@elements, hist_set_size),
-                                  simplify = FALSE))
-hist_input <- data.table(
-  set_id = rep(paste0("H", 1:n_hist_sets), each = hist_set_size),
-  element = hist_elements
-)
-capture.output(
-  hist_res <- terms_ecset_statistics_vectorized(sample_ects, hist_input)
-)
-hist_stats <- rbindlist(hist_res)
-p_values_sample <- hist_stats$p_value
-
-# --- PART 3: Base R Visualization ---
+# plots
 par(mfrow=c(1, 2), mar=c(5, 4, 4, 2) + 0.1)
 
-# Plot A: Linear Complexity
-plot(results_dt$complexity, results_dt$time, pch=19, col="purple",
+plot(results_dt$complexity, results_dt$time, pch=19,
      xlab = "Complexity (|S| + |T_S|)",
-     ylab = "Execution Time (s)",
-     main = paste("Vectorized Scoring Complexity\nR-squared =", round(r_sq, 4)))
-abline(lm_model, col="red", lwd=2)
+     ylab = "Execution time (s)",
+     main = paste("Vectorized scoring complexity\nR-squared =", round(r_sq, 4)))
+abline(lm_model, col="darkgrey", lwd=2)
+points(results_dt$complexity, results_dt$time, pch=19, cex=1.2)
 
-# Plot B: Non-uniform P-value Distribution
-# We use a high number of breaks and limit xlim to see the structure near 0
-hist(p_values_sample, breaks = 100, col = "#047857", border = NA,
-     main = "Null P-value Dist. (Random Sets)",
+hist(p_values, breaks = 100, col = "#047857", border = NA,
+     main = "p-value distribution (random sets)",
      xlab = "RGGED p-value",
-     xlim = c(0, 0.02)) # Zoom in to relevant range
+     xlim = c(0, 0.05))
+
+summary(p_values)
 @
 
-\subsection{Empirical False Discovery Rate}
+The left panel of the figure shows that the implementation of the method achieves the desired time complexity of $\mathcal{O} \left( \left| S \right| + \left| T_S \right| \right)$.
 
-When scoring terms against a set of elements, the package only considers terms that have at least one connection to the set (observed edge count $z \ge 1$). Since unconnected terms ($z=0$, $p=1$) are excluded from the output, the distribution of RGGED p-values under the null hypothesis (random sets) is not uniform; specifically, it is depleted near 1.
+\subsection{Empirical false discovery rate}
 
-Consequently, standard multiple testing corrections (like Benjamini-Hochberg) are not applicable. To assess significance rigorously, the package implements an Empirical FDR approach in \texttt{terms\_ecset\_statistics\_fdr()}. This method:
+The right panel of the last figure shows the distribution of RGGED p-values obtained with the simulation of random element sets. It is clearly non-uniform with a median value close to 0.01. This is because methods used to score sets against terms return only statistics for connected terms (edge count $z \geq 1$). This implies that the RGGED cannot be directly used here as a model for the random experiment of selecting a random set. Further modeling is required. Moreover, many sets will return multiple terms, implying that correction for multiple testing is required. Because the distribution of RGGED p-values is non-uniform, standard multiple testing corrections (like Benjamini-Hochberg)\cite{benjamini1995} are not applicable.
+
+
+Consequently, the package implements an Empirical FDR approach in \texttt{terms\_ecset\_statistics\_fdr()}. This method:
 \begin{enumerate}
-    \item Generates a null distribution of effect sizes by simulating random element sets of the same size as the input.
+    \item Generates a null distribution of effect sizes by simulating random element sets of the same size as the input (reduced to the element universe in the term-element network).
     \item Calculates a Normalized Enrichment Score (NES) for each term.
-    \item Estimates the False Discovery Rate (q-value) by comparing the observed NES to the null distribution.
+    \item Estimates the False Discovery Rate (q-value) by comparing the observed NES to its null distribution.
 \end{enumerate}
+
+Since this approach requires repeated simulations, the implementation must scale efficiently. The following simulation confirms that the runtime of \texttt{terms\_ecset\_statistics\_fdr()} scales linearly with the requested number of permutations.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to clearly evidence linearity.}
+
+<<complexity_fdr_simulation, echo=TRUE, fig=TRUE, fig.height=5, fig.width=5, out.width='0.6\\textwidth'>>=
+set.seed(1)
+test_set <- sample(sample_ects@elements, 30)
+n_perms_universe <- seq(100, 2000, length.out = 10)
+n_sim <- 5
+
+results_fdr <- lapply(n_perms_universe, function(n_p){
+  n_p <- round(n_p)
+  times <- numeric(n_sim)
+
+  for(k in 1:n_sim){
+    start_time <- Sys.time()
+    capture.output(
+      res <- terms_ecset_statistics_fdr(sample_ects,
+                                        test_set,
+                                        n_permutations = n_p,
+                                        seed = NULL)
+    )
+    end_time <- Sys.time()
+    times[k] <- as.numeric(end_time - start_time, units = "secs")
+  }
+
+  data.table(permutations = n_p, time = min(times))
+})
+
+results_fdr_dt <- rbindlist(results_fdr)
+lm_fdr <- lm(time ~ permutations, data = results_fdr_dt)
+r_sq_fdr <- summary(lm_fdr)$r.squared
+
+plot(results_fdr_dt$permutations, results_fdr_dt$time, pch=19, cex=1.2,
+     xlab = "Number of permutations",
+     ylab = "Execution time (s)",
+     main = paste("FDR simulation complexity\nR-squared =", round(r_sq_fdr, 4)))
+abline(lm_fdr, col="darkgrey", lwd=2)
+points(results_fdr_dt$permutations, results_fdr_dt$time, pch=19, cex=1.2)
+@
+
+\section{Vertex Set Enrichment Analysis (VSEA)}
+
+While the analytical methods described in previous sections enable fast computation of edge-count statistics for specific sets, users often wish to analyze a ranked list of elements to detect enrichment patterns at the top of the list. Method \texttt{run\_vsea()} is analogous to Gene Set Enrichment Analysis (GSEA) \cite{subramanian2005}, but it is applied to graph topology. In particular, it takes into account the degrees of elements, therefore penalizing scores when ubiquitous elements, those linked to many terms, are present at the top of the ranked list.
+
+The \texttt{run\_vsea()} method calculates Normalized Enrichment Scores (NES) and Empirical False Discovery Rates (FDR) using permutation-based simulations.
+
+\subsection{Methodology and implementation}
+
+The analysis proceeds in three steps:
+\begin{itemize}
+    \item Conditioning: The analysis universe is restricted to the intersection of the graph universe and the provided list of ranked elements.
+    \item Scoring: The list is traversed to calculate the Log Anscombe Ratio ($lAr$) for every term at every rank. The maximum score for each term is retained.
+    \item Significance: A null distribution is generated by permuting the element ranks $N$ times, allowing for the calculation of NES and FDR.
+\end{itemize}
+
+The implementation relies on parallelization and low-level vectorization:
+\begin{itemize}
+    \item Pre-computation: Cumulative degrees for all permutations are pre-calculated efficiently using \texttt{matrixStats} \cite{matrixStats}.
+    \item Fast randomization: Random permutations are generated using the \texttt{dqrng} package \cite{dqrng}.
+    \item Radix sorting: Inside each simulation, the edges induced by the random permutation are identified and sorted by term using \texttt{order(..., method="radix")}. This allows for the rapid calculation of running scores using Run-Length Encoding (\texttt{rle}), avoiding slow R loops.
+    \item Parallel processing: Simulations are distributed across CPU cores using \texttt{parallel::mclapply}\cite{parallel}.
+\end{itemize}
+
+For a dataset with $N_e$ elements with ranking scores and a set of terms $\mathcal{T}$ where term $t$ has degree $k_t$, the complexity scales as:
+\begin{equation}
+\mathcal{O}\left( N_e\log(N_e) + \sum_{t \in \mathcal{T}} k_t \log(k_t) \right).
+\end{equation}
+
+\subsection{Scaling with data size}
+
+The time complexity is composed of two distinct parts:
+\begin{itemize}
+    \item ranking elements: Scales as $\mathcal{O}(N_e \log(N_e))$.
+    \item sorting Edges within Terms: Scales as $\mathcal{O}(\sum k_t \log(k_t))$.
+\end{itemize}
+
+A simulation varying the universe size is performed. Since the two operations incur different computational costs, a multiple linear regression model is fitted to the observed times.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to clearly evidence linearity.}
+
+\textbf{Note:} The graph objects are pre-reduced and the input ranks exactly match the graph universe. This bypasses the conditional reduction step inside \texttt{run\_vsea}, so as to measure the pure scoring performance.
+
+<<complexity_vsea_data_size, echo=TRUE, fig=TRUE, fig.height=5, fig.width=5, out.width='0.6\\textwidth'>>=
+data("sample_ects")
+set.seed(1)
+
+# terms with degree >= 4
+all_terms <- sample_ects@terms
+term_dt <- data.table(term = all_terms,
+                      d = unlist(sample_ects@ecprob@degrees[all_terms]))
+valid_terms <- term_dt[d >= 4, term]
+full_ects <- reduce_universe_by_terms(sample_ects, valid_terms)
+
+# simulation parameters
+term_counts <- round(seq(200, 3000, length.out = 10))
+n_sim <- 5
+fixed_perms <- 50
+
+results_list <- lapply(term_counts, function(n_t){
+
+  curr_terms <- sample(full_ects@terms, n_t)
+  ects_sub <- reduce_universe_by_terms(full_ects, curr_terms)
+  ne <- length(ects_sub@elements)
+  kt <- lengths(ects_sub@ecprob@adj[ects_sub@terms])
+
+  ne_log_ne <- ne * log(ne)
+  sum_kt_log_kt <- sum(kt * log(kt + 1e-9))
+
+  ranks <- setNames(sample(seq_len(ne)), ects_sub@elements)
+  times <- numeric(n_sim)
+  for(k in 1:n_sim){
+    gc(verbose = FALSE)
+    start_time <- Sys.time()
+    capture.output(
+      run_vsea(ects_sub, ranks, n_permutations = fixed_perms,
+               n_cores = 1, seed = NULL)
+    )
+    end_time <- Sys.time()
+    times[k] <- as.numeric(end_time - start_time, units = "secs")
+  }
+
+  data.table(ne_log_ne = ne_log_ne,
+             sum_kt_log_kt = sum_kt_log_kt,
+             time = min(times))
+})
+
+results_dt <- rbindlist(results_list)
+
+# multiple linear model
+lm_model <- lm(time ~ ne_log_ne + sum_kt_log_kt, data = results_dt)
+r_sq <- summary(lm_model)$r.squared
+
+# plots predicted (fitted) vs observed time
+plot(predict(lm_model), results_dt$time, pch=19, cex=1.2,
+     xlab = "Predicted time (multiple regression)",
+     ylab = "Observed time (s)",
+     main = paste("VSEA data scaling\nR-squared =", round(r_sq, 4)))
+abline(0, 1, col="darkgrey", lwd=2)
+points(predict(lm_model), results_dt$time, pch=19, cex=1.2)
+@
+
+\subsection{Scaling with number of simulations}
+
+The last step is to verify that the implementation scales linearly with the requested number of permutations. The simulation below confirms the linear scaling.\footnote{Such numerical results are always dependent on the utilized CPU. A faster machine might require larger simulated sets to clearly evidence linearity.}
+
+<<complexity_vsea_permutations, echo=TRUE, fig=TRUE, fig.height=5, fig.width=5, out.width='0.6\\textwidth'>>=
+data("sample_ects")
+ranks <- setNames(sample(seq_along(sample_ects@elements)),
+                  sample_ects@elements)
+
+
+perm_counts <- seq(100,1000, length.out = 10)
+n_sim <- 5
+
+results_perm <- lapply(perm_counts, function(n_p){
+  times <- numeric(n_sim)
+  for(k in 1:n_sim){
+    start_time <- Sys.time()
+    capture.output(
+      run_vsea(sample_ects, ranks, n_permutations = n_p,
+               n_cores = 1, seed = NULL)
+    )
+    end_time <- Sys.time()
+    times[k] <- as.numeric(end_time - start_time, units = "secs")
+  }
+  data.table(permutations = n_p, time = min(times))
+})
+
+results_perm_dt <- rbindlist(results_perm)
+lm_perm <- lm(time ~ permutations, data = results_perm_dt)
+r_sq_perm <- summary(lm_perm)$r.squared
+
+plot(results_perm_dt$permutations, results_perm_dt$time,
+     pch=19, cex=1.2,
+     xlab = "Number of Permutations",
+     ylab = "Execution time (s)",
+     main = paste("VSEA Permutation Scaling\nR-squared =", round(r_sq_perm, 4)))
+abline(lm_perm, col="darkgrey", lwd=2)
+points(results_perm_dt$permutations, results_perm_dt$time, pch=19, cex=1.2)
+@
+
+\subsection{Conclusion}
+
+The time complexity of VSEA as implemented in method \texttt{run\_vsea} is
+\begin{equation}
+\mathcal{O}\left( N_s \left( N_e\log(N_e) + \sum_t k_t \log(k_t) \right)\right),
+\end{equation}
+where $N_s$ is the number of simulations for FDR estimation, $N_e$ the number of elements connected to at least one term in the bipartite network and $k_t$ the number of elements, included in the graph and the input rank list, a term $t$ connects to.
 
 \bibliographystyle{plain}
 \bibliography{theory}
 
 \end{document}
-
-
-
-\section{Algorithmic Optimization}
-
-A key feature of \texttt{EdgeCount} is its speed. Calculating $\lambda$ involves summing probabilities over pairs of vertices. A naive implementation requires iterating over all pairs, resulting in quadratic time complexity. However, by utilizing the "Fast" approximation (Equation \ref{eq:fast_pij}), we can factorize these sums to achieve linear time complexity.
-
-\subsection{Within-Set Connectedness}
-
-Consider a set of vertices $S \subseteq V$ with size $n = |S|$. We wish to calculate the expected number of edges $\lambda_{in}$ existing internally among members of $S$.
-\begin{equation}
-\lambda_{in} = \sum_{\{i,j\} \subseteq S, i < j} p_{ij} \approx \sum_{i < j} \frac{k_i k_j}{2M}
-\end{equation}
-A naive summation requires $O(n^2)$ operations. To optimize this, we recall the algebraic identity for the square of a sum:
-\begin{equation}
-\left( \sum_{i \in S} k_i \right)^2 = \sum_{i \in S} k_i^2 + 2 \sum_{i < j} k_i k_j
-\end{equation}
-Rearranging for the cross-terms:
-\begin{equation}
-\sum_{i < j} k_i k_j = \frac{1}{2} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right]
-\end{equation}
-Substituting this into the expression for $\lambda_{in}$:
-\begin{equation}
-\lambda_{in} \approx \frac{1}{2M} \cdot \frac{1}{2} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right] = \frac{1}{4M} \left[ \left( \sum_{i \in S} k_i \right)^2 - \sum_{i \in S} k_i^2 \right]
-\end{equation}
-\textbf{Complexity:} We now only need to compute $\sum k_i$ and $\sum k_i^2$. This requires iterating through $S$ once, reducing the complexity to $O(n)$. This optimization is implemented in the package function \texttt{calculate\_in\_stats\_fast\_vectorized}.
-
-\subsection{Between-Set Connectedness}
-
-Consider two disjoint sets of vertices $S_1$ and $S_2$. We wish to calculate the expected number of edges $\lambda_{bt}$ bridging these two sets.
-\begin{equation}
-\lambda_{bt} = \sum_{i \in S_1} \sum_{j \in S_2} p_{ij} \approx \sum_{i \in S_1} \sum_{j \in S_2} \frac{k_i k_j}{2M}
-\end{equation}
-A naive summation requires $O(|S_1| \cdot |S_2|)$ operations. Because the terms $k_i$ and $k_j$ are independent in the product, we can factor the sum:
-\begin{equation}
-\lambda_{bt} \approx \frac{1}{2M} \left( \sum_{i \in S_1} k_i \right) \left( \sum_{j \in S_2} k_j \right)
-\end{equation}
-\textbf{Complexity:} We sum the degrees in $S_1$ ($O(|S_1|)$) and $S_2$ ($O(|S_2|)$) separately and multiply the results. The total complexity is $O(|S_1| + |S_2|)$, which is linear relative to the input size. This optimization is implemented in \texttt{calculate\_between\_stats\_fast\_vectorized}.
-
-\section{Effect Size: The Anscombe Ratio}
-
-While the p-value indicates significance, it is dependent on sample size. To measure the magnitude of connectedness, \texttt{EdgeCount} employs the log Anscombe Ratio ($lAr$), which stabilizes the variance of Poisson-distributed variables.
-
-\begin{equation}
-lAr = \frac{1}{2} \log_2 \left( \frac{x + 3/8}{\lambda + 3/8} \right)
-\end{equation}
-where $x$ is the observed edge count and $\lambda$ is the expected edge count.
-\begin{itemize}
-    \item $lAr > 0$: The set is more connected than expected (enrichment).
-    \item $lAr < 0$: The set is less connected than expected (depletion).
-\end{itemize}
-The addition of $3/8$ is an optimal correction for bias in the log transformation of Poisson variables \cite{WAP}.
-
-\section{Vertex Set Enrichment Analysis (VSEA)}
-
-The VSEA method implemented in \texttt{run\_vsea} adapts the principles of Gene Set Enrichment Analysis \cite{subramanian2005} to graph topology.
-
-Standard GSEA uses a Kolmogorov-Smirnov-like running sum statistic. In VSEA, the "local" correlation at rank $i$ is replaced by the edge-count probability framework derived by \cite{JCB}. As we traverse the ranked list of elements, at step $i$ (considering the top $i$ elements as set $S_i$), we calculate:
-\begin{enumerate}
-    \item The observed edges $x_i$ between $S_i$ and a target Term $T$.
-    \item The expected edges $\lambda_i$ using the RGGED model.
-    \item The running score based on the Log Anscombe Ratio.
-\end{enumerate}
-
-Crucially, because $\lambda_i$ accounts for the degrees of the elements in $S_i$, \textbf{VSEA inherently penalizes hubs}. If the top-ranked elements are merely "sticky" (high degree) but not specifically connected to Term $T$, $\lambda_i$ will be very high, reducing the $lAr$ score. This distinguishes VSEA from standard hypergeometric enrichment which only counts overlaps, ignoring the varying likelihood of connections for high-degree elements.
-
-

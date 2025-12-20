@@ -766,7 +766,7 @@ p4 <- ggplot(annotated_results, aes(x = log2_Anscombe_ratio)) +
 (p1 + p2) / (p3 + p4)
 ```
 
-#### Validation with Random Sets
+#### Validation with random sets
 
 To validate the statistical approach based on the RGGED null model, the vectorized method is applied to a collection of random sets. Because they are drawn uniformly from the graph vertex universe, their connectedness should match the RGGED expectations (i.e., low effect sizes and non-significant p-values).
 
@@ -1043,7 +1043,7 @@ p4 <- ggplot(results, aes(x = log2_Anscombe_ratio)) +
 Remember that the above plots are restricted to pairs having at least one connection. Over all possible pairs defined by the sets/terms of `sample_ects`, the proportion of p-values equal to 1 is actually 99.25%.
 
 
-#### Validation with Random Sets
+#### Validation with random sets
 
 Similar to the within-set analysis, the between-set statistical approach based on the RGGED is validated by using pairs of random sets. Connectedness of these random sets should be consistent with p-values and effect sizes in the RGGED null model.
 
@@ -1376,13 +1376,13 @@ The concept of "chance" here corresponds to a null model where the element ranks
 The full process and its associated random experiment are described below:
 
 - **Conditioning**: A list of element ranks is provided as input. The universe of the analysis (terms and elements) is reduced to the intersection of the graph universe and the input elements to ensure valid statistical conditioning.
-- **Enrichment Profile** (Running Score): A running enrichment score is calculated by traversing the ranked list from top to bottom. For every rank $i$ (from 1 to $N_{elements}$):
+- **Enrichment profile** (Running Score): A running enrichment score is calculated by traversing the ranked list from top to bottom. For every rank $i$ (from 1 to $N_{elements}$):
   - Take the set of the top $i$ elements.
   - Calculate the expected ($\lambda_i$) and observed ($x_i$) edge counts  between this top set and the each term. 
   - Compute the log Anscombe ratio at this rank:
     - $$lAR_i = \frac{1}{2}\log_2 \frac{x_i+3/8}{\lambda_i+3/8}$$
-- **Degree Penalization**: A unique property of this profile—unlike standard GSEA—is that it accounts for element degrees. If the top ranks contain "hubs" (elements with high degrees), the expected count $\lambda_i$ increases significantly. This acts as a penalty on the effect size ($lAR$), preventing the identification of enrichment driven solely by promiscuous elements.
-- **Null Model**: A control distribution of scores is built by repeating the above process for $N_{perms}$ permutations, where the element ranks, in the reduced universe of elements, are shuffled uniformly at random.
+- **Degree penalization**: A unique property of this profile—unlike standard GSEA—is that it accounts for element degrees. If the top ranks contain "hubs" (elements with high degrees), the expected count $\lambda_i$ increases significantly. This acts as a penalty on the effect size ($lAR$), preventing the identification of enrichment driven solely by promiscuous elements.
+- **Null model**: A control distribution of scores is built by repeating the above process for $N_{perms}$ permutations, where the element ranks, in the reduced universe of elements, are shuffled uniformly at random.
 - **Significance**: For each term, estimates of the max (positive enrichment) are computed. FDR q-values are then estimated by comparing the observed NES against the simulated control distribution.
 
 Sorting the results by ascending FDR q-values enables the user to detect terms significantly connected to top ranks (without defining a rank threshold) and below a desired false discovery rate.

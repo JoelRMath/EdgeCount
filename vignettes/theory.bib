@@ -194,12 +194,14 @@
 @misc{sample_ecg_data,
   title = {Dataset: sample\_ecg},
   year = {2025},
+  key = {STRING},
   howpublished = {\texttt{sample\_ecg} is a subset of the human STRING network (version 12.0) with interaction scores of 900 or higher. Vertex IDs are Entrez Gene IDs (see Carlson, 2019). The network has been trimmed to create a smaller, more manageable example for the package's vignettes and tests. Source: string-db.org. Data from STRING is licensed under CC BY 4.0.}
 }
 
 @misc{sample_ects_data,
   title = {Dataset: sample\_ects},
   year = {2025},
+  key = {GO},
   howpublished = {\texttt{sample\_ects} is derived from Gene Ontology (GO) term-to-gene mappings (see Ashburner et al., 2000; GO Consortium, 2023). Element IDs are Entrez Gene IDs (see Carlson, 2019). Source: geneontology.org. GO data is licensed under CC BY 4.0.}
 }
 
@@ -244,4 +246,43 @@
   note={R package version 3.8.2},
   url={https://bioconductor.org/packages/org.Hs.eg.db/}
 }
+
+@article{benjamini1995,
+  title={Controlling the false discovery rate: a practical and powerful approach to multiple testing},
+  author={Benjamini, Y and Hochberg, Y},
+  journal={Journal of the Royal Statistical Society: Series B (Methodological)},
+  volume={57},
+  number={1},
+  pages={289--300},
+  year={1995},
+  publisher={Wiley},
+  url={https://www.jstor.org/stable/2346101}
+}
+
+@Manual{dqrng,
+  title = {dqrng: Fast Pseudo Random Number Generators},
+  author = {Ralf Stubner},
+  year = {2023},
+  note = {R package version 0.3.2},
+  url = {https://CRAN.R-project.org/package=dqrng},
+}
+
+@Manual{matrixStats,
+  title = {matrixStats: Functions that Apply to Rows and Columns of Matrices (and to Vector)},
+  author = {Henrik Bengtsson},
+  year = {2023},
+  note = {R package version 1.0.0},
+  url = {https://CRAN.R-project.org/package=matrixStats},
+}
+
+@Manual{parallel,
+  title = {R: A Language and Environment for Statistical Computing},
+  author = {{R Core Team}},
+  organization = {R Foundation for Statistical Computing},
+  address = {Vienna, Austria},
+  year = {2024},
+  url = {https://www.R-project.org/},
+  note = {The 'parallel' package is now part of base R},
+}
+
 

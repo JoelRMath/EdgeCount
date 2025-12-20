@@ -18,3 +18,5 @@ data-raw/raw_network.txt
 data-raw/raw_bipartite.txt
 data-raw/*
 !data-raw/*.R
+/doc/
+/Meta/
