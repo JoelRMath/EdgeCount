@@ -4,78 +4,65 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>EdgeCount Package Tutorial • EdgeCount</title>
-<!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha256-bZLfwXAP04zRMK2BjiO8iu9pf4FbLqX6zitd+tIvLhE=" crossorigin="anonymous">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha256-nuL8/2cJ5NDSSwnKD8VqreErSWHtnEP9E7AySL+1ev4=" crossorigin="anonymous"></script><!-- bootstrap-toc --><link rel="stylesheet" href="../bootstrap-toc.css">
-<script src="../bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
-<!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- pkgdown --><link href="../pkgdown.css" rel="stylesheet">
-<script src="../pkgdown.js"></script><meta property="og:title" content="EdgeCount Package Tutorial">
-<!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
-<script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
-<script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
-<![endif]-->
+<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="EdgeCount Package Tutorial">
 </head>
-<body data-spy="scroll" data-target="#toc">
+<body>
+    <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
-    <div class="container template-article">
-      <header><div class="navbar navbar-default navbar-fixed-top" role="navigation">
-  <div class="container">
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-      <span class="navbar-brand">
-        <a class="navbar-link" href="../index.html">EdgeCount</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.0</span>
-      </span>
-    </div>
+    <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
 
-    <div id="navbar" class="navbar-collapse collapse">
-      <ul class="nav navbar-nav">
-<li>
-  <a href="../reference/index.html">Reference</a>
-</li>
-<li class="dropdown">
-  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-    Articles
+    <a class="navbar-brand me-2" href="../index.html">EdgeCount</a>
 
-    <span class="caret"></span>
-  </a>
-  <ul class="dropdown-menu" role="menu">
-<li>
-      <a href="../articles/EdgeCount-Tutorial.html">EdgeCount Package Tutorial</a>
-    </li>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div id="navbar" class="collapse navbar-collapse ms-3">
+      <ul class="navbar-nav me-auto">
+<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="active nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="../articles/EdgeCount-Tutorial.html">EdgeCount Tutorial</a></li>
+    <li><a class="dropdown-item" href="../articles/ECTheory.pdf">Statistical Theory (PDF)</a></li>
   </ul>
 </li>
       </ul>
-<ul class="nav navbar-nav navbar-right"></ul>
+<ul class="navbar-nav">
+<li class="nav-item"><form class="form-inline" role="search">
+ <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
+</form></li>
+      </ul>
 </div>
-<!--/.nav-collapse -->
+
+
   </div>
-<!--/.container -->
-</div>
-<!--/.navbar -->
+</nav><div class="container template-article">
 
 
 
-      </header><div class="row">
-  <div class="col-md-9 contents">
-    <div class="page-header toc-ignore">
-      <h1 data-toc-skip>EdgeCount Package Tutorial</h1>
+
+<div class="row">
+  <main id="main" class="col-md-9"><div class="page-header">
+
+      <h1>EdgeCount Package Tutorial</h1>
                         <h4 data-toc-skip class="author">Joel R
 Pradines</h4>
             
-            <h4 data-toc-skip class="date">2025-12-01</h4>
+            <h4 data-toc-skip class="date">2025-12-20</h4>
       
 
-      <div class="hidden name"><code>EdgeCount-Tutorial.Rmd</code></div>
-
+      <div class="d-none name"><code>EdgeCount-Tutorial.Rmd</code></div>
     </div>
 
     
@@ -279,7 +266,7 @@ previous example of <code>ECProb</code> object meets the criteria for
 fast approximations.</p>
 <p><img src="EdgeCount-Tutorial_files/figure-html/plot_good_graph-1.png" width="20%" style="display: block; margin: auto;"></p>
 <p>This is verified by using method
-<code>summarize_suitability_fast</code> of <code>ECProb</code>.</p>
+<code><a href="../reference/summarize_suitability_fast.html">summarize_suitability_fast()</a></code> of <code>ECProb</code>.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">suitability_stats</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/summarize_suitability_fast.html">summarize_suitability_fast</a></span><span class="op">(</span><span class="va">ecp</span><span class="op">)</span></span>
 <span><span class="va">suitability_stats</span></span>
@@ -417,7 +404,7 @@ Proteins IDs have been replaced with their mapped Gene Entrez IDs.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">suitability</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/summarize_suitability_fast.html">summarize_suitability_fast</a></span><span class="op">(</span><span class="va">sample_ecp</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   0.712   0.066   0.779</span></span>
+<span><span class="co">#&gt;   0.669   0.057   0.727</span></span>
 <span><span class="va">suitability</span></span>
 <span><span class="co">#&gt; $pij_over_1</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
@@ -457,17 +444,24 @@ of <code>ECProb</code> uses.</p>
 <p>Example of connectedness analyses within an undirected, unipartite
 graph are now presented.</p>
 <div class="section level4">
-<h4 id="tests-for-within-set-connectedness">Tests for <em>within-set</em> connectedness<a class="anchor" aria-label="anchor" href="#tests-for-within-set-connectedness"></a>
+<h4 id="tests-for-within-set-connectedness">Tests for ‘within-set’ connectedness<a class="anchor" aria-label="anchor" href="#tests-for-within-set-connectedness"></a>
 </h4>
-<p>This test answers the question: “Are the vertices of a given set
+<p>These tests address the question: “Are the vertices of a given set
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
-more connected to each other than expected by <em>chance</em>?” The
-concept of <em>chance</em> is here based on the RGGED: the distribution
-of the number of edges within set
+more connected to each other than expected by chance?”</p>
+<p>To answer this, the concept of “chance” is defined by the Random
+Graph with Given Expected Degrees (RGGED). In this null model:</p>
+<ul>
+<li>The set of vertices
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
-over all possible realizations of the RGGED, which in average preserve
-degrees of all vertices. Using such a null model that accounts for
-individual vertex degrees is statistically important.</p>
+and their individual degrees are specified (given).</li>
+<li>The edges are treated as independent random variables.</li>
+</ul>
+<p>By comparing the observed edge count within
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
+to the distribution of edge counts generated by the RGGED, the
+statistical significance of the connectedness is determined while
+accounting for “hub effects” (vertex degrees).</p>
 <div class="section level5">
 <h5 id="basic-method">Basic method<a class="anchor" aria-label="anchor" href="#basic-method"></a>
 </h5>
@@ -524,7 +518,7 @@ tested for its connectedness in interaction network
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $size2</span></span>
 <span><span class="co">#&gt; [1] 0</span></span></code></pre></div>
-<p>Method <code>edge_count_statistics</code> returns a list:</p>
+<p>Method <code><a href="../reference/edge_count_statistics.html">edge_count_statistics()</a></code> returns a list:</p>
 <ul>
 <li>
 <code>$observed_edge_count</code>
@@ -536,7 +530,7 @@ is the observed number of edges, here the edge count within
 <code>max_possible_edges</code>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
 is the maximum number of edges one could observe in the RGGED, here the
-number of pairs withing <code>setA</code>,
+number of pairs within<code>setA</code>,
 i.e. <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>7</mn><mo>×</mo><mn>6</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>2</mn><mo>=</mo><mn>21</mn></mrow><annotation encoding="application/x-tex">(7\times6)/2 = 21</annotation></semantics></math>
 </li>
 <li>
@@ -673,8 +667,9 @@ network)</li>
 <li>
 <code>sets_dt</code>: a data table with a single column (“set_id”)
 containing IDs of sets to test</li>
-<li>`set_membership_dt’: a data table with “set_id” and “element”
-columns (bipartite network)</li>
+<li>
+<code>set_membership_dt</code>’: a data table with “set_id” and
+“element” columns (bipartite network)</li>
 </ul>
 <p>Below is the application of this method to the entire collection of
 sets contained in <code>sample_ects</code> (GO categories <span class="citation">(<a href="#ref-orgHsEg">Carlson 2019</a>)</span>,<span class="citation">(<a href="#ref-goconsortium2023">The Gene Ontology
@@ -695,10 +690,10 @@ Sample_ecg”</span> 2025</a>)</span>).</p>
 <span><span class="co">#&gt; [1] 9789</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">set_membership_dt</span><span class="op">$</span><span class="va">element</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 33347</span></span>
-<span><span class="co"># within conncectedness statistics for all sets</span></span>
+<span><span class="co"># within connectedness statistics for all sets</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/calculate_in_stats_fast_vectorized.html">calculate_in_stats_fast_vectorized</a></span><span class="op">(</span><span class="va">ecprob</span>, <span class="va">sets_to_test</span>, <span class="va">set_membership_dt</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   0.340   0.004   0.320</span></span>
+<span><span class="co">#&gt;   0.333   0.003   0.316</span></span>
 <span><span class="co"># adding annotation (term names, not just ids)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_term_lookup"</span><span class="op">)</span></span>
 <span><span class="va">lookup_dt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
@@ -758,42 +753,99 @@ Distributions of some of the statistics in the above returned data table
 are shown below.</p>
 <p><img src="EdgeCount-Tutorial_files/figure-html/plot_distributions_in-1.png" width="90%" style="display: block; margin: auto;"></p>
 </div>
+<div class="section level5">
+<h5 id="validation-with-random-sets">Validation with random sets<a class="anchor" aria-label="anchor" href="#validation-with-random-sets"></a>
+</h5>
+<p>To validate the statistical approach based on the RGGED null model,
+the vectorized method is applied to a collection of random sets. Because
+they are drawn uniformly from the graph vertex universe, their
+connectedness should match the RGGED expectations (i.e., low effect
+sizes and non-significant p-values).</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
+<span><span class="co"># random sets</span></span>
+<span><span class="va">n_random_sets</span> <span class="op">&lt;-</span> <span class="fl">2000</span></span>
+<span><span class="va">set_size</span> <span class="op">&lt;-</span> <span class="fl">20</span></span>
+<span><span class="va">random_elements</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">replicate</a></span><span class="op">(</span><span class="va">n_random_sets</span>, </span>
+<span>                                    <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="va">ecprob</span><span class="op">@</span><span class="va">names</span>, <span class="va">set_size</span><span class="op">)</span>, </span>
+<span>                                    simplify <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">random_sets_membership</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
+<span>  set_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Rand_"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">n_random_sets</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">set_size</span><span class="op">)</span>,</span>
+<span>  element <span class="op">=</span> <span class="va">random_elements</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">random_sets_ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/data.table.html" class="external-link">data.table</a></span><span class="op">(</span>set_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">random_sets_membership</span><span class="op">$</span><span class="va">set_id</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># statistics</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/capture.output.html" class="external-link">capture.output</a></span><span class="op">(</span></span>
+<span>  <span class="va">random_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/calculate_in_stats_fast_vectorized.html">calculate_in_stats_fast_vectorized</a></span><span class="op">(</span><span class="va">ecprob</span>, </span>
+<span>                                                       <span class="va">random_sets_ids</span>, </span>
+<span>                                                       <span class="va">random_sets_membership</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; character(0)</span></span>
+<span><span class="co"># plots</span></span>
+<span><span class="fu">ggplot</span><span class="op">(</span><span class="va">random_results</span>, <span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">log2_Anscombe_ratio</span>, y <span class="op">=</span> <span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="va">p_value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">geom_point</span><span class="op">(</span>alpha <span class="op">=</span> <span class="fl">0.5</span>, color <span class="op">=</span> <span class="st">"#0c4a6e"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">geom_hline</span><span class="op">(</span>yintercept <span class="op">=</span> <span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="fl">0.05</span><span class="op">)</span>, linetype <span class="op">=</span> <span class="st">"dashed"</span>, color <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">annotate</span><span class="op">(</span><span class="st">"text"</span>, x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">random_results</span><span class="op">$</span><span class="va">log2_Anscombe_ratio</span><span class="op">)</span>, </span>
+<span>           y <span class="op">=</span> <span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="fl">0.05</span><span class="op">)</span> <span class="op">+</span> <span class="fl">0.2</span>, label <span class="op">=</span> <span class="st">"p = 0.05"</span>, color <span class="op">=</span> <span class="st">"red"</span>, hjust <span class="op">=</span> <span class="fl">0</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">labs</span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Correlation of P-value and Effect Size"</span>,</span>
+<span>       subtitle <span class="op">=</span> <span class="st">"Statistics computed on 2,000 random sets (Size=20)"</span>,</span>
+<span>       x <span class="op">=</span> <span class="st">"Effect Size (log2 Anscombe Ratio)"</span>,</span>
+<span>       y <span class="op">=</span> <span class="st">"Significance (-log10 P-value)"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">theme_minimal</span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">14</span><span class="op">)</span></span></code></pre></div>
+<p><img src="EdgeCount-Tutorial_files/figure-html/random_set_validation_in-1.png" width="80%" style="display: block; margin: auto;"></p>
+<p>Note that “upward jumps” (smaller p-values for the same effect size)
+occur because statistical significance depends on sample size (or
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>),
+not just effect size.</p>
+</div>
 </div>
 <div class="section level4">
-<h4 id="test-for-between-sets-connectedness">Test for <em>between-sets</em> connectedness<a class="anchor" aria-label="anchor" href="#test-for-between-sets-connectedness"></a>
+<h4 id="tests-for-between-sets-connectedness">Tests for ‘between-sets’ connectedness<a class="anchor" aria-label="anchor" href="#tests-for-between-sets-connectedness"></a>
 </h4>
-<p>This test answers the question: “Are two given vertex sets
+<p>These tests address the question: “Are two given vertex sets
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mn>1</mn></msub><annotation encoding="application/x-tex">S_1</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mn>2</mn></msub><annotation encoding="application/x-tex">S_2</annotation></semantics></math>
-more connected to each other than expected by <em>chance</em>?” The
-concept of <em>chance</em> is again based on the RGGED: the distribution
-of the number of edges between
+more connected to each other than expected by chance?”</p>
+<p>To answer this, the concept of “chance” is again defined by the
+Random Graph with Given Expected Degrees (RGGED). In this null
+model:</p>
+<ul>
+<li>The two sets of vertices
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mn>1</mn></msub><annotation encoding="application/x-tex">S_1</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mn>2</mn></msub><annotation encoding="application/x-tex">S_2</annotation></semantics></math>,
+along with their individual degrees, are specified (given).</li>
+<li>The edges between them are treated as independent random
+variables.</li>
+</ul>
+<p>By comparing the observed edge count between the disjoint parts of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mn>1</mn></msub><annotation encoding="application/x-tex">S_1</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mn>2</mn></msub><annotation encoding="application/x-tex">S_2</annotation></semantics></math>
-over all possible realizations of the RGGED, a null model that accounts
-for individual vertex degrees.</p>
-<p>The ‘between-sets’ connectedness is a concept different from that of
-‘within-connectedness’ for individual sets. Do two sets ‘talk’ to each
-other, independently of their own internal connectedness? That is, pairs
-of sets are first reduced to their specific parts and then these two
-disjoint parts are tested for connectedness with each other.</p>
+to the distribution of edge counts generated by the RGGED, the
+statistical significance of the connectedness is determined while
+accounting for vertex degrees.</p>
+<p>Note that “between-sets” connectedness is distinct from the internal
+connectedness of the sets themselves. The analysis focuses on whether
+the two sets interact with each other, independently of their individual
+connectedness. Specifically, the sets are first reduced to their
+disjoint parts, and these parts are tested for connectedness.</p>
 <div class="section level5">
 <h5 id="basic-method-1">Basic method<a class="anchor" aria-label="anchor" href="#basic-method-1"></a>
 </h5>
-<p>The basic method is again <code>edge_count_statistics</code>. Two
+<p>The basic method is again <code><a href="../reference/edge_count_statistics.html">edge_count_statistics()</a></code>. Two
 sets
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mn>1</mn></msub><annotation encoding="application/x-tex">S_1</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mn>2</mn></msub><annotation encoding="application/x-tex">S_2</annotation></semantics></math>
 are passed as arguments, and argument <code>observed_edge_count</code>
-is now obtained with method <code>get_edge_count_between</code>.</p>
+is now obtained with method <code><a href="../reference/get_edge_count_between.html">get_edge_count_between()</a></code>.</p>
 <p>Below is an example with two vertex sets represented in bipartite
 network <code>sample_ects</code> and tested for their ‘between
 connectedness’ with interaction network <code>sample_ecg</code> and its
 <code>ECProb</code> instance <code>sample_ecp</code>.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># bipartite network (term-element relationships)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_ects"</span><span class="op">)</span></span>
 <span><span class="co"># selection of two terms and their descriptions</span></span>
@@ -842,7 +894,7 @@ connectedness’ with interaction network <code>sample_ecg</code> and its
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $size2</span></span>
 <span><span class="co">#&gt; [1] 6</span></span></code></pre></div>
-<p>Method <code>edge_count_statistics</code> returns a list:</p>
+<p>Method <code><a href="../reference/edge_count_statistics.html">edge_count_statistics()</a></code> returns a list:</p>
 <ul>
 <li>
 <code>$observed_edge_count</code>
@@ -926,6 +978,9 @@ observed number of edges (21). Because vertices of the two pairs have
 different degrees, the two pairs yield different estimations of
 connectedness:</p>
 <p><img src="EdgeCount-Tutorial_files/figure-html/plot_between_comparison-1.png" width="90%" style="display: block; margin: auto;"></p>
+<p>Note that “upward jumps” (smaller p-values for the same effect size)
+occur because statistical significance depends on sample size, not just
+effect size.</p>
 </div>
 <div class="section level5">
 <h5 id="vectorized-method-1">Vectorized method<a class="anchor" aria-label="anchor" href="#vectorized-method-1"></a>
@@ -935,7 +990,7 @@ between connectedness in an interaction network. When dealing with
 multiple pairs, it is better to utilize a vectorized method which has
 been optimized for speed and takes a data table of pairs as argument.
 Note that this method relies on a fast lambda approximation.</p>
-<p>Method <code>calculate_between_stats_fast_vectorized</code> has the
+<p>Method <code><a href="../reference/calculate_between_stats_fast_vectorized.html">calculate_between_stats_fast_vectorized()</a></code> has the
 following arguments</p>
 <ul>
 <li>
@@ -955,7 +1010,7 @@ Consortium 2023</a>)</span>, <span class="citation">(<a href="#ref-sample_ects_d
 (extracted from STRING <span class="citation">(<a href="#ref-szklarczyk2023">Szklarczyk et al. 2023</a>)</span>,<span class="citation">(<a href="#ref-sample_ecg_data"><span>“Dataset:
 Sample_ecg”</span> 2025</a>)</span>).</p>
 <p>Numbers of terms and possible pairs are quite large.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_ects"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_ecg"</span><span class="op">)</span></span>
 <span><span class="va">sample_ecp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ECProb.html">ECProb</a></span><span class="op">(</span><span class="va">sample_ecg</span><span class="op">)</span></span>
@@ -971,13 +1026,13 @@ interaction network. Indeed, if a pair of sets has no interaction, its
 p-value is 1 and we can ignore it:
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><msub><mi>S</mi><mn>1</mn></msub><mo>,</mo><msub><mi>S</mi><mn>2</mn></msub></mrow></msub><mo>=</mo><mn>1</mn><mspace width="1.0em"></mspace><mtext mathvariant="normal">and</mtext><mspace width="1.0em"></mspace><mrow><mtext mathvariant="normal">lAr </mtext><mspace width="0.333em"></mspace></mrow><mo>=</mo><msub><mo>log</mo><mn>2</mn></msub><mfrac><mrow><mn>3</mn><mi>/</mi><mn>8</mn></mrow><mrow><mi>λ</mi><mo>+</mo><mn>3</mn><mi>/</mi><mn>8</mn></mrow></mfrac><mo>&lt;</mo><mn>0</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">p_{S_1,S_2} = 1 \quad \text{and} \quad \text{lAr } = \log_2 \frac{3/8}{\lambda+3/8} &lt; 0.</annotation></semantics></math>
 The package contains <code>ECProb</code> method
-<code>get_disjoint_connected_pairs</code> that efficiently reduces a
+<code><a href="../reference/get_disjoint_connected_pairs.html">get_disjoint_connected_pairs()</a></code> that efficiently reduces a
 data table of set pairs to those pairs that are at least connected by
 one edge through their disjoint parts (the between connectedness is
 estimated on the disjoint parts).</p>
 <p>Below is the application to pairs of sets derived from
 <code>sample_ects</code>.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">set_membership</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/as.data.table.html" class="external-link">as.data.table</a></span><span class="op">(</span><span class="fu"><a href="../reference/to_dataframe.html">to_dataframe</a></span><span class="op">(</span><span class="va">sample_ects</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/setattr.html" class="external-link">setnames</a></span><span class="op">(</span><span class="va">set_membership</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"term"</span>, <span class="st">"element"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"set_id"</span>, <span class="st">"element"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span></span>
@@ -986,7 +1041,7 @@ estimated on the disjoint parts).</p>
 <span>                                                  sets <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   0.313   0.012   0.225</span></span>
+<span><span class="co">#&gt;   0.308   0.010   0.221</span></span>
 <span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/setorder.html" class="external-link">setorder</a></span><span class="op">(</span><span class="va">connected_pairs</span>, <span class="op">-</span><span class="va">observed_edges</span><span class="op">)</span></span>
 <span><span class="va">connected_pairs</span></span>
 <span><span class="co">#&gt;               set1       set2 observed_edges</span></span>
@@ -1006,17 +1061,17 @@ estimated on the disjoint parts).</p>
 <span><span class="co">#&gt; [1] 356964</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">signif</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">connected_pairs</span><span class="op">)</span><span class="op">/</span><span class="va">number_of_pairs</span>, <span class="fl">2</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 0.0075</span></span></code></pre></div>
-<p>Note that method <code>get_disjoint_connected_pairs</code> has a
+<p>Note that method <code><a href="../reference/get_disjoint_connected_pairs.html">get_disjoint_connected_pairs()</a></code> has a
 third optional argument <code>sets</code> that can be utilized to focus
 on some of the sets represented in the second argument
-<code>set_membership</code>. The method rapidly returms a much smaller
+<code>set_membership</code>. The method rapidly returns a much smaller
 number of pairs (0.75%) than the full Cartesian product.</p>
 <p>Next, <code>connected_pairs</code> are efficiently scored for their
 between connectedness with method
-<code>calculate_between_stats_fast_vectorized</code>. This method is
+<code><a href="../reference/calculate_between_stats_fast_vectorized.html">calculate_between_stats_fast_vectorized()</a></code>. This method is
 fully vectorized by using the <code>data.table</code> package <span class="citation">(<a href="#ref-datatable2025">Barrett et al.
 2025</a>)</span> and fast lambda approximations.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># fast calculation of between statistics for candidate pairs</span></span>
 <span><span class="va">set_membership_dt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/as.data.table.html" class="external-link">as.data.table</a></span><span class="op">(</span><span class="fu"><a href="../reference/to_dataframe.html">to_dataframe</a></span><span class="op">(</span><span class="va">sample_ects</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/setattr.html" class="external-link">setnames</a></span><span class="op">(</span><span class="va">set_membership_dt</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"term"</span>, <span class="st">"element"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"set_id"</span>, <span class="st">"element"</span><span class="op">)</span><span class="op">)</span></span>
@@ -1026,7 +1081,7 @@ fully vectorized by using the <code>data.table</code> package <span class="citat
 <span>                                                   <span class="va">set_membership_dt</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   5.359   0.242   4.610</span></span>
+<span><span class="co">#&gt;   5.309   0.218   4.534</span></span>
 <span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/setorder.html" class="external-link">setorder</a></span><span class="op">(</span><span class="va">results</span>, <span class="op">-</span><span class="va">log2_Anscombe_ratio</span><span class="op">)</span></span>
 <span><span class="va">num_cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">results</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">results</span>, <span class="va">is.numeric</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">results</span><span class="op">[</span>, <span class="op">(</span><span class="va">num_cols</span><span class="op">)</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">.SD</span>, <span class="va">signif</span>, digits <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>, .SDcols <span class="op">=</span> <span class="va">num_cols</span><span class="op">]</span></span>
@@ -1061,9 +1116,59 @@ fully vectorized by using the <code>data.table</code> package <span class="citat
 example are shown below.</p>
 <p><img src="EdgeCount-Tutorial_files/figure-html/plot_distributions_between-1.png" width="90%" style="display: block; margin: auto;"></p>
 <p>Remember that the above plots are restricted to pairs having at least
-one connection. Over all possible pairs in defined by the sets/terms of
+one connection. Over all possible pairs defined by the sets/terms of
 <code>sample_ects</code>, the proportion of p-values equal to 1 is
 actually 99.25%.</p>
+</div>
+<div class="section level5">
+<h5 id="validation-with-random-sets-1">Validation with random sets<a class="anchor" aria-label="anchor" href="#validation-with-random-sets-1"></a>
+</h5>
+<p>Similar to the within-set analysis, the between-set statistical
+approach based on the RGGED is validated by using pairs of random sets.
+Connectedness of these random sets should be consistent with p-values
+and effect sizes in the RGGED null model.</p>
+<p>This validation confirms that the close-to monotonic relationship
+between the RGGED p-value and the <code>log2_Anscombe_ratio</code> holds
+for between-set tests.</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># generation of random sets</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">n_pairs</span> <span class="op">&lt;-</span> <span class="fl">2000</span></span>
+<span><span class="va">set_size</span> <span class="op">&lt;-</span> <span class="fl">20</span></span>
+<span><span class="va">total_sets</span> <span class="op">&lt;-</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">n_pairs</span></span>
+<span><span class="va">random_elements</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">replicate</a></span><span class="op">(</span><span class="va">total_sets</span>, </span>
+<span>                                    <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="va">ecprob</span><span class="op">@</span><span class="va">names</span>, <span class="va">set_size</span><span class="op">)</span>, </span>
+<span>                                    simplify <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">random_membership_dt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
+<span>  set_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"S"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">total_sets</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">set_size</span><span class="op">)</span>,</span>
+<span>  element <span class="op">=</span> <span class="va">random_elements</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co"># pair table</span></span>
+<span><span class="va">random_pairs_dt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
+<span>  set1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"S"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">total_sets</span>, by <span class="op">=</span> <span class="fl">2</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  set2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"S"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">2</span>, <span class="va">total_sets</span>, by <span class="op">=</span> <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co"># stats</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/capture.output.html" class="external-link">capture.output</a></span><span class="op">(</span></span>
+<span>  <span class="va">random_between_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/calculate_between_stats_fast_vectorized.html">calculate_between_stats_fast_vectorized</a></span><span class="op">(</span></span>
+<span>    <span class="va">sample_ecp</span>, </span>
+<span>    <span class="va">random_pairs_dt</span>, </span>
+<span>    <span class="va">random_membership_dt</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; character(0)</span></span>
+<span><span class="co"># plots</span></span>
+<span><span class="fu">ggplot</span><span class="op">(</span><span class="va">random_between_results</span>, <span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">log2_Anscombe_ratio</span>, y <span class="op">=</span> <span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="va">p_value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">geom_point</span><span class="op">(</span>alpha <span class="op">=</span> <span class="fl">0.5</span>, color <span class="op">=</span> <span class="st">"#047857"</span><span class="op">)</span> <span class="op">+</span> <span class="co"># Green theme for between-sets</span></span>
+<span>  <span class="fu">geom_hline</span><span class="op">(</span>yintercept <span class="op">=</span> <span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="fl">0.05</span><span class="op">)</span>, linetype <span class="op">=</span> <span class="st">"dashed"</span>, color <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">annotate</span><span class="op">(</span><span class="st">"text"</span>, x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">random_between_results</span><span class="op">$</span><span class="va">log2_Anscombe_ratio</span><span class="op">)</span>, </span>
+<span>           y <span class="op">=</span> <span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log10</a></span><span class="op">(</span><span class="fl">0.05</span><span class="op">)</span> <span class="op">+</span> <span class="fl">0.2</span>, label <span class="op">=</span> <span class="st">"p = 0.05"</span>, color <span class="op">=</span> <span class="st">"red"</span>, hjust <span class="op">=</span> <span class="fl">0</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">labs</span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Correlation of P-value and Effect Size (Between-Sets)"</span>,</span>
+<span>       subtitle <span class="op">=</span> <span class="st">"Statistics computed on 2,000 random pairs (Size=20 vs 20)"</span>,</span>
+<span>       x <span class="op">=</span> <span class="st">"Effect Size (log2 Anscombe Ratio)"</span>,</span>
+<span>       y <span class="op">=</span> <span class="st">"Significance (-log10 P-value)"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">theme_minimal</span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">14</span><span class="op">)</span></span></code></pre></div>
+<p><img src="EdgeCount-Tutorial_files/figure-html/random_pairs_validation-1.png" width="80%" style="display: block; margin: auto;"></p>
 </div>
 </div>
 </div>
@@ -1096,7 +1201,7 @@ and its associated statistical methods</li>
 <code>ECProb</code>, disjoint from <code>@elements</code>
 </li>
 </ul>
-<p>Undirected edges run only bewteen a <code>term</code> and an
+<p>Undirected edges run only between a <code>term</code> and an
 <code>element</code>. That is, an <code>ECTermScoring</code> instance is
 a collection of terms, each having its own set of elements, though these
 sets can overlap between terms. The degree
@@ -1107,7 +1212,7 @@ of an element is the number of terms it is described by.</p>
 <p>The argument of the <code>ECTermScoring</code> constructor can be
 either a data frame of bipartite edges or a file path.</p>
 <p><img src="EdgeCount-Tutorial_files/figure-html/bipartite_plot-1.png" width="30%" style="display: block; margin: auto;"></p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span>  <span class="va">term_element_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>    Term <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"T1"</span>, <span class="st">"T1"</span>, <span class="st">"T2"</span>, <span class="st">"T2"</span>, <span class="st">"T3"</span><span class="op">)</span>,</span>
 <span>    Element <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E1"</span>, <span class="st">"E2"</span>, <span class="st">"E2"</span>, <span class="st">"E3"</span>, <span class="st">"E4"</span><span class="op">)</span>,</span>
@@ -1144,16 +1249,16 @@ allows for calculation of edge-count statistics on the underlying
 bipartite graph, including some based on fast lambda approximations.
 Because this graph is bipartite, any edge counting and associated
 statistics is done on edges between terms and elements. In particular,
-the method <code>summarize_suitability_fast</code>, used to check a
+the method <code><a href="../reference/summarize_suitability_fast.html">summarize_suitability_fast()</a></code>, used to check a
 graph for suitability to fast lambda approximations, is not optimal in
 the context of an <code>ECTermScoring</code> object. Instead,
-<code>ECTermScoring</code> contains method
-<code>summarize_suitability_bipartite</code> which is specifically
+<code>ECTermScoring</code> contains its own method
+<code><a href="../reference/summarize_suitability_bipartite.html">summarize_suitability_bipartite()</a></code> which is specifically
 designed for bipartite graphs.</p>
 <p>Here is an example of small bipartite graph that is not optimal for
 fast lambda approximation.</p>
 <p><img src="EdgeCount-Tutorial_files/figure-html/plot_inap_bip-1.png" width="35%" style="display: block; margin: auto;"></p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">term_element_df_p</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  Term <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"T1"</span>, <span class="st">"T1"</span>,<span class="st">"T2"</span>, <span class="st">"T2"</span>, <span class="st">"T3"</span>, <span class="st">"T3"</span>, <span class="st">"T4"</span>,<span class="st">"T4"</span>, <span class="st">"T4"</span>, <span class="st">"T4"</span>, <span class="st">"T4"</span>, <span class="st">"T4"</span>,<span class="st">"T5"</span>, <span class="st">"T5"</span>, <span class="st">"T6"</span>, <span class="st">"T6"</span><span class="op">)</span>,</span>
 <span>  Element <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E1"</span>,<span class="st">"E3"</span>,<span class="st">"E2"</span>, <span class="st">"E3"</span>, <span class="st">"E2"</span>, <span class="st">"E3"</span>, <span class="st">"E1"</span>,<span class="st">"E4"</span>, <span class="st">"E2"</span>, <span class="st">"E3"</span>, <span class="st">"E5"</span>, <span class="st">"E6"</span>, <span class="st">"E3"</span>, <span class="st">"E5"</span>, <span class="st">"E3"</span>, <span class="st">"E6"</span><span class="op">)</span>,</span>
@@ -1246,7 +1351,7 @@ bipartite graph <code>sample_ects</code>, a trimmed version of GO
 categories to their human gene elements <span class="citation">(<a href="#ref-orgHsEg">Carlson 2019</a>)</span>, <span class="citation">(<a href="#ref-goconsortium2023">The Gene Ontology Consortium
 2023</a>)</span>, <span class="citation">(<a href="#ref-sample_ects_data"><span>“Dataset: Sample_ects”</span>
 2025</a>)</span>.</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_ects"</span><span class="op">)</span></span>
 <span><span class="va">sample_ects</span></span>
 <span><span class="co">#&gt; An object of class "ECTermScoring" (Bipartite)</span></span>
@@ -1264,10 +1369,10 @@ categories to their human gene elements <span class="citation">(<a href="#ref-or
 <span><span class="co">#&gt; ------------------------------------------------</span></span></code></pre></div>
 <p>Object <code>sample_ects</code> was trimmed to pass all the
 suitability tests.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">suitability</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/summarize_suitability_bipartite.html">summarize_suitability_bipartite</a></span><span class="op">(</span><span class="va">sample_ects</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   1.353   0.183   1.536</span></span>
+<span><span class="co">#&gt;   1.344   0.185   1.530</span></span>
 <span><span class="va">suitability</span></span>
 <span><span class="co">#&gt; $pij_over_1</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
@@ -1300,7 +1405,7 @@ suitability tests.</p>
 <code>sample_ecp</code>
 (<code>sample_ecp &lt;- ECProb(sample_ecg)</code>). Now,
 <code>sample_ecg</code> and <code>sample_ects</code> do not represent
-the same network: the first one represent interactions between
+the same network: the first one represents interactions between
 genes/elements and the second one membership of elements in terms.</p>
 <p>Methods of <code>ECTermScoring</code> are tailored to a bipartite
 network. This said, an <code>ECTermScoring</code> object has an
@@ -1321,7 +1426,7 @@ of elements?”. The task is ranking terms with respect to each other.</p>
 <code>terms_ecset_statistics (obj, set, lambda_method)</code></p>
 <ul>
 <li>
-<code>obj</code> is an ECTErmScoring object</li>
+<code>obj</code> is an ECTermScoring object</li>
 <li>
 <code>set</code> is a character vector that will be reduced to its
 intersection with <code>obj@elements</code>
@@ -1339,7 +1444,7 @@ complexity</li>
 </ul>
 <p>Here is a first example expected to yield strong connectedness, by
 using all elements of a term as argument <code>set</code>.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_ects"</span><span class="op">)</span></span>
 <span><span class="va">term</span> <span class="op">&lt;-</span> <span class="st">"GO:0005787"</span></span>
 <span><span class="va">set_1</span> <span class="op">&lt;-</span> <span class="va">sample_ects</span><span class="op">@</span><span class="va">ecprob</span><span class="op">@</span><span class="va">adj</span><span class="op">[[</span><span class="va">term</span><span class="op">]</span><span class="op">]</span></span>
@@ -1403,7 +1508,7 @@ edge-count approach uniquely takes into account the number of terms each
 element is connected to.</p>
 <p>Next are the results obtained with a random set of elements
 <code>set_2</code> having the same size as <code>set_1</code>.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span></span>
 <span><span class="va">set_2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="va">sample_ects</span><span class="op">@</span><span class="va">elements</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">set_1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">dt_2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/as.data.table.html" class="external-link">as.data.table</a></span><span class="op">(</span><span class="fu"><a href="../reference/terms_ecset_statistics.html">terms_ecset_statistics</a></span><span class="op">(</span><span class="va">sample_ects</span>, <span class="va">set_2</span><span class="op">)</span><span class="op">)</span></span>
@@ -1457,14 +1562,14 @@ at least one and a p-value less than 1. Namely, the distribution of
 p-values for random sets of elements drawn from <code>sample_ects</code>
 is not uniform.</p>
 <p>This distribution can be estimated with a vectorized version of
-<code>terms_ecset_statistics</code>.</p>
+<code><a href="../reference/terms_ecset_statistics.html">terms_ecset_statistics()</a></code>.</p>
 </div>
 <div class="section level5">
 <h5 id="vectorized-method-2">Vectorized method<a class="anchor" aria-label="anchor" href="#vectorized-method-2"></a>
 </h5>
-<p>Method <code>terms_ecset_statistics_vectorized</code> is similar to
-<code>terms_ecset_statistics</code> but it now accepts multiple sets as
-argument:</p>
+<p>Method <code><a href="../reference/terms_ecset_statistics_vectorized.html">terms_ecset_statistics_vectorized()</a></code> is similar to
+<code><a href="../reference/terms_ecset_statistics.html">terms_ecset_statistics()</a></code> but it now accepts multiple sets
+as argument:</p>
 <ul>
 <li>
 <code>input_sets</code>: a set-element data table with columns
@@ -1472,7 +1577,7 @@ argument:</p>
 </ul>
 <p>Below is the application to 10,000 random sets of the same size as
 <code>set_1</code>.</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_ects"</span><span class="op">)</span></span>
 <span><span class="va">n_sets</span> <span class="op">&lt;-</span> <span class="fl">10000</span></span>
 <span><span class="va">set_size</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">set_1</span><span class="op">)</span></span>
@@ -1487,13 +1592,13 @@ argument:</p>
 <span>  <span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/terms_ecset_statistics_vectorized.html">terms_ecset_statistics_vectorized</a></span><span class="op">(</span><span class="va">sample_ects</span>, <span class="va">input_sets</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   1.788   0.308   2.055</span></span></code></pre></div>
+<span><span class="co">#&gt;   1.798   0.317   2.038</span></span></code></pre></div>
 <p>The returned value <code>result</code> is a named list, where each
 name is a set_id and the value is the corresponding data table of
-statistics, such as in method <code>terms_ecset_statistics</code>, with
-columns <code>observed_edge_count</code>,
+statistics, such as in method <code><a href="../reference/terms_ecset_statistics.html">terms_ecset_statistics()</a></code>,
+with columns <code>observed_edge_count</code>,
 <code>log2_Anscombe_ratio</code> and <code>p_value</code>.</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">random_stats_dt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="va">result</span>, idcol <span class="op">=</span> <span class="st">"set_id"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">random_stats_dt</span><span class="op">$</span><span class="va">observed_edge_count</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. </span></span>
@@ -1508,7 +1613,7 @@ due to
 and asymmetry of the distribution. Likewise, the distribution of
 <code>p_value</code> (RGGED p-value) is definitely not symmetric and
 uniform:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">random_stats_dt</span><span class="op">$</span><span class="va">p_value</span><span class="op">)</span></span>
 <span><span class="co">#&gt;      Min.   1st Qu.    Median      Mean   3rd Qu.      Max. </span></span>
 <span><span class="co">#&gt; 2.175e-07 9.591e-04 1.678e-03 2.054e-03 2.695e-03 2.007e-02</span></span></code></pre></div>
@@ -1526,24 +1631,24 @@ simulations is required.</p>
 </h5>
 <p>The distribution of RGGED p-values for connectedness of random sets
 to terms is not uniform. This implies that standard False Discovery Rate
-(FDR) corrections (like Benjamini-Hochberg) are not applicable.To
+(FDR) corrections (like Benjamini-Hochberg) are not applicable. To
 provide a rigorous measure of significance, an Empirical FDR approach is
 used: compare the scores of the real set against a null distribution
 generated by drawing random element sets of the same size.</p>
-<p>Function <code>terms_ecset_statistics_fdr</code> of
+<p>Method <code><a href="../reference/terms_ecset_statistics_fdr.html">terms_ecset_statistics_fdr()</a></code> of
 <code>ECTermScoring</code> is a wrapper performing the entire
 analysis:</p>
 <ul>
 <li>Calculates raw statistics for the input set, as in
-<code>terms_ecset_statistics</code>
+<code><a href="../reference/terms_ecset_statistics.html">terms_ecset_statistics()</a></code>
 </li>
 <li>Generates <code>n_permutations</code> random sets of the same size,
 calculates Normalized Enrichment Score (NES), and estimates FDR q-values
-(function <code>calculate_empirical_fdr</code>).</li>
+(function <code>calculate_empirical_fdr()</code>).</li>
 </ul>
 <p>Below is the application to <code>set_1</code> (elements of term
 GO:0005787).</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1000 permutations</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span></span>
 <span>  <span class="va">fdr_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/terms_ecset_statistics_fdr.html">terms_ecset_statistics_fdr</a></span><span class="op">(</span></span>
@@ -1554,7 +1659,7 @@ GO:0005787).</p>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   0.241   0.021   0.236</span></span>
+<span><span class="co">#&gt;   0.265   0.022   0.249</span></span>
 <span><span class="co"># Add term names</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_term_lookup"</span><span class="op">)</span></span>
 <span><span class="va">fdr_results</span><span class="op">$</span><span class="va">term_name</span> <span class="op">&lt;-</span> <span class="va">sample_term_lookup</span><span class="op">[</span><span class="va">fdr_results</span><span class="op">$</span><span class="va">term_id</span><span class="op">]</span></span>
@@ -1581,9 +1686,9 @@ finding is a false discovery.</p>
 <ul>
 <li><p>GO:0005787 (Signal Peptidase Complex) is the term used to
 generate set_1. It has the strongest signal (lowest
-<code>p_value</code>, highest
-’log2_Anscombe_ratio<code>and smallest</code>fdr_q_value`), reflecting
-the perfect match.</p></li>
+<code>p_value</code>, highest <code>log2_Anscombe_ratio</code> and
+smallest <code>fdr_q_value</code>), reflecting the perfect
+match.</p></li>
 <li><p>GO:0006465 (Signal Peptide Processing) is also a top hit. Its
 higher <code>lambda</code> indicates it is a larger term containing all
 the elements of the first term. Note that its <code>nes</code> score is
@@ -1593,7 +1698,7 @@ creating a smaller denominator for the NES calculation.</p></li>
 </ul>
 <p>Unlike element sets representing actual terms, random element sets
 will not yield low fdr q-values.</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
 <span><span class="va">set_3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="va">sample_ects</span><span class="op">@</span><span class="va">elements</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">set_1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">fdr_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/terms_ecset_statistics_fdr.html">terms_ecset_statistics_fdr</a></span><span class="op">(</span></span>
@@ -1641,7 +1746,7 @@ as input. The universe of the analysis (terms and elements) is reduced
 to the intersection of the graph universe and the input elements to
 ensure valid statistical conditioning.</li>
 <li>
-<strong>Enrichment Profile</strong> (Running Score): A running
+<strong>Enrichment profile</strong> (Running Score): A running
 enrichment score is calculated by traversing the ranked list from top to
 bottom. For every rank
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
@@ -1664,7 +1769,7 @@ edge counts between this top set and the each term.</li>
 </ul>
 </li>
 <li>
-<strong>Degree Penalization</strong>: A unique property of this
+<strong>Degree penalization</strong>: A unique property of this
 profile—unlike standard GSEA—is that it accounts for element degrees. If
 the top ranks contain “hubs” (elements with high degrees), the expected
 count
@@ -1674,7 +1779,7 @@ increases significantly. This acts as a penalty on the effect size
 preventing the identification of enrichment driven solely by promiscuous
 elements.</li>
 <li>
-<strong>Null Model</strong>: A control distribution of scores is
+<strong>Null model</strong>: A control distribution of scores is
 built by repeating the above process for
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>N</mi><mrow><mi>p</mi><mi>e</mi><mi>r</mi><mi>m</mi><mi>s</mi></mrow></msub><annotation encoding="application/x-tex">N_{perms}</annotation></semantics></math>
 permutations, where the element ranks, in the reduced universe of
@@ -1689,9 +1794,9 @@ distribution.</li>
 detect terms significantly connected to top ranks (without defining a
 rank threshold) and below a desired false discovery rate.</p>
 <p>Here is a first trivial positive control for method
-<code>run_vsea</code>. Elements of a term of size 5 are given the top
+<code><a href="../reference/run_vsea.html">run_vsea()</a></code>. Elements of a term of size 5 are given the top
 ranks.</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">term_id</span> <span class="op">&lt;-</span> <span class="st">"GO:0000347"</span></span>
 <span><span class="va">term_elements</span> <span class="op">&lt;-</span> <span class="va">sample_ects</span><span class="op">@</span><span class="va">ecprob</span><span class="op">@</span><span class="va">adj</span><span class="op">[[</span><span class="va">term_id</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">element_ranks</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="va">term_elements</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">setdiff</a></span><span class="op">(</span><span class="va">sample_ects</span><span class="op">@</span><span class="va">elements</span>, <span class="va">term_elements</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -1699,7 +1804,7 @@ ranks.</p>
 <span>  <span class="va">vsea_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_vsea.html">run_vsea</a></span><span class="op">(</span><span class="va">sample_ects</span>, element_ranks <span class="op">=</span> <span class="va">element_ranks</span>, n_permutations <span class="op">=</span> <span class="fl">1000</span>, n_cores <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   4.002   0.687   2.996</span></span>
+<span><span class="co">#&gt;   4.266   0.979   3.251</span></span>
 <span><span class="va">max_summary</span> <span class="op">&lt;-</span> <span class="va">vsea_results</span><span class="op">$</span><span class="va">max_score_summary</span></span>
 <span><span class="va">max_summary</span><span class="op">$</span><span class="va">term_name</span> <span class="op">&lt;-</span> <span class="va">sample_term_lookup</span><span class="op">[</span><span class="va">max_summary</span><span class="op">$</span><span class="va">term_id</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/setorder.html" class="external-link">setorder</a></span><span class="op">(</span><span class="va">max_summary</span>, <span class="va">fdr_q_value</span><span class="op">)</span></span>
@@ -1720,12 +1825,12 @@ ranks.</p>
 <span><span class="co">#&gt; 3:                                  transcription export complex</span></span>
 <span><span class="co">#&gt; 4: regulatory ncRNA-mediated post-transcriptional gene silencing</span></span>
 <span><span class="co">#&gt; 5:                     positive regulation of protein processing</span></span></code></pre></div>
-<p>Using <code>run_vsea</code> correctly identifies the selected term
+<p>Using <code><a href="../reference/run_vsea.html">run_vsea()</a></code> correctly identifies the selected term
 <code>GO:0000347</code> based on its element ranks, as well as two
 related terms which have common elements.</p>
 <p>Next is the obvious negative control of using random element
 ranks.</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">element_ranks</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="va">sample_ects</span><span class="op">@</span><span class="va">elements</span><span class="op">)</span></span>
 <span><span class="va">vsea_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_vsea.html">run_vsea</a></span><span class="op">(</span><span class="va">sample_ects</span>, element_ranks <span class="op">=</span> <span class="va">element_ranks</span>, n_permutations <span class="op">=</span> <span class="fl">1000</span>, n_cores <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">max_summary</span> <span class="op">&lt;-</span> <span class="va">vsea_results</span><span class="op">$</span><span class="va">max_score_summary</span></span>
@@ -1755,7 +1860,7 @@ ranks.</p>
 highest degree in the interaction network is identified and its set of
 neighbors is retrieved. These neighbors, not containing the hub itself
 to avoid trivial enrichment, are then assigned the top ranks.</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># finds the sample_ecg hub </span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_ecg"</span><span class="op">)</span> </span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_gene_symbol_lookup"</span><span class="op">)</span></span>
@@ -1778,7 +1883,7 @@ to avoid trivial enrichment, are then assigned the top ranks.</p>
 <span>  <span class="va">vsea_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_vsea.html">run_vsea</a></span><span class="op">(</span><span class="va">sample_ects</span>, element_ranks <span class="op">=</span> <span class="va">element_ranks</span>, n_permutations <span class="op">=</span> <span class="fl">1000</span>, n_cores <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   3.996   0.649   2.948</span></span>
+<span><span class="co">#&gt;   4.132   0.595   3.092</span></span>
 <span><span class="co"># results</span></span>
 <span><span class="va">max_summary</span> <span class="op">&lt;-</span> <span class="va">vsea_results</span><span class="op">$</span><span class="va">max_score_summary</span></span>
 <span><span class="va">max_summary</span><span class="op">$</span><span class="va">term_name</span> <span class="op">&lt;-</span> <span class="va">sample_term_lookup</span><span class="op">[</span><span class="va">max_summary</span><span class="op">$</span><span class="va">term_id</span><span class="op">]</span></span>
@@ -1806,7 +1911,7 @@ to avoid trivial enrichment, are then assigned the top ranks.</p>
 <span><span class="co">#&gt; 6:                                           diet induced thermogenesis</span></span>
 <span><span class="co">#&gt; 7:                               platelet-derived growth factor binding</span></span>
 <span><span class="co">#&gt; 8:                                           gamma-tubulin ring complex</span></span></code></pre></div>
-<p>Using <code>run_vsea</code> yields significantly-scoring terms that
+<p>Using <code><a href="../reference/run_vsea.html">run_vsea()</a></code> yields significantly-scoring terms that
 are related to known functions of the hub ‘Vasoactive Intestinal
 Peptide’ (VIP).</p>
 </div>
@@ -1877,29 +1982,22 @@ Knowledgebase in 2023.”</span> <em>Genetics</em> 224 (1). <a href="https://doi
 </div>
 </div>
 </div>
-  </div>
-
-  <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
-
-      </div>
-
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside>
 </div>
 
 
 
-      <footer><div class="copyright">
-  <p></p>
-<p>Developed by J.R. Pradines.</p>
+    <footer><div class="pkgdown-footer-left">
+  <p>Developed by J.R. Pradines.</p>
 </div>
 
-<div class="pkgdown">
-  <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+<div class="pkgdown-footer-right">
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
 </div>
 
-      </footer>
+    </footer>
 </div>
-
 
 
 
