@@ -2,7 +2,9 @@ url: https://joelrmath.github.io/EdgeCount/
 
 template:
   bootstrap: 5
-  bootswatch: spacelab
+  bootswatch: cosmo
+  includes:
+    in_header: <link rel="stylesheet" href="extra.css">
 
 navbar:
   structure:
