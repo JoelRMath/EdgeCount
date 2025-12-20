@@ -11,7 +11,6 @@
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="EdgeCount Package Tutorial">
-<link rel="stylesheet" href="extra.css">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -405,7 +404,7 @@ Proteins IDs have been replaced with their mapped Gene Entrez IDs.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">suitability</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/summarize_suitability_fast.html">summarize_suitability_fast</a></span><span class="op">(</span><span class="va">sample_ecp</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   0.666   0.058   0.724</span></span>
+<span><span class="co">#&gt;   0.690   0.063   0.782</span></span>
 <span><span class="va">suitability</span></span>
 <span><span class="co">#&gt; $pij_over_1</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
@@ -694,7 +693,7 @@ Sample_ecg”</span> 2025</a>)</span>).</p>
 <span><span class="co"># within connectedness statistics for all sets</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/calculate_in_stats_fast_vectorized.html">calculate_in_stats_fast_vectorized</a></span><span class="op">(</span><span class="va">ecprob</span>, <span class="va">sets_to_test</span>, <span class="va">set_membership_dt</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   0.343   0.004   0.323</span></span>
+<span><span class="co">#&gt;   0.356   0.006   0.331</span></span>
 <span><span class="co"># adding annotation (term names, not just ids)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_term_lookup"</span><span class="op">)</span></span>
 <span><span class="va">lookup_dt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
@@ -1042,7 +1041,7 @@ estimated on the disjoint parts).</p>
 <span>                                                  sets <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   0.337   0.012   0.231</span></span>
+<span><span class="co">#&gt;   0.314   0.012   0.223</span></span>
 <span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/setorder.html" class="external-link">setorder</a></span><span class="op">(</span><span class="va">connected_pairs</span>, <span class="op">-</span><span class="va">observed_edges</span><span class="op">)</span></span>
 <span><span class="va">connected_pairs</span></span>
 <span><span class="co">#&gt;               set1       set2 observed_edges</span></span>
@@ -1082,7 +1081,7 @@ fully vectorized by using the <code>data.table</code> package <span class="citat
 <span>                                                   <span class="va">set_membership_dt</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   5.315   0.219   4.544</span></span>
+<span><span class="co">#&gt;   5.432   0.250   4.735</span></span>
 <span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/setorder.html" class="external-link">setorder</a></span><span class="op">(</span><span class="va">results</span>, <span class="op">-</span><span class="va">log2_Anscombe_ratio</span><span class="op">)</span></span>
 <span><span class="va">num_cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">results</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">results</span>, <span class="va">is.numeric</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">results</span><span class="op">[</span>, <span class="op">(</span><span class="va">num_cols</span><span class="op">)</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">.SD</span>, <span class="va">signif</span>, digits <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>, .SDcols <span class="op">=</span> <span class="va">num_cols</span><span class="op">]</span></span>
@@ -1373,7 +1372,7 @@ suitability tests.</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">suitability</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/summarize_suitability_bipartite.html">summarize_suitability_bipartite</a></span><span class="op">(</span><span class="va">sample_ects</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   1.357   0.192   1.550</span></span>
+<span><span class="co">#&gt;   1.373   0.191   1.613</span></span>
 <span><span class="va">suitability</span></span>
 <span><span class="co">#&gt; $pij_over_1</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
@@ -1593,7 +1592,7 @@ as argument:</p>
 <span>  <span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/terms_ecset_statistics_vectorized.html">terms_ecset_statistics_vectorized</a></span><span class="op">(</span><span class="va">sample_ects</span>, <span class="va">input_sets</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   1.865   0.340   2.128</span></span></code></pre></div>
+<span><span class="co">#&gt;   1.858   0.321   2.143</span></span></code></pre></div>
 <p>The returned value <code>result</code> is a named list, where each
 name is a set_id and the value is the corresponding data table of
 statistics, such as in method <code><a href="../reference/terms_ecset_statistics.html">terms_ecset_statistics()</a></code>,
@@ -1660,7 +1659,7 @@ GO:0005787).</p>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   0.248   0.024   0.241</span></span>
+<span><span class="co">#&gt;   0.252   0.022   0.247</span></span>
 <span><span class="co"># Add term names</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"sample_term_lookup"</span><span class="op">)</span></span>
 <span><span class="va">fdr_results</span><span class="op">$</span><span class="va">term_name</span> <span class="op">&lt;-</span> <span class="va">sample_term_lookup</span><span class="op">[</span><span class="va">fdr_results</span><span class="op">$</span><span class="va">term_id</span><span class="op">]</span></span>
@@ -1805,7 +1804,7 @@ ranks.</p>
 <span>  <span class="va">vsea_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_vsea.html">run_vsea</a></span><span class="op">(</span><span class="va">sample_ects</span>, element_ranks <span class="op">=</span> <span class="va">element_ranks</span>, n_permutations <span class="op">=</span> <span class="fl">1000</span>, n_cores <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   4.324   0.973   3.336</span></span>
+<span><span class="co">#&gt;   4.347   0.910   3.401</span></span>
 <span><span class="va">max_summary</span> <span class="op">&lt;-</span> <span class="va">vsea_results</span><span class="op">$</span><span class="va">max_score_summary</span></span>
 <span><span class="va">max_summary</span><span class="op">$</span><span class="va">term_name</span> <span class="op">&lt;-</span> <span class="va">sample_term_lookup</span><span class="op">[</span><span class="va">max_summary</span><span class="op">$</span><span class="va">term_id</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/setorder.html" class="external-link">setorder</a></span><span class="op">(</span><span class="va">max_summary</span>, <span class="va">fdr_q_value</span><span class="op">)</span></span>
@@ -1884,7 +1883,7 @@ to avoid trivial enrichment, are then assigned the top ranks.</p>
 <span>  <span class="va">vsea_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/run_vsea.html">run_vsea</a></span><span class="op">(</span><span class="va">sample_ects</span>, element_ranks <span class="op">=</span> <span class="va">element_ranks</span>, n_permutations <span class="op">=</span> <span class="fl">1000</span>, n_cores <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   4.147   0.564   3.103</span></span>
+<span><span class="co">#&gt;   4.221   0.620   3.231</span></span>
 <span><span class="co"># results</span></span>
 <span><span class="va">max_summary</span> <span class="op">&lt;-</span> <span class="va">vsea_results</span><span class="op">$</span><span class="va">max_score_summary</span></span>
 <span><span class="va">max_summary</span><span class="op">$</span><span class="va">term_name</span> <span class="op">&lt;-</span> <span class="va">sample_term_lookup</span><span class="op">[</span><span class="va">max_summary</span><span class="op">$</span><span class="va">term_id</span><span class="op">]</span></span>
