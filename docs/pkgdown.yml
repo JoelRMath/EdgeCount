@@ -3,7 +3,7 @@ pkgdown: 2.1.3
 pkgdown_sha: ~
 articles:
   EdgeCount-Tutorial: EdgeCount-Tutorial.html
-last_built: 2025-12-20T14:55Z
+last_built: 2025-12-20T15:09Z
 urls:
   reference: https://joelrmath.github.io/EdgeCount/reference
   article: https://joelrmath.github.io/EdgeCount/articles
