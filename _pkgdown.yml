@@ -2,7 +2,6 @@ url: https://joelrmath.github.io/EdgeCount/
 
 template:
   bootstrap: 5
-  bootswatch: cerulean
 
 navbar:
   structure:
