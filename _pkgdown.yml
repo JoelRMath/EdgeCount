@@ -2,16 +2,34 @@ url: https://joelrmath.github.io/EdgeCount/
 
 template:
   bootstrap: 5
+  bootswatch: cosmo
 
 navbar:
   structure:
     left:  [intro, reference, articles, news]
-    right: [search, github]
+    right: [search, main_site, github_account, email]
+
   components:
     articles:
       text: Articles
       menu:
-      - text: "EdgeCount Tutorial"
-        href: articles/EdgeCount-Tutorial.html
-      - text: "Statistical Theory (PDF)"
-        href: articles/ECTheory.pdf
+        - text: "EdgeCount Tutorial"
+          href: articles/EdgeCount-Tutorial.html
+        - text: "Statistical Theory (PDF)"
+          href: articles/ECTheory.pdf
+
+    # Custom components for harmonization
+    main_site:
+      icon: fa-user
+      href: https://joelrmath.github.io/
+      aria-label: Main Page
+
+    github_account:
+      icon: fa-github
+      href: https://github.com/joelRMath
+      aria-label: GitHub Profile
+
+    email:
+      icon: fa-envelope
+      href: mailto:joelRMath@gmail.com
+      aria-label: Email Joel
