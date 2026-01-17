@@ -1,7 +1,7 @@
 Package: EdgeCount
 Type: Package
 Title: Edge-Count Statistics
-Version: 0.1.1
+Version: 1.0.0
 Authors@R: 
   person(
       "J.R.", "Pradines",
