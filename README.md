@@ -6,6 +6,23 @@
 
 `EdgeCount` provides a statistical framework for enrichment analysis based on graph connectedness. It is specifically optimized for large, sparse graphs, such as protein interaction networks, social networks, or term-element membership graphs (bipartite graphs).
 
+## 📖 High-Level Overview
+
+**EdgeCount** is an R package designed to uncover statistically significant patterns within large, complex systems.
+
+While the mathematical framework was originally published to solve problems in Computational Biology (analyzing protein interaction networks), the logic is **domain-agnostic**. It solves a universal problem in data science: **distinguishing true signals from noise in highly interconnected data.**
+
+### The Problem: Popularity Bias
+In many large datasets—whether social networks, retail transactions, or biological systems—some elements are naturally "louder" than others simply because they are popular (they have a high "node degree").
+* In **Social Networks**, an influencer connects to everyone.
+* In **Retail Analytics**, common items (like water or batteries) appear in almost every basket.
+* In **Biology**, "promiscuous" proteins bind to many partners.
+
+Standard analysis often falsely flags these popular items as "significant" connections.
+
+### The Solution
+**EdgeCount** uses a **Random Graph with Given Expected Degrees (RGGED)** model to rigorously correct for this bias. It allows a Data Scientist to ask: *"Is the connection between Group A and Group B actually surprising, or is it just a result of the underlying popularity of the items involved?"*
+
 ## Methodology
 
 The package combines the **Random Graph with Given Expected Degrees (RGGED)** model with analytical expressions for connectedness effect size and p-values. 
